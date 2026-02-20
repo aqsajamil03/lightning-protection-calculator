@@ -1,10 +1,11 @@
 import streamlit as st
 import math
 import datetime
+import pandas as pd
 
 st.set_page_config(page_title="Advanced Lightning Protection", page_icon="⚡", layout="wide")
 st.title("⚡ Advanced Lightning Protection Calculator")
-st.markdown("**IEC 62305 Compliant**")
+st.markdown("**IEC 62305-2 Compliant**")
 st.markdown("---")
 
 # Sidebar
@@ -35,19 +36,39 @@ with st.sidebar:
     calculate = st.button("🔧 CALCULATE", type="primary", use_container_width=True)
 
 if calculate:
-    # ADVANCED CALCULATIONS
+    # ========== IEC 62305-2 CALCULATIONS ==========
     
-    # 1. Collection Area (IEC 62305-2)
-    Ae = length * width + 2*height*(length + width) + math.pi*height**2
+    # 1. COLLECTION AREA FOR DIRECT STRIKE (Ad)
+    # Ad = L*W + 2*L*H + 2*W*H + π*H²
+    Ad = length * width + 2*length*height + 2*width*height + math.pi * height**2
     
-    # 2. Environmental Factor
+    # 2. COLLECTION AREA FOR STRIKE NEAR STRUCTURE (Am)
+    # For a strike near the structure (affecting services)
+    # Simplified: Am = 1000 * L * W (for urban) or 2000 * L * W (for rural)
+    # Let's calculate based on environment
+    if environment == "Surrounded":
+        Am = 500 * length * width  # Dense urban
+    elif environment == "Similar height":
+        Am = 1000 * length * width  # Urban
+    elif environment == "Isolated":
+        Am = 2000 * length * width  # Rural
+    else:  # Hilltop
+        Am = 3000 * length * width  # Exposed
+    
+    # 3. ENVIRONMENTAL FACTOR (Cd)
     env_factors = {"Surrounded":0.25, "Similar height":0.5, "Isolated":1, "Hilltop":2}
     Cd = env_factors.get(environment, 1)
     
-    # 3. Annual Risk
-    Nd = Ae * lightning_density * 1e-6 * Cd
+    # 4. ANNUAL RISK FOR DIRECT STRIKE (Nd)
+    Nd = Ad * lightning_density * 1e-6 * Cd
     
-    # 4. Tolerable Risk based on contents
+    # 5. ANNUAL RISK FOR NEAR STRIKE (Nm)
+    Nm = Am * lightning_density * 1e-6
+    
+    # 6. TOTAL RISK
+    N_total = Nd + Nm
+    
+    # 7. TOLERABLE RISK BASED ON CONTENTS
     if "Explosive" in contents:
         Rt = 0.00001
         risk_type = "Very High (Explosive)"
@@ -61,10 +82,10 @@ if calculate:
         Rt = 0.01
         risk_type = "Low (Ordinary)"
     
-    # 5. Risk Ratio
-    risk_ratio = Nd / Rt
+    # 8. RISK RATIO
+    risk_ratio = N_total / Rt
     
-    # 6. Protection Level Determination
+    # 9. PROTECTION LEVEL DETERMINATION
     if risk_ratio < 0.001:
         lpl = "IV (Optional)"
         lpl_class = "IV"
@@ -94,7 +115,7 @@ if calculate:
         sphere = 20
         protection_angle = 25
     
-    # 7. Air Terminals Calculation
+    # 10. AIR TERMINALS CALCULATION
     perimeter = 2*(length + width)
     
     if height <= sphere:
@@ -105,10 +126,10 @@ if calculate:
     else:
         air_terminals = math.ceil(perimeter / 10) + math.ceil((length * width) / 100)
     
-    # 8. Down Conductors
+    # 11. DOWN CONDUCTORS
     down_conductors = max(2, math.ceil(perimeter / 20))
     
-    # 9. Earth Resistance
+    # 12. EARTH RESISTANCE
     soil_resistivity = 100  # Ω·m (typical value)
     
     if perimeter < 40:
@@ -119,22 +140,40 @@ if calculate:
         earth_resistance = soil_resistivity / (2 * math.pi * ring_radius)
         earthing_type = "Type B (Ring electrode)"
     
-    # 10. Separation Distance
+    # 13. SEPARATION DISTANCE
     ki = {"I": 0.1, "II": 0.075, "III": 0.05, "IV": 0.05}.get(lpl_class, 0.05)
     separation = ki * height
     
-    # Display Results in Columns
+    # ========== DISPLAY RESULTS ==========
+    
+    # Collection Areas Summary
+    st.subheader("📐 Collection Areas (IEC 62305-2)")
+    col_a1, col_a2, col_a3 = st.columns(3)
+    with col_a1:
+        st.metric("Direct Strike Area (Ad)", f"{Ad:.0f} m²")
+        st.caption("For direct strikes to structure")
+    with col_a2:
+        st.metric("Near Strike Area (Am)", f"{Am:.0f} m²")
+        st.caption("For strikes near structure")
+    with col_a3:
+        st.metric("Total Collection Area", f"{Ad + Am:.0f} m²")
+    
+    # Risk Assessment
+    st.subheader("📊 Risk Assessment")
+    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+    with col_r1:
+        st.metric("Direct Risk (Nd)", f"{Nd:.6f}")
+    with col_r2:
+        st.metric("Near Risk (Nm)", f"{Nm:.6f}")
+    with col_r3:
+        st.metric("Total Risk", f"{N_total:.6f}")
+    with col_r4:
+        st.metric("Tolerable Risk (Rt)", f"{Rt:.6f}")
+    
+    # Main Results in Columns
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.subheader("📊 Risk Assessment")
-        st.metric("Collection Area (Ae)", f"{Ae:.0f} m²")
-        st.metric("Annual Risk (Nd)", f"{Nd:.6f}")
-        st.metric("Tolerable Risk (Rt)", f"{Rt:.6f}")
-        st.metric("Risk Ratio", f"{risk_ratio:.3f}")
-        st.info(f"**Risk Type:** {risk_type}")
-    
-    with col2:
         st.subheader("⚡ Protection Level")
         if lpl_class == "I":
             st.error(f"**{lpl}**")
@@ -144,6 +183,11 @@ if calculate:
             st.success(f"**{lpl}**")
         st.caption(lpl_desc)
         
+        st.metric("Risk Ratio", f"{risk_ratio:.3f}")
+        st.metric("Risk Classification", risk_type)
+    
+    with col2:
+        st.subheader("🏗️ Air Termination")
         st.metric("Air Terminals Required", air_terminals)
         st.metric("Mesh Size", mesh)
         st.metric("Rolling Sphere", f"{sphere}m")
@@ -187,22 +231,9 @@ if calculate:
         ]
     }
     
-    import pandas as pd
     st.dataframe(pd.DataFrame(materials_data), use_container_width=True, hide_index=True)
     
-    # Recommendations
-    st.subheader("📌 Recommendations")
-    
-    if earth_resistance > 10:
-        st.warning("⚠️ Earth resistance is high. Consider:")
-        st.markdown("- Add more earth rods in parallel")
-        st.markdown("- Use chemical treatment")
-        st.markdown("- Increase rod length")
-    
-    if separation < 0.5:
-        st.warning("⚠️ Small separation distance. Maintain distance from metal installations")
-    
-    # DOWNLOAD REPORT (WORKING VERSION)
+    # DOWNLOAD REPORT
     st.markdown("---")
     st.subheader("📥 Download Report")
     
@@ -210,7 +241,7 @@ if calculate:
     report = f"""
     ================================================
         ADVANCED LIGHTNING PROTECTION REPORT
-            IEC 62305 COMPLIANT
+            IEC 62305-2 COMPLIANT
     ================================================
     Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
     
@@ -223,21 +254,28 @@ if calculate:
     Contents: {', '.join(contents) if contents else 'Standard'}
     Environment: {environment}
     
-    2. RISK ASSESSMENT
+    2. COLLECTION AREAS
     ------------------------------------------------
-    Collection Area (Ae): {Ae:.0f} m²
+    Direct Strike Area (Ad): {Ad:.0f} m²
+    Near Strike Area (Am): {Am:.0f} m²
+    Total Collection Area: {Ad + Am:.0f} m²
+    
+    3. RISK ASSESSMENT
+    ------------------------------------------------
     Environmental Factor (Cd): {Cd}
-    Annual Risk (Nd): {Nd:.6f}
+    Direct Strike Risk (Nd): {Nd:.6f}
+    Near Strike Risk (Nm): {Nm:.6f}
+    Total Risk (N): {N_total:.6f}
     Tolerable Risk (Rt): {Rt:.6f}
     Risk Ratio: {risk_ratio:.3f}
     Risk Classification: {risk_type}
     
-    3. PROTECTION LEVEL
+    4. PROTECTION LEVEL
     ------------------------------------------------
     Protection Level: {lpl}
     Description: {lpl_desc}
     
-    4. PROTECTION DESIGN
+    5. PROTECTION DESIGN
     ------------------------------------------------
     Air Terminals Required: {air_terminals}
     Mesh Size: {mesh}
@@ -247,13 +285,13 @@ if calculate:
     Down Conductor Spacing: {perimeter/down_conductors:.1f}m
     Separation Distance: {separation:.2f}m
     
-    5. EARTHING SYSTEM
+    6. EARTHING SYSTEM
     ------------------------------------------------
     Earthing Type: {earthing_type}
     Earth Resistance: {earth_resistance:.1f} Ω
     Target Resistance: <10 Ω
     
-    6. BILL OF MATERIALS
+    7. BILL OF MATERIALS
     ------------------------------------------------
     Air Termination Rods: {air_terminals} pcs (10mm Cu, 1.5m)
     Conductors: {air_terminals + down_conductors*height:.0f} m (50mm² Cu)
@@ -262,19 +300,8 @@ if calculate:
     Ring Conductor: {perimeter:.0f} m (95mm² Cu)
     Connectors: {air_terminals*2 + down_conductors*2} pcs
     
-    7. RECOMMENDATIONS
-    ------------------------------------------------
-    """
-    
-    if earth_resistance > 10:
-        report += "- Improve earthing system to achieve <10Ω resistance\n"
-    if separation < 0.5:
-        report += "- Maintain separation distance from metal installations\n"
-    
-    report += f"""
-    
     ================================================
-    Report Generated by: Lightning Protection Calculator
+    Report Generated by: Advanced Lightning Protection Calculator
     ================================================
     """
     
@@ -290,25 +317,6 @@ if calculate:
 
 else:
     st.info("👈 Enter building parameters and click CALCULATE")
-    
-    with st.expander("ℹ️ About this calculator"):
-        st.markdown("""
-        **Advanced Lightning Protection Calculator**
-        
-        This calculator follows IEC 62305 standards:
-        - Part 2: Risk management
-        - Part 3: Physical damage protection
-        - Part 4: Electrical systems protection
-        
-        **Features:**
-        - Collection area calculation
-        - Environmental factors
-        - Protection Level I-IV determination
-        - Air termination design
-        - Down conductor calculation
-        - Earthing system design
-        - Complete bill of materials
-        """)
 
 st.markdown("---")
-st.caption(f"⚡ Advanced Version 4.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"⚡ IEC 62305-2 Compliant | Version 5.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
