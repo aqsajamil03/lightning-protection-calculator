@@ -132,6 +132,7 @@ def create_pdf(length, width, height, Ng, environment, contents, occupants, resu
     pdf.set_font('Arial', '', 10)
     pdf.cell(0, 8, f'Collection Area: {results["Ae"]:.0f} m²', 0, 1)
     pdf.cell(0, 8, f'Annual Risk: {results["Nd"]:.6f}', 0, 1)
+    pdf.cell(0, 8, f'Risk Ratio: {results["ratio"]:.3f}', 0, 1)
     pdf.cell(0, 8, f'Protection Level: {results["lpl"]}', 0, 1)
     pdf.ln(5)
     
@@ -186,33 +187,38 @@ if calculate:
             f"{results['terminals'] + results['down_conductors']*height:.0f} m",
             f"{results['down_conductors']} pcs",
             f"{max(2, results['down_conductors'])} pcs"
+        ],
+        'Specification': [
+            '10mm Cu, 1.5m',
+            '50mm² Cu',
+            '50mm² Cu with test joint',
+            '16mm Cu, 3m'
         ]
     })
-    st.dataframe(materials, use_container_width=True)
+    st.dataframe(materials, use_container_width=True, hide_index=True)
     
-    # PDF Download
+    # PDF Download - IMPROVED VERSION
     st.markdown("---")
     st.subheader("📥 Download Report")
     
-    if st.button("📄 Generate PDF Report"):
-        pdf = create_pdf(length, width, height, lightning_density, environment, contents, occupants, results)
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            pdf.output(tmp.name)
-            tmp_path = tmp.name
-        
-        with open(tmp_path, 'rb') as f:
-            pdf_bytes = f.read()
-        
-        b64 = base64.b64encode(pdf_bytes).decode()
-        href = f'<a href="data:application/octet-stream;base64,{b64}" download="Lightning_Protection_Report.pdf">📥 Click here to download PDF Report</a>'
-        st.markdown(href, unsafe_allow_html=True)
-        
-        os.unlink(tmp_path)
-        st.success("✅ PDF Generated Successfully!")
+    # Create a unique key for the button
+    if st.button("📄 Generate PDF Report", key="pdf_button"):
+        with st.spinner("Generating PDF..."):
+            pdf = create_pdf(length, width, height, lightning_density, environment, contents, occupants, results)
+            
+            # Save to bytes
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            
+            # Create download link
+            b64 = base64.b64encode(pdf_output).decode()
+            href = f'<a href="data:application/octet-stream;base64,{b64}" download="Lightning_Protection_Report.pdf">📥 Click here to download PDF Report</a>'
+            
+            # Display the link
+            st.markdown(href, unsafe_allow_html=True)
+            st.success("✅ PDF Generated Successfully! Click the link above to download.")
 
 else:
     st.info("👈 Enter building parameters and click CALCULATE")
 
 st.markdown("---")
-st.caption(f"⚡ IEC 62305 Compliant | Version 2.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"⚡ IEC 62305 Compliant | Version 3.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
