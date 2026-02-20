@@ -1,7 +1,5 @@
 import streamlit as st
-import pandas as pd
 import datetime
-import base64
 
 st.set_page_config(page_title="Lightning Protection", page_icon="⚡")
 st.title("⚡ Lightning Protection Calculator")
@@ -15,58 +13,51 @@ with st.sidebar:
     lightning_density = st.number_input("Lightning Density", 1.0)
     calc_btn = st.button("Calculate", type="primary")
 
-# Main area
 if calc_btn:
-    # Calculations
+    # Simple calculations
     collection_area = length * width + 2 * height * (length + width)
     annual_risk = collection_area * lightning_density / 1000000
     
-    # Risk level
     if annual_risk < 0.001:
         risk = "LOW"
-        color = "green"
     elif annual_risk < 0.01:
         risk = "MEDIUM"
-        color = "orange"
     else:
         risk = "HIGH"
-        color = "red"
     
-    # Display
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Collection Area", f"{collection_area:.0f} m²")
-        st.metric("Annual Risk", f"{annual_risk:.6f}")
-    with col2:
-        st.markdown(f"## :{color}[{risk} RISK]")
+    # Show results
+    st.metric("Collection Area", f"{collection_area:.0f} m²")
+    st.metric("Annual Risk", f"{annual_risk:.6f}")
+    st.metric("Risk Level", risk)
     
-    # Simple HTML Report
-    report_html = f"""
-    <html>
-    <head><title>Lightning Report</title></head>
-    <body>
-        <h1>Lightning Protection Report</h1>
-        <p>Date: {datetime.datetime.now().strftime('%Y-%m-%d')}</p>
-        <hr>
-        <h2>Building Details</h2>
-        <p>Length: {length}m | Width: {width}m | Height: {height}m</p>
-        <h2>Results</h2>
-        <p>Collection Area: {collection_area:.0f} m²</p>
-        <p>Annual Risk: {annual_risk:.6f}</p>
-        <p>Risk Level: {risk}</p>
-    </body>
-    </html>
+    # Create report text
+    report = f"""
+    LIGHTNING PROTECTION REPORT
+    ===========================
+    Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+    
+    BUILDING DETAILS:
+    Length: {length} m
+    Width: {width} m
+    Height: {height} m
+    Lightning Density: {lightning_density} flashes/km²/year
+    
+    RESULTS:
+    Collection Area: {collection_area:.0f} m²
+    Annual Risk: {annual_risk:.6f}
+    Risk Level: {risk}
     """
     
     # Download button
-    st.markdown("---")
-    st.subheader("Download Report")
-    
-    b64 = base64.b64encode(report_html.encode()).decode()
-    href = f'<a href="data:text/html;base64,{b64}" download="report.html">📥 Download HTML Report</a>'
-    st.markdown(href, unsafe_allow_html=True)
+    st.download_button(
+        label="📥 Download Report (TXT)",
+        data=report,
+        file_name=f"lightning_report_{datetime.datetime.now().strftime('%Y%m%d')}.txt",
+        mime="text/plain"
+    )
 
 else:
     st.info("👈 Enter values and click Calculate")
 
-st.caption("Version 1.0")
+st.markdown("---")
+st.caption("Simple Version")
