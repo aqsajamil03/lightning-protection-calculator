@@ -3,320 +3,267 @@ import math
 import datetime
 import pandas as pd
 
-st.set_page_config(page_title="Advanced Lightning Protection", page_icon="⚡", layout="wide")
-st.title("⚡ Advanced Lightning Protection Calculator")
-st.markdown("**IEC 62305-2 Compliant**")
+st.set_page_config(page_title="Complete Lightning Protection", page_icon="⚡", layout="wide")
+st.title("⚡ Complete Lightning Protection Design System")
+st.markdown("**IEC 62305 & NFPA 780 Compliant**")
 st.markdown("---")
 
-# Sidebar
-with st.sidebar:
-    st.header("📐 Building Parameters")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        length = st.number_input("Length (m)", 1.0, 200.0, 70.0)
-        width = st.number_input("Width (m)", 1.0, 200.0, 38.0)
-        height = st.number_input("Height (m)", 1.0, 100.0, 20.0)
-    
-    with col2:
-        roof_type = st.selectbox("Roof Type", ["Flat", "Pitched", "Complex"])
-        construction = st.selectbox("Construction", ["Concrete", "Steel", "Masonry", "Wood"])
-    
-    st.header("🌍 Location")
-    lightning_density = st.number_input("Ng (flashes/km²/year)", 0.1, 30.0, 1.0)
-    
-    environment = st.select_slider("Environment", 
-        options=["Surrounded", "Similar height", "Isolated", "Hilltop"])
-    
-    contents = st.multiselect("Contents Type",
-        ["Ordinary", "Valuable", "Hospital", "Explosive"])
-    
-    occupants = st.number_input("Number of people", 1, 1000, 50)
-    
-    calculate = st.button("🔧 CALCULATE", type="primary", use_container_width=True)
+# Create tabs for different sections
+tab1, tab2, tab3 = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Complete Report"])
 
-if calculate:
-    # ========== IEC 62305-2 CALCULATIONS ==========
+with tab1:
+    st.header("Risk Assessment Parameters")
     
-    # 1. COLLECTION AREA FOR DIRECT STRIKE (Ad)
-    # Ad = L*W + 2*L*H + 2*W*H + π*H²
-    Ad = length * width + 2*length*height + 2*width*height + math.pi * height**2
-    
-    # 2. COLLECTION AREA FOR STRIKE NEAR STRUCTURE (Am)
-    # For a strike near the structure (affecting services)
-    # Simplified: Am = 1000 * L * W (for urban) or 2000 * L * W (for rural)
-    # Let's calculate based on environment
-    if environment == "Surrounded":
-        Am = 500 * length * width  # Dense urban
-    elif environment == "Similar height":
-        Am = 1000 * length * width  # Urban
-    elif environment == "Isolated":
-        Am = 2000 * length * width  # Rural
-    else:  # Hilltop
-        Am = 3000 * length * width  # Exposed
-    
-    # 3. ENVIRONMENTAL FACTOR (Cd)
-    env_factors = {"Surrounded":0.25, "Similar height":0.5, "Isolated":1, "Hilltop":2}
-    Cd = env_factors.get(environment, 1)
-    
-    # 4. ANNUAL RISK FOR DIRECT STRIKE (Nd)
-    Nd = Ad * lightning_density * 1e-6 * Cd
-    
-    # 5. ANNUAL RISK FOR NEAR STRIKE (Nm)
-    Nm = Am * lightning_density * 1e-6
-    
-    # 6. TOTAL RISK
-    N_total = Nd + Nm
-    
-    # 7. TOLERABLE RISK BASED ON CONTENTS
-    if "Explosive" in contents:
-        Rt = 0.00001
-        risk_type = "Very High (Explosive)"
-    elif "Hospital" in contents:
-        Rt = 0.0001
-        risk_type = "High (Hospital)"
-    elif "Valuable" in contents:
-        Rt = 0.001
-        risk_type = "Medium (Valuable)"
-    else:
-        Rt = 0.01
-        risk_type = "Low (Ordinary)"
-    
-    # 8. RISK RATIO
-    risk_ratio = N_total / Rt
-    
-    # 9. PROTECTION LEVEL DETERMINATION
-    if risk_ratio < 0.001:
-        lpl = "IV (Optional)"
-        lpl_class = "IV"
-        lpl_desc = "Basic protection"
-        mesh = "20m x 20m"
-        sphere = 60
-        protection_angle = 60
-    elif risk_ratio < 0.01:
-        lpl = "III (Standard)"
-        lpl_class = "III"
-        lpl_desc = "Standard commercial"
-        mesh = "15m x 15m"
-        sphere = 45
-        protection_angle = 45
-    elif risk_ratio < 0.1:
-        lpl = "II (Enhanced)"
-        lpl_class = "II"
-        lpl_desc = "Enhanced protection"
-        mesh = "10m x 10m"
-        sphere = 30
-        protection_angle = 35
-    else:
-        lpl = "I (Maximum)"
-        lpl_class = "I"
-        lpl_desc = "Maximum protection"
-        mesh = "5m x 5m"
-        sphere = 20
-        protection_angle = 25
-    
-    # 10. AIR TERMINALS CALCULATION
-    perimeter = 2*(length + width)
-    
-    if height <= sphere:
-        protection_width = 2 * math.sqrt(sphere**2 - (sphere - height)**2)
-        terminals_length = math.ceil(length / protection_width) + 1
-        terminals_width = math.ceil(width / protection_width) + 1
-        air_terminals = terminals_length * terminals_width
-    else:
-        air_terminals = math.ceil(perimeter / 10) + math.ceil((length * width) / 100)
-    
-    # 11. DOWN CONDUCTORS
-    down_conductors = max(2, math.ceil(perimeter / 20))
-    
-    # 12. EARTH RESISTANCE
-    soil_resistivity = 100  # Ω·m (typical value)
-    
-    if perimeter < 40:
-        earth_resistance = soil_resistivity / (2 * math.pi * 3) * math.log(4 * 3 / 0.016)
-        earthing_type = "Type A (Vertical rods)"
-    else:
-        ring_radius = math.sqrt(length * width / math.pi)
-        earth_resistance = soil_resistivity / (2 * math.pi * ring_radius)
-        earthing_type = "Type B (Ring electrode)"
-    
-    # 13. SEPARATION DISTANCE
-    ki = {"I": 0.1, "II": 0.075, "III": 0.05, "IV": 0.05}.get(lpl_class, 0.05)
-    separation = ki * height
-    
-    # ========== DISPLAY RESULTS ==========
-    
-    # Collection Areas Summary
-    st.subheader("📐 Collection Areas (IEC 62305-2)")
-    col_a1, col_a2, col_a3 = st.columns(3)
-    with col_a1:
-        st.metric("Direct Strike Area (Ad)", f"{Ad:.0f} m²")
-        st.caption("For direct strikes to structure")
-    with col_a2:
-        st.metric("Near Strike Area (Am)", f"{Am:.0f} m²")
-        st.caption("For strikes near structure")
-    with col_a3:
-        st.metric("Total Collection Area", f"{Ad + Am:.0f} m²")
-    
-    # Risk Assessment
-    st.subheader("📊 Risk Assessment")
-    col_r1, col_r2, col_r3, col_r4 = st.columns(4)
-    with col_r1:
-        st.metric("Direct Risk (Nd)", f"{Nd:.6f}")
-    with col_r2:
-        st.metric("Near Risk (Nm)", f"{Nm:.6f}")
-    with col_r3:
-        st.metric("Total Risk", f"{N_total:.6f}")
-    with col_r4:
-        st.metric("Tolerable Risk (Rt)", f"{Rt:.6f}")
-    
-    # Main Results in Columns
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.subheader("⚡ Protection Level")
-        if lpl_class == "I":
-            st.error(f"**{lpl}**")
-        elif lpl_class == "II":
-            st.warning(f"**{lpl}**")
-        else:
-            st.success(f"**{lpl}**")
-        st.caption(lpl_desc)
-        
-        st.metric("Risk Ratio", f"{risk_ratio:.3f}")
-        st.metric("Risk Classification", risk_type)
+        st.subheader("Building Details")
+        zone_name = st.text_input("Zone/Area Name", "Process Area")
+        length = st.number_input("Length (m)", 1.0, 200.0, 70.0)
+        width = st.number_input("Width (m)", 1.0, 200.0, 38.0)
+        height = st.number_input("Height (m)", 1.0, 100.0, 20.0)
+        distance = st.number_input("Distance (m)", 0.0, 1000.0, 500.0)
     
     with col2:
-        st.subheader("🏗️ Air Termination")
-        st.metric("Air Terminals Required", air_terminals)
-        st.metric("Mesh Size", mesh)
-        st.metric("Rolling Sphere", f"{sphere}m")
-        st.metric("Protection Angle", f"{protection_angle}°")
+        st.subheader("Location Factors")
+        cd_location = st.selectbox("Location Factor (CD)", [0.25, 0.5, 1.0, 2.0], index=2, 
+                                  help="Surrounded:0.25, Similar:0.5, Isolated:1, Hilltop:2")
+        ks1_shield = st.number_input("Structure Shield (KS1)", 0.1, 1.0, 1.0)
+        td_days = st.number_input("Thunderstorm Days (TD)", 1, 100, 10)
+        ng_flashes = st.number_input("NG (flashes/km²/year)", 0.1, 30.0, 1.0)
+        nt_danger = st.number_input("NT (No. of dangerous events/year)", 1, 100, 10)
     
     with col3:
-        st.subheader("🔧 System Design")
-        st.metric("Down Conductors", down_conductors)
-        st.metric("Down Conductor Spacing", f"{perimeter/down_conductors:.1f}m")
-        st.metric("Separation Distance", f"{separation:.2f}m")
-        st.metric("Earth Resistance", f"{earth_resistance:.1f} Ω")
-        st.info(f"**Earthing:** {earthing_type}")
+        st.subheader("Probability Factors")
+        pb_lps = st.number_input("LPS Probability (PB)", 0.01, 1.0, 0.2, format="%.2f")
+        pta_injury = st.number_input("Injury Probability (PTA)", 0.001, 0.1, 0.01, format="%.3f")
+        lt_victims_shock = st.number_input("Victims - Shock (Lt)", 0.0001, 0.1, 0.01, format="%.4f")
+        lf_victims_fire = st.number_input("Victims - Fire (Lf)", 0.0001, 0.1, 0.01, format="%.4f")
     
-    # Materials Table
-    st.subheader("📋 Bill of Materials")
-    
-    materials_data = {
-        'Component': [
-            'Air Termination Rods',
-            'Conductors (Air/Down)',
-            'Test Joints',
-            'Earth Rods',
-            'Ring Conductor',
-            'Connectors'
-        ],
-        'Quantity': [
-            f"{air_terminals} pcs",
-            f"{air_terminals + down_conductors*height:.0f} m",
-            f"{down_conductors} pcs",
-            f"{max(2, down_conductors)} pcs",
-            f"{perimeter:.0f} m",
-            f"{air_terminals*2 + down_conductors*2} pcs"
-        ],
-        'Specification': [
-            '10mm Cu, 1.5m length',
-            '50mm² Cu',
-            'Stainless steel',
-            '16mm Cu, 3m length',
-            '95mm² Cu',
-            'Stainless steel'
-        ]
-    }
-    
-    st.dataframe(pd.DataFrame(materials_data), use_container_width=True, hide_index=True)
-    
-    # DOWNLOAD REPORT
-    st.markdown("---")
-    st.subheader("📥 Download Report")
-    
-    # Create report text
-    report = f"""
-    ================================================
-        ADVANCED LIGHTNING PROTECTION REPORT
-            IEC 62305-2 COMPLIANT
-    ================================================
-    Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
-    
-    1. BUILDING INFORMATION
-    ------------------------------------------------
-    Dimensions: {length}m (L) × {width}m (W) × {height}m (H)
-    Roof Type: {roof_type}
-    Construction: {construction}
-    Occupants: {occupants}
-    Contents: {', '.join(contents) if contents else 'Standard'}
-    Environment: {environment}
-    
-    2. COLLECTION AREAS
-    ------------------------------------------------
-    Direct Strike Area (Ad): {Ad:.0f} m²
-    Near Strike Area (Am): {Am:.0f} m²
-    Total Collection Area: {Ad + Am:.0f} m²
-    
-    3. RISK ASSESSMENT
-    ------------------------------------------------
-    Environmental Factor (Cd): {Cd}
-    Direct Strike Risk (Nd): {Nd:.6f}
-    Near Strike Risk (Nm): {Nm:.6f}
-    Total Risk (N): {N_total:.6f}
-    Tolerable Risk (Rt): {Rt:.6f}
-    Risk Ratio: {risk_ratio:.3f}
-    Risk Classification: {risk_type}
-    
-    4. PROTECTION LEVEL
-    ------------------------------------------------
-    Protection Level: {lpl}
-    Description: {lpl_desc}
-    
-    5. PROTECTION DESIGN
-    ------------------------------------------------
-    Air Terminals Required: {air_terminals}
-    Mesh Size: {mesh}
-    Rolling Sphere Radius: {sphere}m
-    Protection Angle: {protection_angle}°
-    Down Conductors: {down_conductors}
-    Down Conductor Spacing: {perimeter/down_conductors:.1f}m
-    Separation Distance: {separation:.2f}m
-    
-    6. EARTHING SYSTEM
-    ------------------------------------------------
-    Earthing Type: {earthing_type}
-    Earth Resistance: {earth_resistance:.1f} Ω
-    Target Resistance: <10 Ω
-    
-    7. BILL OF MATERIALS
-    ------------------------------------------------
-    Air Termination Rods: {air_terminals} pcs (10mm Cu, 1.5m)
-    Conductors: {air_terminals + down_conductors*height:.0f} m (50mm² Cu)
-    Test Joints: {down_conductors} pcs (Stainless steel)
-    Earth Rods: {max(2, down_conductors)} pcs (16mm Cu, 3m)
-    Ring Conductor: {perimeter:.0f} m (95mm² Cu)
-    Connectors: {air_terminals*2 + down_conductors*2} pcs
-    
-    ================================================
-    Report Generated by: Advanced Lightning Protection Calculator
-    ================================================
-    """
-    
-    # Download button
-    st.download_button(
-        label="📥 Download Full Report (TXT)",
-        data=report,
-        file_name=f"Lightning_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-        mime="text/plain"
-    )
-    
-    st.success("✅ Report ready! Click button above to download.")
+    # Calculate when button is pressed
+    if st.button("Calculate Risk Assessment", type="primary"):
+        
+        # Calculations
+        Ad = length * width + 2*length*height + 2*width*height + math.pi * height**2
+        Am = 1000 * length * width  # Simplified near strike area
+        
+        # Risk calculations
+        Nd = Ad * ng_flashes * 1e-6 * cd_location
+        Nm = Am * ng_flashes * 1e-6
+        
+        # Reduction factors
+        rt_soil = 0.00001  # Soil reduction factor
+        rf_fire = 0.01     # Fire reduction factor
+        rp_protection = 0.5  # Protection factor
+        
+        # People factors
+        nz_people = st.number_input("People in structure", 1, 1000, 10)
+        tz_hours = st.number_input("Hours/year people present", 1, 8760, 8760)
+        nt_total = st.number_input("Total people", 1, 1000, 10)
+        hz_hazard = st.number_input("Hazard factor", 1.0, 3.0, 2.0)
+        
+        # Loss calculations
+        la_shock_loss = 3e-8  # Loss of living being by shock
+        lb_damage_loss = 0.00003  # Loss physical damage
+        
+        # Risk components
+        ra_risk = Nd * pb_lps * la_shock_loss * lt_victims_shock
+        rb_risk = Nm * pb_lps * lb_damage_loss * lf_victims_fire
+        
+        # Display results in a table format
+        st.subheader("📊 Risk Assessment Results")
+        
+        results_data = {
+            'Parameter': [
+                'Process Area', 'Collection Area (Ad)', 'Near Strike Area (Am)',
+                'Nd (lightning strikes/year)', 'Nm (near strikes/year)',
+                'RA Risk Component', 'RB Risk Component',
+                'Total Risk (RA + RB)'
+            ],
+            'Value': [
+                f"{length}×{width}×{height}m",
+                f"{Ad:.0f} m²",
+                f"{Am:.0f} m²",
+                f"{Nd:.6f}",
+                f"{Nm:.6f}",
+                f"{ra_risk:.2e}",
+                f"{rb_risk:.2e}",
+                f"{ra_risk + rb_risk:.2e}"
+            ]
+        }
+        
+        st.dataframe(pd.DataFrame(results_data), use_container_width=True, hide_index=True)
+        
+        # Store in session state for other tabs
+        st.session_state['Ad'] = Ad
+        st.session_state['Am'] = Am
+        st.session_state['Nd'] = Nd
+        st.session_state['Nm'] = Nm
+        st.session_state['ra_risk'] = ra_risk
+        st.session_state['rb_risk'] = rb_risk
 
-else:
-    st.info("👈 Enter building parameters and click CALCULATE")
+with tab2:
+    st.header("NFPA 780 Protection Design")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Coefficients")
+        cd_env = st.selectbox("Environment (CD)", [0.25, 0.5, 1.0, 2.0], index=0, key="cd_env")
+        c2_type = st.selectbox("Type Coefficient (C2)", [0.5, 1.0, 2.0, 3.0], index=2)
+        c3_content = st.selectbox("Content Coefficient (C3)", [1, 2, 3, 4], index=2)
+        c4_occupancy = st.selectbox("Occupancy Coefficient (C4)", [1, 2, 3, 4], index=0)
+        c5_consequence = st.selectbox("Consequence Coefficient (C5)", [1, 5, 10], index=1)
+        
+        # Calculate total coefficient
+        c_total = cd_env * c2_type * c3_content * c4_occupancy * c5_consequence
+        
+        st.metric("Total Coefficient (C)", f"{c_total:.2f}")
+        
+        td_days_2 = st.number_input("Thunderstorm Days", 1, 100, 10, key="td2")
+        nc_tolerable = 1e-4  # Tolerable lightning frequency
+        
+    with col2:
+        st.subheader("Building Dimensions")
+        length_2 = st.number_input("Length (m)", 1.0, 200.0, 50.0, key="l2")
+        width_2 = st.number_input("Width (m)", 1.0, 200.0, 26.0, key="w2")
+        height_2 = st.number_input("Height (m)", 1.0, 100.0, 7.35, key="h2")
+        
+        # Calculate collection area
+        Ad_2 = length_2 * width_2 + 2*length_2*height_2 + 2*width_2*height_2 + math.pi * height_2**2
+        
+        ng_2 = st.number_input("NG (flashes/km²/year)", 0.1, 30.0, 1.0, key="ng2")
+        
+        # Calculate Nd
+        Nd_2 = Ad_2 * ng_2 * 1e-6
+        efficiency = 1 - (nc_tolerable / Nd_2) if Nd_2 > 0 else 0
+        
+        st.metric("Collection Area (Ad)", f"{Ad_2:.0f} m²")
+        st.metric("Nd (strikes/year)", f"{Nd_2:.6f}")
+        st.metric("Protection Efficiency", f"{efficiency:.2%}")
+    
+    # Protection Level Determination
+    st.subheader("⚡ Protection Level")
+    
+    if efficiency > 0.98:
+        lpl = "Class I"
+        lpl_desc = "Maximum Protection"
+        sphere_radius = 20
+        min_current = 3
+        max_current = 200
+        mesh_size = "5m × 5m"
+    elif efficiency > 0.95:
+        lpl = "Class II"
+        lpl_desc = "High Protection"
+        sphere_radius = 30
+        min_current = 5
+        max_current = 150
+        mesh_size = "10m × 10m"
+    elif efficiency > 0.90:
+        lpl = "Class III"
+        lpl_desc = "Standard Protection"
+        sphere_radius = 45
+        min_current = 10
+        max_current = 100
+        mesh_size = "15m × 15m"
+    else:
+        lpl = "Class IV"
+        lpl_desc = "Basic Protection"
+        sphere_radius = 60
+        min_current = 16
+        max_current = 100
+        mesh_size = "20m × 20m"
+    
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        st.info(f"**{lpl}**")
+        st.caption(lpl_desc)
+        st.metric("Rolling Sphere Radius", f"{sphere_radius} m")
+    
+    with col_b:
+        st.metric("Min Current", f"{min_current} kA")
+        st.metric("Max Current", f"{max_current} kA")
+    
+    with col_c:
+        st.metric("Mesh Size", mesh_size)
+        
+        # Air terminals calculation
+        if height_2 <= sphere_radius:
+            protection_width = 2 * math.sqrt(sphere_radius**2 - (sphere_radius - height_2)**2)
+            terminals_length = math.ceil(length_2 / protection_width) + 1
+            terminals_width = math.ceil(width_2 / protection_width) + 1
+            air_terminals = terminals_length * terminals_width
+        else:
+            perimeter_2 = 2*(length_2 + width_2)
+            air_terminals = math.ceil(perimeter_2 / 10) + math.ceil((length_2 * width_2) / 100)
+        
+        st.metric("Air Terminals Required", air_terminals)
+    
+    # Materials Specification
+    st.subheader("🔧 Materials Specification")
+    
+    col_m1, col_m2, col_m3 = st.columns(3)
+    
+    with col_m1:
+        material = st.selectbox("Material", ["Copper", "Aluminum", "Galvanized Steel"])
+        rod_dia = st.number_input("Rod Diameter (mm)", 8.0, 20.0, 12.7)
+        rod_length = st.number_input("Rod Length (m)", 1.0, 3.0, 1.5)
+    
+    with col_m2:
+        down_conductor = st.number_input("Down Conductor (mm²)", 25, 100, 50)
+        bounding_conductor = st.number_input("Bounding Conductor (mm²)", 25, 100, 50)
+    
+    with col_m3:
+        earth_dia = st.number_input("Earth Rod Diameter (mm)", 12.0, 20.0, 15.0)
+        earth_length = st.number_input("Earth Rod Length (m)", 2.0, 4.0, 3.0)
+    
+    # Store in session state
+    st.session_state['lpl'] = lpl
+    st.session_state['sphere_radius'] = sphere_radius
+    st.session_state['air_terminals'] = air_terminals
+
+with tab3:
+    st.header("📋 Complete Lightning Protection Report")
+    
+    if 'Ad' in st.session_state:
+        # Create comprehensive report
+        report = f"""
+===============================================
+    COMPLETE LIGHTNING PROTECTION REPORT
+    IEC 62305 & NFPA 780 COMPLIANT
+===============================================
+Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+1. RISK ASSESSMENT RESULTS
+-----------------------------------------------
+Collection Area (Ad): {st.session_state['Ad']:.0f} m²
+Near Strike Area (Am): {st.session_state['Am']:.0f} m²
+Nd (Direct Strikes): {st.session_state['Nd']:.6f}
+Nm (Near Strikes): {st.session_state['Nm']:.6f}
+RA Risk Component: {st.session_state['ra_risk']:.2e}
+RB Risk Component: {st.session_state['rb_risk']:.2e}
+Total Risk: {st.session_state['ra_risk'] + st.session_state['rb_risk']:.2e}
+
+2. PROTECTION DESIGN
+-----------------------------------------------
+Protection Level: {st.session_state.get('lpl', 'Not Calculated')}
+Rolling Sphere Radius: {st.session_state.get('sphere_radius', 0)} m
+Air Terminals Required: {st.session_state.get('air_terminals', 0)}
+
+3. MATERIALS REQUIRED
+-----------------------------------------------
+"""
+        
+        # Download button
+        st.download_button(
+            label="📥 Download Complete Report",
+            data=report,
+            file_name=f"Lightning_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.txt",
+            mime="text/plain"
+        )
+    else:
+        st.info("Please calculate in Risk Assessment tab first")
 
 st.markdown("---")
-st.caption(f"⚡ IEC 62305-2 Compliant | Version 5.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
+st.caption(f"⚡ Complete Lightning Protection System | Version 6.0 | {datetime.datetime.now().strftime('%Y-%m-%d')}")
