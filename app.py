@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 
 st.set_page_config(page_title="Complete Lightning Protection", page_icon="⚡", layout="wide")
-st.title("⚡ Complete Lightning Protection Design System")
+st.title("Electrical Design Calculations")
 st.markdown("**IEC 62305 & NFPA 780 Compliant**")
 st.markdown("---")
 
