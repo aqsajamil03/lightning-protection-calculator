@@ -492,17 +492,78 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.metric("Air Terminals", results['air_terminals'])
                 st.metric("Rolling Sphere", f"{results['sphere']}m")
     
-    # TAB 4: Calculations
+    # TAB 4: Calculations - WITH DETAILED CALCULATIONS
     with lp_tabs[3]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
-        st.markdown("## DETAILED CALCULATIONS")
+        st.markdown("## DETAILED CALCULATIONS WITH FORMULAS")
         st.markdown('</div>', unsafe_allow_html=True)
         
         if not st.session_state.calc_done:
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
-            with st.expander("Collection Area (Ad)", expanded=True):
-                st.markdown(f"**Result:** Ad = **{st.session_state.calc_results['ad']:.2f} m²**")
+            results = st.session_state.calc_results
+            inputs = st.session_state.input_values
+            
+            # 1. Collection Area
+            with st.expander("1. Collection Area (Ad)", expanded=True):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.2.1.1, Equation A.2")
+                if inputs.get('width', 0) == 0:  # Column
+                    st.markdown(f"**For Column:** Ad = π × 9 × H²")
+                    st.markdown(f"**Calculation:** Ad = π × 9 × ({inputs['height']})²")
+                else:
+                    st.markdown(f"**Calculation:** Ad = {inputs['length']} × {inputs['width']} + 2 × (3 × {inputs['height']}) × ({inputs['length']} + {inputs['width']}) + π × (3 × {inputs['height']})²")
+                st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 2. Environmental Factor
+            with st.expander("2. Environmental Factor (CD)"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Reference:** IEC 62305-2 Table A.1 - Location Factor")
+                st.markdown("**Values:** Surrounded=0.25, Similar height=0.5, Isolated=1, Hilltop=2")
+                st.markdown(f"**Selected Environment:** {inputs.get('environment', 'Isolated')}")
+                st.markdown(f"**Result:** CD = **{inputs.get('cd', 1)}**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 3. Lightning Density
+            with st.expander("3. Lightning Ground Flash Density (NG)"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** NG = 0.1 × Td")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.1, Equation A.1")
+                st.markdown(f"**Calculation:** NG = 0.1 × {inputs.get('td_days', 10)}")
+                st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 4. Expected Frequency
+            with st.expander("4. Expected Annual Frequency (Nd)"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** Nd = NG × Ad × CD × 10⁻⁶")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.2.4, Equation A.4")
+                st.markdown(f"**Calculation:** Nd = {results.get('ng', 1)} × {results['ad']:.0f} × {inputs.get('cd', 1)} × 10⁻⁶")
+                st.markdown(f"**Result:** Nd = **{results.get('nd', 0):.6f} events/year**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 5. Protection Level
+            with st.expander("5. Protection Level Determination"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Reference:** IEC 62305-1 Table 1 & Figure 1")
+                st.markdown(f"**Protection Efficiency:** {results.get('efficiency', 0):.1%}")
+                st.markdown(f"**Result:** **{results.get('lpl', 'Class III')}**")
+                st.markdown(f"**Rolling Sphere Radius:** {results.get('sphere', 45)}m (IEC 62305-3 Table 2)")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # 6. Air Terminals
+            with st.expander("6. Air Terminals Required"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Method:** Rolling Sphere Method")
+                st.markdown("**Reference:** IEC 62305-3 Clause 5.2.2, Table 2")
+                if inputs.get('height', 0) <= results.get('sphere', 45):
+                    st.markdown("**Using:** Protection Width Method")
+                else:
+                    st.markdown("**Using:** Mesh Method for tall structures")
+                st.markdown(f"**Result:** **{results.get('air_terminals', 4)} air terminals required**")
+                st.markdown('</div>', unsafe_allow_html=True)
     
     # TAB 5: Revision History
     with lp_tabs[4]:
@@ -524,7 +585,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
         with col6:
             st.session_state.revision_history[0]['appd'] = st.text_input("APPD", st.session_state.revision_history[0]['appd'])
     
-    # TAB 6: PDF Report - FIXED VERSION
+    # TAB 6: PDF Report
     with lp_tabs[5]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## GENERATE PDF REPORT")
@@ -596,4 +657,4 @@ elif st.session_state.selected_calculator == "📈 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Engineering Tools | Version 2.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Engineering Tools | Version 3.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
