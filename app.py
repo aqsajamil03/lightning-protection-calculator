@@ -65,7 +65,7 @@ if 'calc_results' not in st.session_state:
 if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
 if 'selected_calculator' not in st.session_state:
-    st.session_state.selected_calculator = "⚡ Lightning Protection"
+    st.session_state.selected_calculator = " Lightning Protection"
 if 'cover_details' not in st.session_state:
     st.session_state.cover_details = {
         'title': 'PLANT LIGHTNING CALCULATION',
@@ -91,7 +91,7 @@ if 'revision_history' not in st.session_state:
 
 # ========== SIDEBAR WITH NAVIGATION ==========
 with st.sidebar:
-    st.markdown("### ⚡ Lightning Protection Systems")
+    st.markdown("### Lightning Protection Systems")
     st.markdown("---")
     
     # Calculator Navigation
@@ -141,7 +141,7 @@ with st.sidebar:
 st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
 
 # Show different calculators based on selection
-if st.session_state.selected_calculator == "⚡ Lightning Protection":
+if st.session_state.selected_calculator == " Lightning Protection":
     # ========== LIGHTNING PROTECTION CALCULATOR (EXISTING) ==========
     
     # Create tabs for lightning protection
