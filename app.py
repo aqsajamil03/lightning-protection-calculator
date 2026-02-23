@@ -30,79 +30,13 @@ st.markdown("""
         margin: 10px 0;
         font-family: 'Courier New', monospace;
     }
-    .reference-box {
-        background-color: #E8F5E9;
-        padding: 10px;
-        border-radius: 5px;
-        border-left: 3px solid #4CAF50;
-        margin: 5px 0;
-        font-size: 0.9em;
-    }
-    .title-page {
+    .title-page-preview {
         background-color: white;
-        padding: 40px;
+        padding: 30px;
         border: 2px solid #1E3A8A;
         border-radius: 10px;
         margin-bottom: 20px;
         font-family: 'Arial', sans-serif;
-    }
-    .title-header {
-        text-align: center;
-        font-size: 24px;
-        font-weight: bold;
-        color: #1E3A8A;
-        margin-bottom: 20px;
-    }
-    .company-name {
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    .contractor-name {
-        text-align: center;
-        font-size: 16px;
-        margin-bottom: 20px;
-    }
-    .project-title {
-        text-align: center;
-        font-size: 20px;
-        font-weight: bold;
-        margin: 20px 0;
-        text-decoration: underline;
-    }
-    .rev-box {
-        text-align: center;
-        font-size: 16px;
-        margin: 10px 0;
-    }
-    .document-title {
-        text-align: center;
-        font-size: 22px;
-        font-weight: bold;
-        margin: 20px 0;
-        text-decoration: underline;
-    }
-    .revision-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-    }
-    .revision-table th {
-        background-color: #f2f2f2;
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
-    }
-    .revision-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
-    }
-    .doc-footer {
-        margin-top: 30px;
-        font-size: 12px;
-        color: #666;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -153,39 +87,39 @@ class PDF_Report(FPDF):
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Document: {st.session_state.project_info["document_number"]} | Rev: {st.session_state.cover_details["revision"]} | Page {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Document: {st.session_state.project_info["document_number"]} | Rev: {st.session_state.cover_details["revision"]}', 0, 0, 'C')
     
     def add_title_page(self, logo_path=None):
         self.add_page()
         
         # Company and Contractor
-        self.set_y(20)
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(0, 0, 0)
-        self.cell(0, 10, st.session_state.project_info['company'], 0, 1, 'C')
-        
+        self.set_y(15)
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, st.session_state.project_info['contractor'], 0, 1, 'C')
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 6, st.session_state.project_info['company'], 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 6, st.session_state.project_info['contractor'], 0, 1, 'C')
         
         # Project Title
-        self.set_y(50)
-        self.set_font('Arial', 'B', 12)
-        self.multi_cell(0, 8, st.session_state.project_info['project_title'], 0, 'C')
+        self.set_y(35)
+        self.set_font('Arial', 'B', 10)
+        self.multi_cell(0, 4, st.session_state.project_info['project_title'], 0, 'C')
         
         # Revision
-        self.set_y(80)
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, f"Rev: {st.session_state.cover_details['revision']}", 0, 1, 'C')
+        self.set_y(55)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 5, f"Rev: {st.session_state.cover_details['revision']}", 0, 1, 'C')
         
         # Document Title
-        self.set_y(95)
-        self.set_font('Arial', 'B', 16)
+        self.set_y(65)
+        self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 10, st.session_state.cover_details['title'], 0, 1, 'C')
+        self.cell(0, 6, st.session_state.cover_details['title'], 0, 1, 'C')
         
         # Revision Legend
-        self.set_y(115)
-        self.set_font('Arial', '', 10)
+        self.set_y(80)
+        self.set_font('Arial', '', 8)
         legend = [
             "ACCEPTED FOR INFORMATION ONLY.",
             "APPROVED - NO COMMENTS",
@@ -193,47 +127,84 @@ class PDF_Report(FPDF):
             "REJECTED. TO BE RESUBMITTED - WORK SHALL NOT PROCEED"
         ]
         for line in legend:
-            self.cell(0, 5, line, 0, 1, 'L')
+            self.cell(0, 3.5, line, 0, 1, 'L')
         
         # Revision Table
-        self.set_y(150)
-        self.set_font('Arial', 'B', 10)
+        self.set_y(105)
+        self.set_font('Arial', 'B', 8)
         self.set_fill_color(240, 240, 240)
         
         # Table Header
-        self.cell(15, 8, 'REV', 1, 0, 'C', 1)
-        self.cell(25, 8, 'DATE', 1, 0, 'C', 1)
-        self.cell(70, 8, 'ISSUE PURPOSE', 1, 0, 'C', 1)
-        self.cell(25, 8, 'PRPD BY', 1, 0, 'C', 1)
-        self.cell(25, 8, 'REVD BY', 1, 0, 'C', 1)
-        self.cell(25, 8, 'APPD BY', 1, 1, 'C', 1)
+        self.cell(15, 5, 'REV', 1, 0, 'C', 1)
+        self.cell(25, 5, 'DATE', 1, 0, 'C', 1)
+        self.cell(70, 5, 'ISSUE PURPOSE', 1, 0, 'C', 1)
+        self.cell(25, 5, 'PRPD BY', 1, 0, 'C', 1)
+        self.cell(25, 5, 'REVD BY', 1, 0, 'C', 1)
+        self.cell(25, 5, 'APPD BY', 1, 1, 'C', 1)
         
         # Table Data
-        self.set_font('Arial', '', 9)
+        self.set_font('Arial', '', 8)
         rev = st.session_state.revision_history[0]
-        self.cell(15, 7, rev['rev'], 1, 0, 'C')
-        self.cell(25, 7, rev['date'], 1, 0, 'C')
-        self.cell(70, 7, rev['purpose'], 1, 0, 'C')
-        self.cell(25, 7, rev['prpd'], 1, 0, 'C')
-        self.cell(25, 7, rev['revd'], 1, 0, 'C')
-        self.cell(25, 7, rev['appd'], 1, 1, 'C')
+        self.cell(15, 5, rev['rev'], 1, 0, 'C')
+        self.cell(25, 5, rev['date'], 1, 0, 'C')
+        self.cell(70, 5, rev['purpose'], 1, 0, 'C')
+        self.cell(25, 5, rev['prpd'], 1, 0, 'C')
+        self.cell(25, 5, rev['revd'], 1, 0, 'C')
+        self.cell(25, 5, rev['appd'], 1, 1, 'C')
         
         # Document Numbers
-        self.set_y(200)
-        self.set_font('Arial', 'B', 10)
-        self.cell(60, 8, 'DOCUMENT NUMBER', 0, 0)
-        self.cell(60, 8, '', 0, 0)
-        self.cell(60, 8, 'PROJECT NUMBER', 0, 1)
+        self.set_y(135)
+        self.set_font('Arial', 'B', 9)
+        self.cell(60, 5, 'DOCUMENT NUMBER', 0, 0)
+        self.cell(60, 5, '', 0, 0)
+        self.cell(60, 5, 'PROJECT NUMBER', 0, 1)
         
-        self.set_font('Arial', '', 10)
-        self.cell(60, 8, st.session_state.project_info['document_number'], 0, 0)
-        self.cell(60, 8, '', 0, 0)
-        self.cell(60, 8, st.session_state.project_info['project_number'], 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(60, 5, st.session_state.project_info['document_number'], 0, 0)
+        self.cell(60, 5, '', 0, 0)
+        self.cell(60, 5, st.session_state.project_info['project_number'], 0, 1)
+        
+        # SEAL
+        self.set_y(160)
+        
+        # Outer circle
+        self.set_draw_color(0, 51, 102)
+        self.set_line_width(1.5)
+        self.ellipse(150, 160, 45, 32)
+        
+        # Inner circle
+        self.set_draw_color(0, 51, 102)
+        self.set_line_width(0.8)
+        self.ellipse(152, 162, 41, 28)
+        
+        # Seal text
+        self.set_font('Arial', 'B', 12)
+        self.set_text_color(0, 51, 102)
+        self.set_xy(155, 168)
+        self.cell(35, 6, 'APPROVED', 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_xy(155, 174)
+        self.cell(35, 5, 'SIGNATURE', 0, 1, 'C')
+        
+        self.set_font('Arial', '', 9)
+        self.set_xy(155, 179)
+        self.cell(35, 4, 'SHD', 0, 1, 'C')
+        
+        # Date in seal
+        self.set_font('Arial', '', 7)
+        self.set_xy(155, 183)
+        self.cell(35, 4, datetime.now().strftime('%d-%b-%Y'), 0, 1, 'C')
+        
+        # Reset colors
+        self.set_text_color(0, 0, 0)
+        self.set_draw_color(0, 0, 0)
         
         # Page Number
-        self.set_y(260)
+        self.set_y(200)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 5, 'Page 1 of 9', 0, 1, 'C')
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 4, 'Page 1 of 9', 0, 1, 'C')
     
     def add_calculations(self, results, inputs):
         self.add_page()
@@ -296,6 +267,15 @@ class PDF_Report(FPDF):
         self.cell(0, 6, f'Result: {results["lpl"]} - {results["lpl_desc"]}', 0, 1)
         self.cell(0, 6, f'Rolling Sphere Radius: {results["sphere"]}m (IEC 62305-3 Table 2)', 0, 1)
         self.ln(3)
+        
+        # Air Terminals
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.6 Air Terminals Required', 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(0, 5, 'Method: Rolling Sphere Method', 0, 1)
+        self.cell(0, 5, 'Reference: IEC 62305-3 Clause 5.2.2, Table 2', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: {results["air_terminals"]} air terminals required', 0, 1)
 
 # ========== SIDEBAR ==========
 with st.sidebar:
@@ -355,44 +335,50 @@ with tab1:
     with col1:
         st.markdown("### 📄 Title Page Preview")
         
-        # Title Page HTML Preview
+        # Title Page Preview HTML
         title_html = f"""
-        <div class="title-page">
-            <div class="company-name">{st.session_state.project_info['company']}</div>
-            <div class="contractor-name">{st.session_state.project_info['contractor']}</div>
-            <div class="project-title">{st.session_state.project_info['project_title']}</div>
-            <div class="rev-box">Rev: {st.session_state.cover_details['revision']}</div>
-            <div class="document-title">{st.session_state.cover_details['title']}</div>
-            <div style="margin: 20px 0;">
+        <div class="title-page-preview">
+            <h3 style="text-align:center;">{st.session_state.project_info['company']}</h3>
+            <h4 style="text-align:center;">{st.session_state.project_info['contractor']}</h4>
+            <p style="text-align:center; font-size:12px; margin:20px 0;">{st.session_state.project_info['project_title']}</p>
+            <p style="text-align:center;"><strong>Rev: {st.session_state.cover_details['revision']}</strong></p>
+            <h2 style="text-align:center; color:#1E3A8A;">{st.session_state.cover_details['title']}</h2>
+            <div style="margin:20px 0; font-size:11px;">
                 <div>ACCEPTED FOR INFORMATION ONLY.</div>
                 <div>APPROVED - NO COMMENTS</div>
                 <div>APPROVED WITH COMMENTS - WORK MAY PROCEED</div>
                 <div>REJECTED. TO BE RESUBMITTED - WORK SHALL NOT PROCEED</div>
             </div>
-            <table class="revision-table">
-                <tr>
-                    <th>REV</th><th>DATE</th><th>ISSUE PURPOSE</th><th>PRPD BY</th><th>REVD BY</th><th>APPD BY</th>
+            <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+                <tr style="background-color:#f2f2f2;">
+                    <th style="border:1px solid #ddd; padding:5px;">REV</th>
+                    <th style="border:1px solid #ddd; padding:5px;">DATE</th>
+                    <th style="border:1px solid #ddd; padding:5px;">ISSUE PURPOSE</th>
+                    <th style="border:1px solid #ddd; padding:5px;">PRPD BY</th>
+                    <th style="border:1px solid #ddd; padding:5px;">REVD BY</th>
+                    <th style="border:1px solid #ddd; padding:5px;">APPD BY</th>
                 </tr>
         """
         
         for rev in st.session_state.revision_history:
             title_html += f"""
                 <tr>
-                    <td>{rev['rev']}</td>
-                    <td>{rev['date']}</td>
-                    <td>{rev['purpose']}</td>
-                    <td>{rev['prpd']}</td>
-                    <td>{rev['revd']}</td>
-                    <td>{rev['appd']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['rev']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['date']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['purpose']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['prpd']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['revd']}</td>
+                    <td style="border:1px solid #ddd; padding:5px;">{rev['appd']}</td>
                 </tr>
             """
         
         title_html += f"""
             </table>
-            <div style="margin-top: 30px;">
-                <strong>DOCUMENT NUMBER</strong> {st.session_state.project_info['document_number']} &nbsp;&nbsp;&nbsp;&nbsp; <strong>PROJECT NUMBER</strong> {st.session_state.project_info['project_number']}
+            <div style="margin-top:20px;">
+                <strong>DOCUMENT NUMBER</strong> {st.session_state.project_info['document_number']} &nbsp;&nbsp;&nbsp;&nbsp; 
+                <strong>PROJECT NUMBER</strong> {st.session_state.project_info['project_number']}
             </div>
-            <div class="doc-footer">Page 1 of 9</div>
+            <div style="margin-top:30px; text-align:center; font-style:italic;">Page 1 of 9</div>
         </div>
         """
         
@@ -400,10 +386,8 @@ with tab1:
     
     with col2:
         st.markdown("### ✏️ Edit Title Page")
-        
         st.session_state.cover_details['title'] = st.text_input("Document Title", st.session_state.cover_details['title'])
         st.session_state.cover_details['revision'] = st.text_input("Revision", st.session_state.cover_details['revision'])
-        st.session_state.cover_details['date'] = st.text_input("Date", st.session_state.cover_details['date'])
 
 # ========== TAB 2: RISK ASSESSMENT ==========
 with tab2:
@@ -426,7 +410,7 @@ with tab2:
             length = st.number_input("Length (m)", value=50.0, step=0.5)
             width = st.number_input("Width (m)", value=26.0, step=0.5)
             height = st.number_input("Height (m)", value=5.35, step=0.5)
-        else:  # Column
+        else:
             height = st.number_input("Height (m)", value=50.0, step=0.5)
             length = height
             width = 0
@@ -453,8 +437,6 @@ with tab2:
         st.metric("C5 - Consequence Coefficient", c5)
     
     if st.button("🔧 CALCULATE RISK", type="primary", use_container_width=True):
-        
-        # Calculations
         if structure_type == "Column 4-C01":
             ad = math.pi * 9 * height**2
         else:
@@ -462,12 +444,10 @@ with tab2:
         
         ng = 0.1 * td_days
         nd = ng * ad * cd * 1e-6
-        
         c_total = cd * c2 * c3 * c4 * c5
         nc = 1e-4 / c_total
         efficiency = 1 - (nc / nd) if nd > 0 else 0
         
-        # Protection Level
         if efficiency > 0.98:
             lpl, lpl_desc, sphere = "Class I", "Maximum Protection", 20
         elif efficiency > 0.95:
@@ -477,7 +457,6 @@ with tab2:
         else:
             lpl, lpl_desc, sphere = "Class IV", "Basic Protection", 60
         
-        # Air Terminals
         if height <= sphere:
             protection_width = 2 * math.sqrt(sphere**2 - (sphere - height)**2)
             if protection_width > 0:
@@ -490,7 +469,6 @@ with tab2:
             perimeter = 2 * (length + width)
             air_terminals = math.ceil(perimeter / 10) + math.ceil((length * width) / 100)
         
-        # Display Results
         st.markdown("---")
         st.subheader("📊 Risk Assessment Results")
         
@@ -505,7 +483,6 @@ with tab2:
             st.metric("Rolling Sphere", f"{sphere}m")
             st.metric("Air Terminals", air_terminals)
         
-        # Store results
         st.session_state.calc_results = {
             'structure': structure_type,
             'ad': ad, 'ng': ng, 'nd': nd, 'efficiency': efficiency,
@@ -517,7 +494,7 @@ with tab2:
             'td_days': td_days, 'environment': environment, 'cd': cd
         }
         st.session_state.calc_done = True
-        st.success("✅ Risk Assessment Complete! Now go to Protection Design tab.")
+        st.success("✅ Risk Assessment Complete!")
 
 # ========== TAB 3: PROTECTION DESIGN ==========
 with tab3:
@@ -567,7 +544,6 @@ with tab3:
             st.metric("Earth Rod Diameter", "15 mm (min)")
             st.metric("Target Resistance", "<10 Ω")
         
-        # Materials Table
         st.markdown("---")
         st.markdown("### 📋 Bill of Materials")
         
@@ -637,8 +613,6 @@ with tab5:
     
     st.markdown("### 📝 Edit Revision Entries")
     
-    # Display current revision
-    st.markdown("**Current Revision:**")
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         st.session_state.revision_history[0]['rev'] = st.text_input("Rev", st.session_state.revision_history[0]['rev'])
@@ -667,22 +641,18 @@ with tab6:
         if st.button("📥 GENERATE PDF REPORT", type="primary", use_container_width=True):
             with st.spinner("Generating PDF report... Please wait"):
                 
-                # Save logo temporarily
                 temp_logo = ""
                 if st.session_state.company_logo is not None:
                     temp_logo = "temp_logo.png"
                     st.session_state.company_logo.save(temp_logo)
                 
-                # Create PDF
                 pdf = PDF_Report()
                 pdf.add_title_page(temp_logo)
                 pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
                 
-                # Remove temp logo
                 if temp_logo and os.path.exists(temp_logo):
                     os.remove(temp_logo)
                 
-                # Output PDF
                 pdf_output = pdf.output(dest='S')
                 b64 = base64.b64encode(pdf_output).decode()
                 
@@ -693,4 +663,4 @@ with tab6:
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Lightning Protection System | Version 13.0 | {datetime.now().strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Lightning Protection System | Version 14.0 | {datetime.now().strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
