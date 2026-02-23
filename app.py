@@ -30,28 +30,6 @@ st.markdown("""
         margin: 10px 0;
         font-family: 'Courier New', monospace;
     }
-    .sidebar-nav {
-        padding: 10px;
-        margin-bottom: 20px;
-    }
-    .nav-item {
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    .nav-item:hover {
-        background-color: #f0f2f6;
-    }
-    .nav-item-active {
-        background-color: #1E3A8A;
-        color: white;
-        font-weight: bold;
-    }
-    .nav-item-active:hover {
-        background-color: #1E3A8A;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,7 +43,7 @@ if 'calc_results' not in st.session_state:
 if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
 if 'selected_calculator' not in st.session_state:
-    st.session_state.selected_calculator = " Lightning Protection"
+    st.session_state.selected_calculator = "⚡ Lightning Protection"
 if 'cover_details' not in st.session_state:
     st.session_state.cover_details = {
         'title': 'PLANT LIGHTNING CALCULATION',
@@ -88,10 +66,232 @@ if 'revision_history' not in st.session_state:
     st.session_state.revision_history = [
         {'rev': 'A', 'date': '02-Sep-2025', 'purpose': 'ISSUED FOR APPROVAL', 'prpd': '', 'revd': '', 'appd': ''}
     ]
+if 'input_values' not in st.session_state:
+    st.session_state.input_values = {}
 
-# ========== SIDEBAR WITH NAVIGATION ==========
+# ========== PDF Report Generator Class ==========
+class PDF_Report(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.set_auto_page_break(auto=True, margin=15)
+        
+    def header(self):
+        if self.page_no() > 1:
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, 'Lightning Protection Calculation', 0, 0, 'L')
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'R')
+            self.ln(15)
+    
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Document: {st.session_state.project_info["document_number"]} | Rev: {st.session_state.cover_details["revision"]}', 0, 0, 'C')
+    
+    def add_title_page(self, company_logo_path=None, contractor_logo_path=None):
+        self.add_page()
+        
+        # Full page border
+        self.set_draw_color(0, 0, 0)
+        self.set_line_width(0.5)
+        self.rect(10, 10, 190, 277)
+        
+        # ROW 1: 3 Columns - Company Logo, Title, Contractor Logo
+        # Column 1 - Company Logo
+        self.set_xy(15, 15)
+        self.rect(15, 15, 60, 25)
+        if company_logo_path and os.path.exists(company_logo_path):
+            try:
+                self.image(company_logo_path, 18, 17, 54, 21)
+            except:
+                self.set_xy(20, 22)
+                self.set_font('Arial', 'B', 8)
+                self.cell(50, 10, 'COMPANY', 0, 1, 'C')
+        else:
+            self.set_xy(20, 22)
+            self.set_font('Arial', 'B', 8)
+            self.cell(50, 10, 'COMPANY', 0, 1, 'C')
+        
+        # Column 2 - Project Title
+        self.set_xy(75, 15)
+        self.rect(75, 15, 60, 25)
+        self.set_xy(77, 20)
+        self.set_font('Arial', 'B', 7)
+        self.multi_cell(56, 3.5, st.session_state.project_info['project_title'], 0, 'C')
+        
+        # Column 3 - Contractor Logo
+        self.set_xy(135, 15)
+        self.rect(135, 15, 60, 25)
+        if contractor_logo_path and os.path.exists(contractor_logo_path):
+            try:
+                self.image(contractor_logo_path, 138, 17, 54, 21)
+            except:
+                self.set_xy(150, 22)
+                self.set_font('Arial', 'B', 8)
+                self.cell(40, 10, 'CONTRACTOR', 0, 1, 'C')
+        else:
+            self.set_xy(150, 22)
+            self.set_font('Arial', 'B', 8)
+            self.cell(40, 10, 'CONTRACTOR', 0, 1, 'C')
+        
+        # ROW 2: 3 Columns - Rev, Title, Date
+        # Column 1 - Revision
+        self.set_xy(15, 45)
+        self.rect(15, 45, 60, 15)
+        self.set_xy(20, 48)
+        self.set_font('Arial', 'B', 10)
+        self.cell(50, 8, f"Rev: {st.session_state.cover_details['revision']}", 0, 1, 'C')
+        
+        # Column 2 - Document Title
+        self.set_xy(75, 45)
+        self.rect(75, 45, 60, 15)
+        self.set_xy(77, 48)
+        self.set_font('Arial', 'B', 9)
+        self.cell(56, 8, st.session_state.cover_details['title'], 0, 1, 'C')
+        
+        # Column 3 - Date
+        self.set_xy(135, 45)
+        self.rect(135, 45, 60, 15)
+        self.set_xy(150, 48)
+        self.set_font('Arial', 'B', 9)
+        self.cell(40, 8, st.session_state.cover_details['date'], 0, 1, 'C')
+        
+        # Large empty rectangle
+        self.set_xy(15, 65)
+        self.rect(15, 65, 180, 30)
+        
+        # Main Title
+        self.set_xy(15, 100)
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(180, 10, 'LIGHTNING PROTECTION CALCULATION', 0, 1, 'C')
+        
+        # Revision Legend Table
+        self.set_xy(30, 120)
+        self.rect(30, 120, 150, 40)
+        self.line(70, 120, 70, 160)
+        
+        legend_items = [
+            ('I', 'ACCEPTED FOR INFORMATION ONLY.'),
+            ('A', 'APPROVED - NO COMMENTS'),
+            ('B', 'APPROVED WITH COMMENTS - WORK MAY PROCEED'),
+            ('C', 'REJECTED. TO BE RESUBMITTED - WORK SHALL NOT PROCEED')
+        ]
+        
+        self.set_font('Arial', '', 9)
+        y_pos = 125
+        for code, desc in legend_items:
+            self.set_xy(35, y_pos)
+            self.cell(30, 6, code, 0, 0, 'C')
+            self.set_xy(75, y_pos)
+            self.cell(100, 6, desc, 0, 1, 'L')
+            y_pos += 8
+        
+        # Revision History Table
+        self.set_xy(15, 175)
+        self.rect(15, 175, 180, 35)
+        
+        # Table Header
+        self.set_xy(17, 178)
+        self.set_font('Arial', 'B', 8)
+        self.set_fill_color(240, 240, 240)
+        
+        self.cell(15, 6, 'REV', 1, 0, 'C', 1)
+        self.cell(25, 6, 'DATE', 1, 0, 'C', 1)
+        self.cell(60, 6, 'ISSUE PURPOSE', 1, 0, 'C', 1)
+        self.cell(25, 6, 'PRPD BY', 1, 0, 'C', 1)
+        self.cell(25, 6, 'REVD BY', 1, 0, 'C', 1)
+        self.cell(25, 6, 'APPD BY', 1, 1, 'C', 1)
+        
+        # Table Data
+        self.set_font('Arial', '', 8)
+        self.set_xy(17, 184)
+        rev = st.session_state.revision_history[0]
+        self.cell(15, 6, rev['rev'], 1, 0, 'C')
+        self.cell(25, 6, rev['date'], 1, 0, 'C')
+        self.cell(60, 6, rev['purpose'], 1, 0, 'C')
+        self.cell(25, 6, rev['prpd'], 1, 0, 'C')
+        self.cell(25, 6, rev['revd'], 1, 0, 'C')
+        self.cell(25, 6, rev['appd'], 1, 1, 'C')
+        
+        # Document Numbers
+        self.set_y(220)
+        self.set_font('Arial', 'B', 9)
+        self.cell(60, 6, 'DOCUMENT NUMBER', 0, 0)
+        self.cell(60, 6, '', 0, 0)
+        self.cell(60, 6, 'PROJECT NUMBER', 0, 1)
+        
+        self.set_font('Arial', '', 9)
+        self.cell(60, 6, st.session_state.project_info['document_number'], 0, 0)
+        self.cell(60, 6, '', 0, 0)
+        self.cell(60, 6, st.session_state.project_info['project_number'], 0, 1)
+        
+        # Page number
+        self.set_y(250)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 5, 'Page 1 of 9', 0, 1, 'C')
+    
+    def add_calculations(self, results, inputs):
+        self.add_page()
+        
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1. RISK ASSESSMENT CALCULATIONS', 0, 1)
+        self.ln(5)
+        
+        # Collection Area
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.1 Collection Area (Ad)', 0, 1)
+        self.set_font('Arial', '', 9)
+        self.multi_cell(0, 5, 'Formula: Ad = L x W + 2 x (3H) x (L + W) + 3.14 x (3H)^2')
+        self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
+        self.ln(3)
+        
+        # Environmental Factor
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.2 Environmental Factor (CD)', 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(0, 5, f'Environment: {inputs.get("environment", "Isolated")}', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: CD = {inputs.get("cd", 1)}', 0, 1)
+        self.ln(3)
+        
+        # Lightning Density
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.3 Lightning Ground Flash Density (NG)', 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(0, 5, 'Formula: NG = 0.1 x Td', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
+        self.ln(3)
+        
+        # Expected Frequency
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.4 Expected Annual Frequency (Nd)', 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(0, 5, 'Formula: Nd = NG x Ad x CD x 10^-6', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
+        self.ln(3)
+        
+        # Protection Level
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.5 Protection Level', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: {results.get("lpl", "Class III")}', 0, 1)
+        self.cell(0, 6, f'Rolling Sphere: {results.get("sphere", 45)}m', 0, 1)
+        self.ln(3)
+        
+        # Air Terminals
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, '1.6 Air Terminals Required', 0, 1)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 6, f'Result: {results.get("air_terminals", 4)} air terminals', 0, 1)
+
+# ========== SIDEBAR ==========
 with st.sidebar:
-    st.markdown("### Lightning Protection Systems")
+    st.markdown("### ⚡ Lightning Protection Systems")
     st.markdown("---")
     
     # Calculator Navigation
@@ -113,7 +313,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Common Project Information (shared across all calculators)
+    # Common Project Information
     st.markdown("### 📋 Project Information")
     
     st.session_state.project_info['company'] = st.text_input("Company Name", st.session_state.project_info['company'])
@@ -124,7 +324,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Logo Uploads (shared across all calculators)
+    # Logo Uploads
     st.markdown("### 🏢 Company Logo")
     company_logo = st.file_uploader("Upload Company Logo", type=['png', 'jpg', 'jpeg'], key="company")
     if company_logo is not None:
@@ -137,14 +337,12 @@ with st.sidebar:
         st.session_state.contractor_logo = Image.open(io.BytesIO(contractor_logo.getvalue()))
         st.image(st.session_state.contractor_logo, width=100)
 
-# ========== MAIN CONTENT AREA ==========
+# ========== MAIN CONTENT ==========
 st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
 
-# Show different calculators based on selection
-if st.session_state.selected_calculator == " Lightning Protection":
-    # ========== LIGHTNING PROTECTION CALCULATOR (EXISTING) ==========
+# Lightning Protection Calculator
+if st.session_state.selected_calculator == "⚡ Lightning Protection":
     
-    # Create tabs for lightning protection
     lp_tabs = st.tabs([
         "🏢 Title Page", 
         "📊 Risk Assessment", 
@@ -154,7 +352,7 @@ if st.session_state.selected_calculator == " Lightning Protection":
         "📥 PDF Report"
     ])
     
-    # ========== TAB 1: TITLE PAGE ==========
+    # TAB 1: Title Page
     with lp_tabs[0]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## TITLE PAGE DESIGN")
@@ -174,7 +372,7 @@ if st.session_state.selected_calculator == " Lightning Protection":
             if st.session_state.contractor_logo:
                 st.image(st.session_state.contractor_logo, width=100, caption="Contractor Logo")
     
-    # ========== TAB 2: RISK ASSESSMENT ==========
+    # TAB 2: Risk Assessment
     with lp_tabs[1]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## RISK ASSESSMENT (IEC 62305-2)")
@@ -207,19 +405,17 @@ if st.session_state.selected_calculator == " Lightning Protection":
             st.markdown("### 📊 Coefficients")
             cd_values = {"Surrounded": 0.25, "Similar height": 0.5, "Isolated": 1, "Hilltop": 2}
             cd = cd_values[environment]
-            st.info(f"**CD = {cd}** (IEC 62305-2 Table A.1)")
+            st.info(f"**CD = {cd}**")
             
             if structure_type == "Column 4-C01":
                 c2, c3, c4, c5 = 0.5, 2.0, 3.0, 10.0
-                st.caption("Column coefficients applied")
             else:
                 c2, c3, c4, c5 = 1.0, 3.0, 1.0, 5.0
-                st.caption("Building coefficients applied")
             
-            st.metric("C2 - Type Coefficient", c2)
-            st.metric("C3 - Content Coefficient", c3)
-            st.metric("C4 - Occupancy Coefficient", c4)
-            st.metric("C5 - Consequence Coefficient", c5)
+            st.metric("C2 - Type", c2)
+            st.metric("C3 - Content", c3)
+            st.metric("C4 - Occupancy", c4)
+            st.metric("C5 - Consequence", c5)
         
         if st.button("🔧 CALCULATE RISK", type="primary", use_container_width=True):
             
@@ -236,13 +432,13 @@ if st.session_state.selected_calculator == " Lightning Protection":
             efficiency = 1 - (nc / nd) if nd > 0 else 0
             
             if efficiency > 0.98:
-                lpl, lpl_desc, sphere = "Class I", "Maximum Protection", 20
+                lpl, sphere = "Class I", 20
             elif efficiency > 0.95:
-                lpl, lpl_desc, sphere = "Class II", "High Protection", 30
+                lpl, sphere = "Class II", 30
             elif efficiency > 0.90:
-                lpl, lpl_desc, sphere = "Class III", "Standard Protection", 45
+                lpl, sphere = "Class III", 45
             else:
-                lpl, lpl_desc, sphere = "Class IV", "Basic Protection", 60
+                lpl, sphere = "Class IV", 60
             
             if height <= sphere:
                 protection_width = 2 * math.sqrt(sphere**2 - (sphere - height)**2)
@@ -257,12 +453,11 @@ if st.session_state.selected_calculator == " Lightning Protection":
                 air_terminals = math.ceil(perimeter / 10) + math.ceil((length * width) / 100)
             
             st.markdown("---")
-            st.subheader("📊 Risk Assessment Results")
+            st.subheader("📊 Results")
             
             col_a, col_b, col_c = st.columns(3)
             with col_a:
-                st.metric("Collection Area (Ad)", f"{ad:.0f} m²")
-                st.metric("Expected Frequency (Nd)", f"{nd:.6f}")
+                st.metric("Collection Area", f"{ad:.0f} m²")
             with col_b:
                 st.metric("Protection Level", lpl)
                 st.metric("Efficiency", f"{efficiency:.1%}")
@@ -272,52 +467,32 @@ if st.session_state.selected_calculator == " Lightning Protection":
             
             st.session_state.calc_results = {
                 'ad': ad, 'ng': ng, 'nd': nd, 'efficiency': efficiency,
-                'lpl': lpl, 'lpl_desc': lpl_desc, 'sphere': sphere,
-                'air_terminals': air_terminals
+                'lpl': lpl, 'sphere': sphere, 'air_terminals': air_terminals
             }
             st.session_state.input_values = {
                 'length': length, 'width': width, 'height': height,
                 'td_days': td_days, 'environment': environment, 'cd': cd
             }
             st.session_state.calc_done = True
-            st.success("✅ Risk Assessment Complete!")
     
-    # ========== TAB 3: PROTECTION DESIGN ==========
+    # TAB 3: Protection Design
     with lp_tabs[2]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
-        st.markdown("## PROTECTION DESIGN (IEC 62305-3 & NFPA 780)")
+        st.markdown("## PROTECTION DESIGN")
         st.markdown('</div>', unsafe_allow_html=True)
         
         if not st.session_state.calc_done:
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
             results = st.session_state.calc_results
-            
             st.success(f"✅ Designing for: **{results['lpl']}**")
             
             col1, col2 = st.columns(2)
-            
             with col1:
-                st.markdown("### 🔧 Air Termination System")
-                st.metric("Air Terminals Required", results['air_terminals'])
-                st.metric("Rolling Sphere Radius", f"{results['sphere']}m")
-                
-                if results['lpl'] in ["Class I", "Class II"]:
-                    rod_dia, down_size = 12.7, 58
-                else:
-                    rod_dia, down_size = 9.5, 29
-                
-                st.metric("Rod Diameter", f"{rod_dia} mm")
-                st.metric("Down Conductor", f"{down_size} mm²")
-            
-            with col2:
-                st.markdown("### 🌍 Earthing System")
-                st.metric("Earthing Type", "Type A - Vertical Rods")
-                st.metric("Earth Rod Length", "3.0 m")
-                st.metric("Earth Rod Diameter", "15 mm")
-                st.metric("Target Resistance", "<10 Ω")
+                st.metric("Air Terminals", results['air_terminals'])
+                st.metric("Rolling Sphere", f"{results['sphere']}m")
     
-    # ========== TAB 4: CALCULATIONS ==========
+    # TAB 4: Calculations
     with lp_tabs[3]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DETAILED CALCULATIONS")
@@ -327,10 +502,9 @@ if st.session_state.selected_calculator == " Lightning Protection":
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
             with st.expander("Collection Area (Ad)", expanded=True):
-                st.markdown("**Formula:** Ad = L×W + 2×(3H)×(L+W) + π×(3H)²")
                 st.markdown(f"**Result:** Ad = **{st.session_state.calc_results['ad']:.2f} m²**")
     
-    # ========== TAB 5: REVISION HISTORY ==========
+    # TAB 5: Revision History
     with lp_tabs[4]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## REVISION HISTORY")
@@ -350,7 +524,7 @@ if st.session_state.selected_calculator == " Lightning Protection":
         with col6:
             st.session_state.revision_history[0]['appd'] = st.text_input("APPD", st.session_state.revision_history[0]['appd'])
     
-    # ========== TAB 6: PDF REPORT ==========
+    # TAB 6: PDF Report - FIXED VERSION
     with lp_tabs[5]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## GENERATE PDF REPORT")
@@ -360,62 +534,66 @@ if st.session_state.selected_calculator == " Lightning Protection":
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
             if st.button("📥 GENERATE PDF REPORT", type="primary", use_container_width=True):
-                st.info("PDF generation will be available in next update")
-                # PDF generation code here
+                with st.spinner("Generating PDF report..."):
+                    
+                    # Save logos temporarily
+                    company_logo_path = ""
+                    contractor_logo_path = ""
+                    
+                    if st.session_state.company_logo is not None:
+                        company_logo_path = "temp_company_logo.png"
+                        st.session_state.company_logo.save(company_logo_path)
+                    
+                    if st.session_state.contractor_logo is not None:
+                        contractor_logo_path = "temp_contractor_logo.png"
+                        st.session_state.contractor_logo.save(contractor_logo_path)
+                    
+                    # Create PDF
+                    pdf = PDF_Report()
+                    pdf.add_title_page(company_logo_path, contractor_logo_path)
+                    pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
+                    
+                    # Clean up temp files
+                    if company_logo_path and os.path.exists(company_logo_path):
+                        os.remove(company_logo_path)
+                    if contractor_logo_path and os.path.exists(contractor_logo_path):
+                        os.remove(contractor_logo_path)
+                    
+                    # Generate PDF
+                    pdf_output = pdf.output(dest='S')
+                    b64 = base64.b64encode(pdf_output).decode()
+                    
+                    # Create download button
+                    filename = f"LPS_Report_{st.session_state.cover_details['revision']}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                    
+                    st.markdown(f"""
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="data:application/pdf;base64,{b64}" download="{filename}" 
+                           style="display: inline-block; padding: 15px 30px; background-color: #4CAF50; 
+                                  color: white; text-decoration: none; border-radius: 5px; font-size: 18px;">
+                            📥 CLICK HERE TO DOWNLOAD PDF
+                        </a>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.success("✅ PDF Generated Successfully! Click the button above to download.")
 
-# ========== OTHER CALCULATORS (PLACEHOLDERS) ==========
+# Other Calculators (Placeholders)
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
-    st.markdown('<div class="report-header">', unsafe_allow_html=True)
-    st.markdown("## CABLE SIZING CALCULATOR")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
     st.info("🔧 Cable sizing calculator will be implemented here")
-    
-    # Placeholder tabs for cable sizing
-    cable_tabs = st.tabs(["📐 Input Parameters", "📊 Calculations", "📋 Results", "📥 Report"])
-    
-    with cable_tabs[0]:
-        st.markdown("### Cable Parameters")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.number_input("Current (A)", value=100)
-            st.number_input("Length (m)", value=50)
-        with col2:
-            st.selectbox("Cable Type", ["Copper", "Aluminum"])
-            st.selectbox("Installation", ["Air", "Ground", "Conduit"])
 
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
-    st.markdown('<div class="report-header">', unsafe_allow_html=True)
-    st.markdown("## TRANSFORMER SIZING CALCULATOR")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
     st.info("⚙️ Transformer sizing calculator will be implemented here")
-    
-    transformer_tabs = st.tabs(["📐 Input", "📊 Calculations", "📋 Results"])
-    
-    with transformer_tabs[0]:
-        st.markdown("### Load Parameters")
-        st.number_input("Total Load (kVA)", value=500)
-        st.number_input("Future Expansion (%)", value=20)
 
 elif st.session_state.selected_calculator == "📊 Load Flow Analysis":
-    st.markdown('<div class="report-header">', unsafe_allow_html=True)
-    st.markdown("## LOAD FLOW ANALYSIS")
-    st.markdown('</div>', unsafe_allow_html=True)
     st.info("📊 Load flow analysis calculator will be implemented here")
 
 elif st.session_state.selected_calculator == "🔧 Short Circuit":
-    st.markdown('<div class="report-header">', unsafe_allow_html=True)
-    st.markdown("## SHORT CIRCUIT CALCULATION")
-    st.markdown('</div>', unsafe_allow_html=True)
     st.info("🔧 Short circuit calculation will be implemented here")
 
 elif st.session_state.selected_calculator == "📈 Voltage Drop":
-    st.markdown('<div class="report-header">', unsafe_allow_html=True)
-    st.markdown("## VOLTAGE DROP CALCULATOR")
-    st.markdown('</div>', unsafe_allow_html=True)
     st.info("📈 Voltage drop calculator will be implemented here")
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Engineering Tools | Version 1.0 | {datetime.now().strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Engineering Tools | Version 2.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
