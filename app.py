@@ -41,9 +41,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state - SAME AS BEFORE
+# Initialize session state
 if 'company_logo' not in st.session_state:
     st.session_state.company_logo = None
+if 'contractor_logo' not in st.session_state:
+    st.session_state.contractor_logo = None
 if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
 if 'calc_done' not in st.session_state:
@@ -71,7 +73,7 @@ if 'revision_history' not in st.session_state:
         {'rev': 'A', 'date': '02-Sep-2025', 'purpose': 'ISSUED FOR APPROVAL', 'prpd': '', 'revd': '', 'appd': ''}
     ]
 
-# ========== UPDATED PDF Report Generator Class - ONLY TITLE PAGE CHANGED ==========
+# ========== PDF Report Generator Class ==========
 class PDF_Report(FPDF):
     def __init__(self):
         super().__init__()
@@ -89,8 +91,8 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Document: {st.session_state.project_info["document_number"]} | Rev: {st.session_state.cover_details["revision"]}', 0, 0, 'C')
     
-    # ===== UPDATED TITLE PAGE - EXACT DESIGN =====
-    def add_title_page(self, logo_path=None):
+    # ===== TITLE PAGE WITH BOTH LOGOS AND CONNECTED BOXES =====
+    def add_title_page(self, company_logo_path=None, contractor_logo_path=None):
         self.add_page()
         
         # Full page border
@@ -98,77 +100,98 @@ class PDF_Report(FPDF):
         self.set_line_width(0.5)
         self.rect(10, 10, 190, 277)
         
-        # ROW 1: 3 Columns
-        # Column 1 - Company Logo
+        # ===== ROW 1: 3 Columns - CONNECTED (NO SPACE) =====
+        # Column 1 - Company Logo Box (60mm wide)
         self.set_xy(15, 15)
-        self.set_draw_color(0, 0, 0)
         self.rect(15, 15, 60, 25)
-        if logo_path and os.path.exists(logo_path):
+        
+        # Company Logo
+        if company_logo_path and os.path.exists(company_logo_path):
             try:
-                self.image(logo_path, 20, 17, 50, 20)
+                self.image(company_logo_path, 18, 17, 54, 21)
             except:
                 self.set_xy(20, 22)
                 self.set_font('Arial', 'B', 8)
-                self.cell(50, 10, 'COMPANY LOGO', 0, 1, 'C')
+                self.cell(50, 10, 'COMPANY', 0, 1, 'C')
         else:
             self.set_xy(20, 22)
             self.set_font('Arial', 'B', 8)
-            self.cell(50, 10, 'COMPANY LOGO', 0, 1, 'C')
+            self.cell(50, 10, 'COMPANY', 0, 1, 'C')
         
-        # Column 2 - Project Title
-        self.set_xy(80, 15)
-        self.rect(80, 15, 60, 25)
-        self.set_xy(82, 20)
+        # Column 2 - Project Title Box (BARA - 70mm wide) - CONNECTED
+        self.set_xy(75, 15)
+        
+        # Draw top and bottom borders
+        self.line(75, 15, 145, 15)  # Top border
+        self.line(75, 40, 145, 40)  # Bottom border
+        self.line(75, 15, 75, 40)   # Left border (overlaps with column 1)
+        
+        # Project Title Text
+        self.set_xy(77, 20)
         self.set_font('Arial', 'B', 7)
-        self.multi_cell(56, 3.5, st.session_state.project_info['project_title'], 0, 'C')
+        self.multi_cell(66, 3.5, st.session_state.project_info['project_title'], 0, 'C')
         
-        # Column 3 - Contractor Logo (or name)
+        # Column 3 - Contractor Logo Box (50mm wide) - CONNECTED
         self.set_xy(145, 15)
         self.rect(145, 15, 50, 25)
-        self.set_xy(150, 22)
-        self.set_font('Arial', 'B', 8)
-        self.cell(40, 10, st.session_state.project_info['contractor'], 0, 1, 'C')
         
-        # ROW 2: 3 Columns
-        # Column 1 - Revision
-        self.set_xy(15, 45)
-        self.rect(15, 45, 60, 15)
-        self.set_xy(20, 48)
-        self.set_font('Arial', 'B', 12)
-        self.cell(50, 8, f"REV: {st.session_state.cover_details['revision']}", 0, 1, 'C')
+        # Contractor Logo
+        if contractor_logo_path and os.path.exists(contractor_logo_path):
+            try:
+                self.image(contractor_logo_path, 148, 17, 44, 21)
+            except:
+                self.set_xy(150, 22)
+                self.set_font('Arial', 'B', 8)
+                self.cell(40, 10, 'CONTRACTOR', 0, 1, 'C')
+        else:
+            self.set_xy(150, 22)
+            self.set_font('Arial', 'B', 8)
+            self.cell(40, 10, 'CONTRACTOR', 0, 1, 'C')
         
-        # Column 2 - Document Title
-        self.set_xy(80, 45)
-        self.rect(80, 45, 60, 15)
-        self.set_xy(82, 48)
+        # ===== ROW 2: 3 Columns - CONNECTED =====
+        # Column 1 - Revision Box (60mm wide)
+        self.set_xy(15, 40)
+        self.rect(15, 40, 60, 15)
+        
+        self.set_xy(20, 42)
         self.set_font('Arial', 'B', 10)
-        self.cell(56, 8, st.session_state.cover_details['title'], 0, 1, 'C')
+        self.cell(50, 8, f"Rev: {st.session_state.cover_details['revision']}", 0, 1, 'C')
         
-        # Column 3 - Date
-        self.set_xy(145, 45)
-        self.rect(145, 45, 50, 15)
-        self.set_xy(150, 48)
-        self.set_font('Arial', 'B', 10)
+        # Column 2 - Document Title Box (70mm wide)
+        self.set_xy(75, 40)
+        self.line(75, 40, 145, 40)  # Top border
+        self.line(75, 55, 145, 55)  # Bottom border
+        
+        self.set_xy(77, 42)
+        self.set_font('Arial', 'B', 9)
+        self.cell(66, 8, st.session_state.cover_details['title'], 0, 1, 'C')
+        
+        # Column 3 - Date Box (50mm wide)
+        self.set_xy(145, 40)
+        self.rect(145, 40, 50, 15)
+        
+        self.set_xy(150, 42)
+        self.set_font('Arial', 'B', 9)
         self.cell(40, 8, st.session_state.cover_details['date'], 0, 1, 'C')
         
-        # Large empty rectangle (3-4 enters space)
-        self.set_xy(15, 65)
-        self.rect(15, 65, 180, 40)
-        # Empty space
+        # ===== REST OF THE PAGE =====
+        # Large empty rectangle
+        self.set_xy(15, 55)
+        self.rect(15, 55, 180, 30)
         
-        # Title inside rectangle
-        self.set_xy(15, 110)
+        # Title
+        self.set_xy(15, 90)
         self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
         self.cell(180, 10, 'LIGHTNING PROTECTION CALCULATION', 0, 1, 'C')
         
         # Space after title
-        self.set_y(125)
+        self.set_y(105)
         
-        # Revision Legend Table (4 rows, 2 columns)
-        self.set_xy(30, 130)
-        self.rect(30, 130, 150, 40)
-        self.line(70, 130, 70, 170)
+        # Revision Legend Table
+        self.set_xy(30, 110)
+        self.rect(30, 110, 150, 40)
+        self.line(70, 110, 70, 150)
         
         legend_items = [
             ('I', 'ACCEPTED FOR INFORMATION ONLY.'),
@@ -178,7 +201,7 @@ class PDF_Report(FPDF):
         ]
         
         self.set_font('Arial', '', 9)
-        y_pos = 135
+        y_pos = 115
         for code, desc in legend_items:
             self.set_xy(35, y_pos)
             self.cell(30, 6, code, 0, 0, 'C')
@@ -186,15 +209,12 @@ class PDF_Report(FPDF):
             self.cell(100, 6, desc, 0, 1, 'L')
             y_pos += 8
         
-        # Space after legend
-        self.set_y(175)
-        
-        # Revision History Table (Bottom)
-        self.set_xy(15, 185)
-        self.rect(15, 185, 180, 35)
+        # Revision History Table
+        self.set_xy(15, 165)
+        self.rect(15, 165, 180, 35)
         
         # Table Header
-        self.set_xy(17, 188)
+        self.set_xy(17, 168)
         self.set_font('Arial', 'B', 8)
         self.set_fill_color(240, 240, 240)
         
@@ -207,7 +227,7 @@ class PDF_Report(FPDF):
         
         # Table Data
         self.set_font('Arial', '', 8)
-        self.set_xy(17, 194)
+        self.set_xy(17, 174)
         rev = st.session_state.revision_history[0]
         self.cell(15, 6, rev['rev'], 1, 0, 'C')
         self.cell(25, 6, rev['date'], 1, 0, 'C')
@@ -216,8 +236,8 @@ class PDF_Report(FPDF):
         self.cell(25, 6, rev['revd'], 1, 0, 'C')
         self.cell(25, 6, rev['appd'], 1, 1, 'C')
         
-        # Document Numbers at bottom
-        self.set_y(230)
+        # Document Numbers
+        self.set_y(210)
         self.set_font('Arial', 'B', 9)
         self.cell(60, 6, 'DOCUMENT NUMBER', 0, 0)
         self.cell(60, 6, '', 0, 0)
@@ -229,7 +249,7 @@ class PDF_Report(FPDF):
         self.cell(60, 6, st.session_state.project_info['project_number'], 0, 1)
         
         # Page number
-        self.set_y(260)
+        self.set_y(240)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, 'Page 1 of 9', 0, 1, 'C')
     
@@ -305,22 +325,24 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'B', 9)
         self.cell(0, 6, f'Result: {results["air_terminals"]} air terminals required', 0, 1)
 
-# ========== SIDEBAR - SAME AS BEFORE ==========
+# ========== SIDEBAR ==========
 with st.sidebar:
     st.markdown("### ⚡ Lightning Protection Systems")
     
-    # Logo Upload
     st.markdown("---")
-    st.markdown("### 🖼️ Company Logo")
+    st.markdown("### 🏢 Company Logo")
+    company_logo = st.file_uploader("Upload Company Logo", type=['png', 'jpg', 'jpeg'], key="company")
+    if company_logo is not None:
+        st.session_state.company_logo = Image.open(io.BytesIO(company_logo.getvalue()))
+        st.image(st.session_state.company_logo, width=100)
+        st.success("✅ Company Logo uploaded!")
     
-    uploaded_logo = st.file_uploader("Upload Logo", type=['png', 'jpg', 'jpeg'])
-    
-    if uploaded_logo is not None:
-        st.session_state.logo_bytes = uploaded_logo.getvalue()
-        logo_image = Image.open(io.BytesIO(st.session_state.logo_bytes))
-        st.session_state.company_logo = logo_image
-        st.image(logo_image, width=150, caption="Your Logo")
-        st.success("✅ Logo uploaded!")
+    st.markdown("### 🏭 Contractor Logo")
+    contractor_logo = st.file_uploader("Upload Contractor Logo", type=['png', 'jpg', 'jpeg'], key="contractor")
+    if contractor_logo is not None:
+        st.session_state.contractor_logo = Image.open(io.BytesIO(contractor_logo.getvalue()))
+        st.image(st.session_state.contractor_logo, width=100)
+        st.success("✅ Contractor Logo uploaded!")
     
     st.markdown("---")
     
@@ -342,7 +364,7 @@ with st.sidebar:
     st.session_state.project_info['document_number'] = st.text_input("Document Number", st.session_state.project_info['document_number'])
     st.session_state.project_info['project_number'] = st.text_input("Project Number", st.session_state.project_info['project_number'])
 
-# ========== MAIN TABS - SAME AS BEFORE ==========
+# ========== MAIN TABS ==========
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🏢 Title Page", 
     "📊 Risk Assessment", 
@@ -352,7 +374,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📥 PDF Report"
 ])
 
-# ========== TAB 1: TITLE PAGE (Preview Only) ==========
+# ========== TAB 1: TITLE PAGE ==========
 with tab1:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## TITLE PAGE DESIGN")
@@ -367,10 +389,13 @@ with tab1:
         st.session_state.cover_details['date'] = st.text_input("Date", st.session_state.cover_details['date'])
     
     with col2:
-        st.markdown("### 📄 Preview")
-        st.info("Title page will be generated in PDF with exact design")
+        st.markdown("### 📄 Logos Preview")
+        if st.session_state.company_logo:
+            st.image(st.session_state.company_logo, width=100, caption="Company Logo")
+        if st.session_state.contractor_logo:
+            st.image(st.session_state.contractor_logo, width=100, caption="Contractor Logo")
 
-# ========== TAB 2: RISK ASSESSMENT - SAME AS BEFORE ==========
+# ========== TAB 2: RISK ASSESSMENT ==========
 with tab2:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## RISK ASSESSMENT (IEC 62305-2)")
@@ -467,6 +492,7 @@ with tab2:
             st.metric("Air Terminals", air_terminals)
         
         st.session_state.calc_results = {
+            'structure': structure_type,
             'ad': ad, 'ng': ng, 'nd': nd, 'efficiency': efficiency,
             'lpl': lpl, 'lpl_desc': lpl_desc, 'sphere': sphere,
             'air_terminals': air_terminals
@@ -476,9 +502,9 @@ with tab2:
             'td_days': td_days, 'environment': environment, 'cd': cd
         }
         st.session_state.calc_done = True
-        st.success("✅ Risk Assessment Complete!")
+        st.success("✅ Risk Assessment Complete! Now go to Protection Design tab.")
 
-# ========== TAB 3: PROTECTION DESIGN - SAME AS BEFORE ==========
+# ========== TAB 3: PROTECTION DESIGN ==========
 with tab3:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## PROTECTION DESIGN (IEC 62305-3 & NFPA 780)")
@@ -501,27 +527,44 @@ with tab3:
             
             if results['lpl'] in ["Class I", "Class II"]:
                 rod_dia, down_size = 12.7, 58
+                mesh = "5m x 5m" if results['lpl'] == "Class I" else "10m x 10m"
             else:
                 rod_dia, down_size = 9.5, 29
+                mesh = "15m x 15m" if results['lpl'] == "Class III" else "20m x 20m"
             
             st.metric("Rod Diameter", f"{rod_dia} mm")
             st.metric("Down Conductor", f"{down_size} mm²")
+            st.metric("Mesh Size", mesh)
         
         with col2:
             st.markdown("### 🌍 Earthing System")
             if inputs['width'] > 0:
                 earth_type = "Type B - Ring Electrode"
                 earth_len = 3.0
+                st.info("**Ring electrode around building perimeter**")
             else:
                 earth_type = "Type A - Vertical Rods"
                 earth_len = 2.4
+                st.info("**Vertical rods at base of column**")
             
             st.metric("Earthing Type", earth_type)
             st.metric("Earth Rod Length", f"{earth_len}m")
-            st.metric("Earth Rod Diameter", "15 mm")
+            st.metric("Earth Rod Diameter", "15 mm (min)")
             st.metric("Target Resistance", "<10 Ω")
+        
+        # Materials Table
+        st.markdown("---")
+        st.markdown("### 📋 Bill of Materials")
+        
+        materials = pd.DataFrame({
+            'Component': ['Air Termination Rods', 'Down Conductors', 'Earth Rods', 'Test Joints', 'Connectors'],
+            'Quantity': [f"{results['air_terminals']} pcs", f"{down_size} mm²", f"{earth_len}m x 4 nos", f"{max(2, results['air_terminals']//2)} pcs", "As required"],
+            'Material': ['Copper (10mm dia)', 'Copper (50mm²)', 'Copper Coated Steel', 'Stainless Steel', 'Copper/Stainless'],
+            'Reference': ['IEC 62305-3 Table 6', 'IEC 62305-3 Table 6', 'IEC 62305-3 Table 7', 'Clause 5.3.6', 'Clause 5.5.3']
+        })
+        st.dataframe(materials, use_container_width=True, hide_index=True)
 
-# ========== TAB 4: CALCULATIONS - SAME AS BEFORE ==========
+# ========== TAB 4: CALCULATIONS ==========
 with tab4:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## DETAILED CALCULATIONS")
@@ -564,7 +607,7 @@ with tab4:
             st.markdown(f"**Result:** **{results['lpl']}**")
             st.markdown('</div>', unsafe_allow_html=True)
 
-# ========== TAB 5: REVISION HISTORY - SAME AS BEFORE ==========
+# ========== TAB 5: REVISION HISTORY ==========
 with tab5:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## REVISION HISTORY")
@@ -584,7 +627,7 @@ with tab5:
     with col6:
         st.session_state.revision_history[0]['appd'] = st.text_input("APPD", st.session_state.revision_history[0]['appd'])
 
-# ========== TAB 6: PDF REPORT - SAME AS BEFORE ==========
+# ========== TAB 6: PDF REPORT ==========
 with tab6:
     st.markdown('<div class="report-header">', unsafe_allow_html=True)
     st.markdown("## GENERATE PDF REPORT")
@@ -598,17 +641,27 @@ with tab6:
         if st.button("📥 GENERATE PDF REPORT", type="primary", use_container_width=True):
             with st.spinner("Generating PDF report..."):
                 
-                temp_logo = ""
+                # Save company logo temporarily
+                company_logo_path = ""
                 if st.session_state.company_logo is not None:
-                    temp_logo = "temp_logo.png"
-                    st.session_state.company_logo.save(temp_logo)
+                    company_logo_path = "temp_company_logo.png"
+                    st.session_state.company_logo.save(company_logo_path)
+                
+                # Save contractor logo temporarily
+                contractor_logo_path = ""
+                if st.session_state.contractor_logo is not None:
+                    contractor_logo_path = "temp_contractor_logo.png"
+                    st.session_state.contractor_logo.save(contractor_logo_path)
                 
                 pdf = PDF_Report()
-                pdf.add_title_page(temp_logo)
+                pdf.add_title_page(company_logo_path, contractor_logo_path)
                 pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
                 
-                if temp_logo and os.path.exists(temp_logo):
-                    os.remove(temp_logo)
+                # Clean up temp files
+                if company_logo_path and os.path.exists(company_logo_path):
+                    os.remove(company_logo_path)
+                if contractor_logo_path and os.path.exists(contractor_logo_path):
+                    os.remove(contractor_logo_path)
                 
                 pdf_output = pdf.output(dest='S')
                 b64 = base64.b64encode(pdf_output).decode()
@@ -620,4 +673,4 @@ with tab6:
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Lightning Protection System | Version 16.0 | {datetime.now().strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Lightning Protection System | Version 17.0 | {datetime.now().strftime('%Y-%m-%d')}</div>", unsafe_allow_html=True)
