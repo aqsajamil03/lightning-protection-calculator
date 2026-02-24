@@ -233,65 +233,129 @@ class PDF_Report(FPDF):
     def add_calculations(self, results, inputs):
         self.add_page()
         
-        self.set_font('Arial', 'B', 14)
+        self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
         self.cell(0, 10, '1. RISK ASSESSMENT CALCULATIONS', 0, 1)
         self.ln(5)
         
-        # Collection Area
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.1 Collection Area (Ad)', 0, 1)
-        self.set_font('Arial', '', 9)
-        self.multi_cell(0, 5, 'Formula: Ad = L x W + 2 x (3H) x (L + W) + 3.14 x (3H)^2')
+        # 1. Collection Area
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.1 Collection Area (Ad)', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.multi_cell(0, 5, 'Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
         self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2', 0, 1)
-        self.set_font('Arial', 'B', 9)
-        self.cell(0, 6, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
-        self.ln(3)
         
-        # Environmental Factor
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.2 Environmental Factor (CD)', 0, 1)
-        self.set_font('Arial', '', 9)
-        self.cell(0, 5, f'Environment: {inputs.get("environment", "Isolated")}', 0, 1)
-        self.set_font('Arial', 'B', 9)
+        if inputs.get('width', 0) == 0:  # Column
+            self.cell(0, 5, f'For Column: Ad = π × 9 × H²', 0, 1)
+            self.cell(0, 5, f'Calculation: Ad = π × 9 × ({inputs["height"]})²', 0, 1)
+        else:
+            self.cell(0, 5, f'Calculation: Ad = {inputs["length"]} × {inputs["width"]} + 2 × (3 × {inputs["height"]}) × ({inputs["length"]} + {inputs["width"]}) + π × (3 × {inputs["height"]})²', 0, 1)
+        
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Result: Ad = {results["ad"]:.2f} m²', 0, 1)
+        self.ln(5)
+        
+        # 2. Environmental Factor
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.2 Environmental Factor (CD)', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Reference: IEC 62305-2 Table A.1 - Location Factor', 0, 1)
+        self.cell(0, 5, 'Values: Surrounded=0.25, Similar height=0.5, Isolated=1, Hilltop=2', 0, 1)
+        self.cell(0, 5, f'Selected Environment: {inputs.get("environment", "Isolated")}', 0, 1)
+        self.set_font('Arial', 'B', 10)
         self.cell(0, 6, f'Result: CD = {inputs.get("cd", 1)}', 0, 1)
-        self.ln(3)
+        self.ln(5)
         
-        # Lightning Density
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.3 Lightning Ground Flash Density (NG)', 0, 1)
-        self.set_font('Arial', '', 9)
-        self.cell(0, 5, 'Formula: NG = 0.1 x Td', 0, 1)
-        self.set_font('Arial', 'B', 9)
-        self.cell(0, 6, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
-        self.ln(3)
+        # 3. Lightning Density
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.3 Lightning Ground Flash Density (NG)', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Formula: NG = 0.1 × Td', 0, 1)
+        self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.1, Equation A.1', 0, 1)
+        self.cell(0, 5, f'Calculation: NG = 0.1 × {inputs.get("td_days", 10)}', 0, 1)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Result: NG = {results.get("ng", 1)} flashes/km²/year', 0, 1)
+        self.ln(5)
         
-        # Expected Frequency
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.4 Expected Annual Frequency (Nd)', 0, 1)
-        self.set_font('Arial', '', 9)
-        self.cell(0, 5, 'Formula: Nd = NG x Ad x CD x 10^-6', 0, 1)
-        self.set_font('Arial', 'B', 9)
+        # 4. Expected Frequency
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.4 Expected Annual Frequency (Nd)', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Formula: Nd = NG × Ad × CD × 10⁻⁶', 0, 1)
+        self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.4, Equation A.4', 0, 1)
+        self.cell(0, 5, f'Calculation: Nd = {results.get("ng", 1)} × {results["ad"]:.0f} × {inputs.get("cd", 1)} × 10⁻⁶', 0, 1)
+        self.set_font('Arial', 'B', 10)
         self.cell(0, 6, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
-        self.ln(3)
+        self.ln(5)
         
-        # Protection Level
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.5 Protection Level', 0, 1)
-        self.set_font('Arial', 'B', 9)
-        self.cell(0, 6, f'Result: {results.get("lpl", "Class III")}', 0, 1)
-        self.cell(0, 6, f'Rolling Sphere: {results.get("sphere", 45)}m', 0, 1)
-        self.ln(3)
+        # 5. Protection Level
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.5 Protection Level Determination', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Reference: IEC 62305-1 Table 1 & Figure 1', 0, 1)
+        self.cell(0, 5, f'Protection Efficiency: {results.get("efficiency", 0):.1%}', 0, 1)
         
-        # Air Terminals
-        self.set_font('Arial', 'B', 11)
-        self.cell(0, 7, '1.6 Air Terminals Required', 0, 1)
-        self.set_font('Arial', 'B', 9)
-        self.cell(0, 6, f'Result: {results.get("air_terminals", 4)} air terminals', 0, 1)
+        # Protection Level based on efficiency
+        if results.get("efficiency", 0) > 0.98:
+            lpl_text = "Class I (Maximum Protection)"
+        elif results.get("efficiency", 0) > 0.95:
+            lpl_text = "Class II (High Protection)"
+        elif results.get("efficiency", 0) > 0.90:
+            lpl_text = "Class III (Standard Protection)"
+        else:
+            lpl_text = "Class IV (Basic Protection)"
+        
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Result: {lpl_text}', 0, 1)
+        self.cell(0, 6, f'Rolling Sphere Radius: {results.get("sphere", 45)}m (IEC 62305-3 Table 2)', 0, 1)
+        self.ln(5)
+        
+        # 6. Air Terminals
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1.6 Air Terminals Required', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Method: Rolling Sphere Method', 0, 1)
+        self.cell(0, 5, 'Reference: IEC 62305-3 Clause 5.2.2, Table 2', 0, 1)
+        
+        if inputs.get('height', 0) <= results.get('sphere', 45):
+            self.cell(0, 5, 'Using: Protection Width Method', 0, 1)
+        else:
+            self.cell(0, 5, 'Using: Mesh Method for tall structures', 0, 1)
+        
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Result: {results.get("air_terminals", 4)} air terminals required', 0, 1)
+        
+        # Summary Table
+        self.ln(10)
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 8, 'SUMMARY OF RESULTS', 0, 1)
+        
+        # Create a simple table
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(240, 240, 240)
+        self.cell(70, 7, 'Parameter', 1, 0, 'C', 1)
+        self.cell(100, 7, 'Value', 1, 1, 'C', 1)
+        
+        self.set_font('Arial', '', 9)
+        summary_data = [
+            ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
+            ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
+            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
+            ('Expected Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
+            ('Protection Level', results.get('lpl', 'Class III')),
+            ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
+            ('Air Terminals Required', str(results.get('air_terminals', 4)))
+        ]
+        
+        for param, value in summary_data:
+            self.cell(70, 6, param, 1)
+            self.cell(100, 6, value, 1)
+            self.ln()
 
 # ========== SIDEBAR ==========
 with st.sidebar:
-    st.markdown("### ⚡ Lightning Protection Systems")
+    st.markdown("### ⚡ CES-Electrical Design Calculations")  # ← CHANGED HERE
     st.markdown("---")
     
     # Calculator Navigation
@@ -492,7 +556,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.metric("Air Terminals", results['air_terminals'])
                 st.metric("Rolling Sphere", f"{results['sphere']}m")
     
-    # TAB 4: Calculations - WITH DETAILED CALCULATIONS
+    # TAB 4: Calculations
     with lp_tabs[3]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DETAILED CALCULATIONS WITH FORMULAS")
@@ -595,7 +659,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
             if st.button("📥 GENERATE PDF REPORT", type="primary", use_container_width=True):
-                with st.spinner("Generating PDF report..."):
+                with st.spinner("Generating PDF report with detailed calculations..."):
                     
                     # Save logos temporarily
                     company_logo_path = ""
@@ -637,7 +701,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    st.success("✅ PDF Generated Successfully! Click the button above to download.")
+                    st.success("✅ PDF Generated Successfully! The report now includes all formulas, references, and detailed calculations.")
 
 # Other Calculators (Placeholders)
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
@@ -657,4 +721,4 @@ elif st.session_state.selected_calculator == "📈 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ Professional Engineering Tools | Version 3.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 4.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
