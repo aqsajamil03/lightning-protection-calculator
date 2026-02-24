@@ -166,10 +166,8 @@ class PDF_Report(FPDF):
         
         # ===== REVISION LEGEND TABLE - ATTACHED TO LEFT RECTANGLE =====
         # Draw outer rectangle from left margin
-        self.set_xy(15, 100)  # Start from left margin (15)
-        self.rect(15, 100, 165, 40)  # Width 165 (15 to 180)
-        
-        # Draw vertical line at 70mm from left
+        self.set_xy(15, 100)
+        self.rect(15, 100, 165, 40)
         self.line(70, 100, 70, 140)
         
         # Table content - LEFT ATTACHED
@@ -183,10 +181,8 @@ class PDF_Report(FPDF):
         
         y_pos = 105
         for code, desc in legend_items:
-            # Code column (attached to left)
-            self.set_xy(20, y_pos)  # 20mm from left (5mm inside rectangle)
+            self.set_xy(20, y_pos)
             self.cell(45, 6, code, 0, 0, 'C')
-            # Description column
             self.set_xy(75, y_pos)
             self.cell(100, 6, desc, 0, 1, 'L')
             y_pos += 8
@@ -243,7 +239,7 @@ class PDF_Report(FPDF):
         self.cell(0, 10, '1. RISK ASSESSMENT CALCULATIONS', 0, 1)
         self.ln(5)
         
-        # 1. Collection Area
+        # 1. Collection Area - ALL SIMPLE CHARACTERS
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, '1.1 Collection Area (Ad)', 0, 1)
         self.set_font('Arial', '', 10)
@@ -251,7 +247,7 @@ class PDF_Report(FPDF):
         self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2', 0, 1)
         
         if inputs.get('width', 0) == 0:  # Column
-            self.cell(0, 5, f'For Column: Ad = pi x 9 x H^2', 0, 1)
+            self.cell(0, 5, 'For Column: Ad = pi x 9 x H^2', 0, 1)
             self.cell(0, 5, f'Calculation: Ad = pi x 9 x ({inputs["height"]})^2', 0, 1)
         else:
             self.cell(0, 5, f'Calculation: Ad = {inputs["length"]} x {inputs["width"]} + 2 x (3 x {inputs["height"]}) x ({inputs["length"]} + {inputs["width"]}) + pi x (3 x {inputs["height"]})^2', 0, 1)
@@ -300,7 +296,6 @@ class PDF_Report(FPDF):
         self.cell(0, 5, 'Reference: IEC 62305-1 Table 1 & Figure 1', 0, 1)
         self.cell(0, 5, f'Protection Efficiency: {results.get("efficiency", 0):.1%}', 0, 1)
         
-        # Protection Level based on efficiency
         if results.get("efficiency", 0) > 0.98:
             lpl_text = "Class I (Maximum Protection)"
         elif results.get("efficiency", 0) > 0.95:
@@ -339,7 +334,6 @@ class PDF_Report(FPDF):
         self.cell(0, 10, 'SUMMARY OF RESULTS', 0, 1)
         self.ln(5)
         
-        # Create a simple table
         self.set_font('Arial', 'B', 10)
         self.set_fill_color(240, 240, 240)
         self.cell(70, 7, 'Parameter', 1, 0, 'C', 1)
@@ -367,9 +361,6 @@ with st.sidebar:
     st.markdown("### ⚡ CES-Electrical Design Calculations")
     st.markdown("---")
     
-    # Calculator Navigation
-    st.markdown("### 📌 Select Calculator")
-    
     calculators = [
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
@@ -386,7 +377,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Common Project Information
     st.markdown("### 📋 Project Information")
     
     st.session_state.project_info['company'] = st.text_input("Company Name", st.session_state.project_info['company'])
@@ -397,7 +387,6 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Logo Uploads
     st.markdown("### 🏢 Company Logo")
     company_logo = st.file_uploader("Upload Company Logo", type=['png', 'jpg', 'jpeg'], key="company")
     if company_logo is not None:
@@ -413,7 +402,6 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
 
-# Lightning Protection Calculator
 if st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs([
@@ -577,65 +565,17 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             results = st.session_state.calc_results
             inputs = st.session_state.input_values
             
-            # 1. Collection Area
             with st.expander("1. Collection Area (Ad)", expanded=True):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown("**Formula:** Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²")
                 st.markdown("**Reference:** IEC 62305-2 Annex A.2.1.1, Equation A.2")
-                if inputs.get('width', 0) == 0:  # Column
-                    st.markdown(f"**For Column:** Ad = π × 9 × H²")
-                    st.markdown(f"**Calculation:** Ad = π × 9 × ({inputs['height']})²")
-                else:
-                    st.markdown(f"**Calculation:** Ad = {inputs['length']} × {inputs['width']} + 2 × (3 × {inputs['height']}) × ({inputs['length']} + {inputs['width']}) + π × (3 × {inputs['height']})²")
                 st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            # 2. Environmental Factor
             with st.expander("2. Environmental Factor (CD)"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Reference:** IEC 62305-2 Table A.1 - Location Factor")
-                st.markdown("**Values:** Surrounded=0.25, Similar height=0.5, Isolated=1, Hilltop=2")
-                st.markdown(f"**Selected Environment:** {inputs.get('environment', 'Isolated')}")
+                st.markdown("**Reference:** IEC 62305-2 Table A.1")
                 st.markdown(f"**Result:** CD = **{inputs.get('cd', 1)}**")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 3. Lightning Density
-            with st.expander("3. Lightning Ground Flash Density (NG)"):
-                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Formula:** NG = 0.1 × Td")
-                st.markdown("**Reference:** IEC 62305-2 Annex A.1, Equation A.1")
-                st.markdown(f"**Calculation:** NG = 0.1 × {inputs.get('td_days', 10)}")
-                st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 4. Expected Frequency
-            with st.expander("4. Expected Annual Frequency (Nd)"):
-                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Formula:** Nd = NG × Ad × CD × 10⁻⁶")
-                st.markdown("**Reference:** IEC 62305-2 Annex A.2.4, Equation A.4")
-                st.markdown(f"**Calculation:** Nd = {results.get('ng', 1)} × {results['ad']:.0f} × {inputs.get('cd', 1)} × 10⁻⁶")
-                st.markdown(f"**Result:** Nd = **{results.get('nd', 0):.6f} events/year**")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 5. Protection Level
-            with st.expander("5. Protection Level Determination"):
-                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Reference:** IEC 62305-1 Table 1 & Figure 1")
-                st.markdown(f"**Protection Efficiency:** {results.get('efficiency', 0):.1%}")
-                st.markdown(f"**Result:** **{results.get('lpl', 'Class III')}**")
-                st.markdown(f"**Rolling Sphere Radius:** {results.get('sphere', 45)}m (IEC 62305-3 Table 2)")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            # 6. Air Terminals
-            with st.expander("6. Air Terminals Required"):
-                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Method:** Rolling Sphere Method")
-                st.markdown("**Reference:** IEC 62305-3 Clause 5.2.2, Table 2")
-                if inputs.get('height', 0) <= results.get('sphere', 45):
-                    st.markdown("**Using:** Protection Width Method")
-                else:
-                    st.markdown("**Using:** Mesh Method for tall structures")
-                st.markdown(f"**Result:** **{results.get('air_terminals', 4)} air terminals required**")
                 st.markdown('</div>', unsafe_allow_html=True)
     
     # TAB 5: Revision History
@@ -658,7 +598,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
         with col6:
             st.session_state.revision_history[0]['appd'] = st.text_input("APPD", st.session_state.revision_history[0]['appd'])
     
-    # TAB 6: PDF Report
+    # TAB 6: PDF Report - FIXED
     with lp_tabs[5]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## GENERATE PDF REPORT")
@@ -668,36 +608,39 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             st.warning("⚠️ Please complete Risk Assessment first!")
         else:
             if st.button("📥 GENERATE PDF REPORT", type="primary", use_container_width=True):
-                with st.spinner("Generating PDF report with detailed calculations..."):
+                with st.spinner("Generating PDF report..."):
                     
-                    # Save logos temporarily
                     company_logo_path = ""
                     contractor_logo_path = ""
                     
                     if st.session_state.company_logo is not None:
                         company_logo_path = "temp_company_logo.png"
-                        st.session_state.company_logo.save(company_logo_path)
+                        try:
+                            st.session_state.company_logo.save(company_logo_path)
+                        except:
+                            company_logo_path = ""
+                            st.warning("Company logo could not be saved")
                     
                     if st.session_state.contractor_logo is not None:
                         contractor_logo_path = "temp_contractor_logo.png"
-                        st.session_state.contractor_logo.save(contractor_logo_path)
+                        try:
+                            st.session_state.contractor_logo.save(contractor_logo_path)
+                        except:
+                            contractor_logo_path = ""
+                            st.warning("Contractor logo could not be saved")
                     
-                    # Create PDF
                     pdf = PDF_Report()
                     pdf.add_title_page(company_logo_path, contractor_logo_path)
                     pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
                     
-                    # Clean up temp files
                     if company_logo_path and os.path.exists(company_logo_path):
                         os.remove(company_logo_path)
                     if contractor_logo_path and os.path.exists(contractor_logo_path):
                         os.remove(contractor_logo_path)
                     
-                    # Generate PDF
                     pdf_output = pdf.output(dest='S')
                     b64 = base64.b64encode(pdf_output).decode()
                     
-                    # Create download button
                     filename = f"LPS_Report_{st.session_state.cover_details['revision']}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
                     
                     st.markdown(f"""
@@ -710,24 +653,19 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    st.success("✅ PDF Generated Successfully! The report now includes all formulas, references, and detailed calculations.")
+                    st.success("✅ PDF Generated Successfully!")
 
-# Other Calculators (Placeholders)
+# Other Calculators
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     st.info("🔧 Cable sizing calculator will be implemented here")
-
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     st.info("⚙️ Transformer sizing calculator will be implemented here")
-
 elif st.session_state.selected_calculator == "📊 Load Flow Analysis":
     st.info("📊 Load flow analysis calculator will be implemented here")
-
 elif st.session_state.selected_calculator == "🔧 Short Circuit":
     st.info("🔧 Short circuit calculation will be implemented here")
-
 elif st.session_state.selected_calculator == "📈 Voltage Drop":
     st.info("📈 Voltage drop calculator will be implemented here")
 
-# Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 6.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 7.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
