@@ -155,21 +155,25 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'B', 9)
         self.cell(40, 8, st.session_state.cover_details['date'], 0, 1, 'C')
         
-        # Large empty rectangle
-        self.set_xy(15, 65)
-        self.rect(15, 65, 180, 30)
+        # Space after boxes (no rectangle)
+        self.set_y(70)
         
         # Main Title
-        self.set_xy(15, 100)
+        self.set_xy(15, 80)
         self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
         self.cell(180, 10, 'LIGHTNING PROTECTION CALCULATION', 0, 1, 'C')
         
-        # Revision Legend Table
-        self.set_xy(30, 120)
-        self.rect(30, 120, 150, 40)
-        self.line(70, 120, 70, 160)
+        # ===== REVISION LEGEND TABLE - ATTACHED TO LEFT RECTANGLE =====
+        # Draw outer rectangle from left margin
+        self.set_xy(15, 100)  # Start from left margin (15)
+        self.rect(15, 100, 165, 40)  # Width 165 (15 to 180)
         
+        # Draw vertical line at 70mm from left
+        self.line(70, 100, 70, 140)
+        
+        # Table content - LEFT ATTACHED
+        self.set_font('Arial', '', 9)
         legend_items = [
             ('I', 'ACCEPTED FOR INFORMATION ONLY.'),
             ('A', 'APPROVED - NO COMMENTS'),
@@ -177,21 +181,22 @@ class PDF_Report(FPDF):
             ('C', 'REJECTED. TO BE RESUBMITTED - WORK SHALL NOT PROCEED')
         ]
         
-        self.set_font('Arial', '', 9)
-        y_pos = 125
+        y_pos = 105
         for code, desc in legend_items:
-            self.set_xy(35, y_pos)
-            self.cell(30, 6, code, 0, 0, 'C')
+            # Code column (attached to left)
+            self.set_xy(20, y_pos)  # 20mm from left (5mm inside rectangle)
+            self.cell(45, 6, code, 0, 0, 'C')
+            # Description column
             self.set_xy(75, y_pos)
             self.cell(100, 6, desc, 0, 1, 'L')
             y_pos += 8
         
         # Revision History Table
-        self.set_xy(15, 175)
-        self.rect(15, 175, 180, 35)
+        self.set_xy(15, 155)
+        self.rect(15, 155, 180, 35)
         
         # Table Header
-        self.set_xy(17, 178)
+        self.set_xy(17, 158)
         self.set_font('Arial', 'B', 8)
         self.set_fill_color(240, 240, 240)
         
@@ -204,7 +209,7 @@ class PDF_Report(FPDF):
         
         # Table Data
         self.set_font('Arial', '', 8)
-        self.set_xy(17, 184)
+        self.set_xy(17, 164)
         rev = st.session_state.revision_history[0]
         self.cell(15, 6, rev['rev'], 1, 0, 'C')
         self.cell(25, 6, rev['date'], 1, 0, 'C')
@@ -214,7 +219,7 @@ class PDF_Report(FPDF):
         self.cell(25, 6, rev['appd'], 1, 1, 'C')
         
         # Document Numbers
-        self.set_y(220)
+        self.set_y(200)
         self.set_font('Arial', 'B', 9)
         self.cell(60, 6, 'DOCUMENT NUMBER', 0, 0)
         self.cell(60, 6, '', 0, 0)
@@ -226,10 +231,10 @@ class PDF_Report(FPDF):
         self.cell(60, 6, st.session_state.project_info['project_number'], 0, 1)
         
         # Page number
-        self.set_y(250)
+        self.set_y(230)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, 'Page 1 of 9', 0, 1, 'C')
-    
+
     def add_calculations(self, results, inputs):
         self.add_page()
         
@@ -242,17 +247,17 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, '1.1 Collection Area (Ad)', 0, 1)
         self.set_font('Arial', '', 10)
-        self.multi_cell(0, 5, 'Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
+        self.multi_cell(0, 5, 'Formula: Ad = L x W + 2 x (3H) x (L + W) + pi x (3H)^2')
         self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2', 0, 1)
         
         if inputs.get('width', 0) == 0:  # Column
-            self.cell(0, 5, f'For Column: Ad = π × 9 × H²', 0, 1)
-            self.cell(0, 5, f'Calculation: Ad = π × 9 × ({inputs["height"]})²', 0, 1)
+            self.cell(0, 5, f'For Column: Ad = pi x 9 x H^2', 0, 1)
+            self.cell(0, 5, f'Calculation: Ad = pi x 9 x ({inputs["height"]})^2', 0, 1)
         else:
-            self.cell(0, 5, f'Calculation: Ad = {inputs["length"]} × {inputs["width"]} + 2 × (3 × {inputs["height"]}) × ({inputs["length"]} + {inputs["width"]}) + π × (3 × {inputs["height"]})²', 0, 1)
+            self.cell(0, 5, f'Calculation: Ad = {inputs["length"]} x {inputs["width"]} + 2 x (3 x {inputs["height"]}) x ({inputs["length"]} + {inputs["width"]}) + pi x (3 x {inputs["height"]})^2', 0, 1)
         
         self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, f'Result: Ad = {results["ad"]:.2f} m²', 0, 1)
+        self.cell(0, 6, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
         self.ln(5)
         
         # 2. Environmental Factor
@@ -270,20 +275,20 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, '1.3 Lightning Ground Flash Density (NG)', 0, 1)
         self.set_font('Arial', '', 10)
-        self.cell(0, 5, 'Formula: NG = 0.1 × Td', 0, 1)
+        self.cell(0, 5, 'Formula: NG = 0.1 x Td', 0, 1)
         self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.1, Equation A.1', 0, 1)
-        self.cell(0, 5, f'Calculation: NG = 0.1 × {inputs.get("td_days", 10)}', 0, 1)
+        self.cell(0, 5, f'Calculation: NG = 0.1 x {inputs.get("td_days", 10)}', 0, 1)
         self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, f'Result: NG = {results.get("ng", 1)} flashes/km²/year', 0, 1)
+        self.cell(0, 6, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
         self.ln(5)
         
         # 4. Expected Frequency
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, '1.4 Expected Annual Frequency (Nd)', 0, 1)
         self.set_font('Arial', '', 10)
-        self.cell(0, 5, 'Formula: Nd = NG × Ad × CD × 10⁻⁶', 0, 1)
+        self.cell(0, 5, 'Formula: Nd = NG x Ad x CD x 10^-6', 0, 1)
         self.cell(0, 5, 'Reference: IEC 62305-2 Annex A.2.4, Equation A.4', 0, 1)
-        self.cell(0, 5, f'Calculation: Nd = {results.get("ng", 1)} × {results["ad"]:.0f} × {inputs.get("cd", 1)} × 10⁻⁶', 0, 1)
+        self.cell(0, 5, f'Calculation: Nd = {results.get("ng", 1)} x {results["ad"]:.0f} x {inputs.get("cd", 1)} x 10^-6', 0, 1)
         self.set_font('Arial', 'B', 10)
         self.cell(0, 6, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
         self.ln(5)
@@ -325,10 +330,14 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'B', 10)
         self.cell(0, 6, f'Result: {results.get("air_terminals", 4)} air terminals required', 0, 1)
         
-        # Summary Table
-        self.ln(10)
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 8, 'SUMMARY OF RESULTS', 0, 1)
+        # ===== NEW PAGE FOR SUMMARY TABLE =====
+        self.add_page()
+        
+        # Summary Table on Page 2
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, 'SUMMARY OF RESULTS', 0, 1)
+        self.ln(5)
         
         # Create a simple table
         self.set_font('Arial', 'B', 10)
@@ -338,9 +347,9 @@ class PDF_Report(FPDF):
         
         self.set_font('Arial', '', 9)
         summary_data = [
-            ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
+            ('Collection Area (Ad)', f"{results['ad']:.2f} m^2"),
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
-            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
+            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km^2/year"),
             ('Expected Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
             ('Protection Level', results.get('lpl', 'Class III')),
@@ -355,7 +364,7 @@ class PDF_Report(FPDF):
 
 # ========== SIDEBAR ==========
 with st.sidebar:
-    st.markdown("### ⚡ CES-Electrical Design Calculations")  # ← CHANGED HERE
+    st.markdown("### ⚡ CES-Electrical Design Calculations")
     st.markdown("---")
     
     # Calculator Navigation
@@ -721,4 +730,4 @@ elif st.session_state.selected_calculator == "📈 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 4.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 6.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
