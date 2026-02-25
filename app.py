@@ -17,7 +17,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
 
-# Custom CSS
+# Custom CSS - UPDATED with larger tab font
 st.markdown("""
 <style>
     .report-header {
@@ -27,6 +27,7 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         margin-bottom: 20px;
+        font-size: 24px;
     }
     .formula-box {
         background-color: #F3F4F6;
@@ -74,6 +75,19 @@ st.markdown("""
     .word-btn {
         background-color: #1e3a8a;
     }
+    /* INCREASED TAB FONT SIZE */
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 20px !important;
+        font-weight: 600 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 10px 20px;
+        background-color: #f0f2f6;
+        border-radius: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,56 +97,8 @@ class Word_Report:
         self.doc = Document()
         self.doc.core_properties.title = "Lightning Protection Calculation"
         self.doc.core_properties.author = "CES-Electrical"
-        
-    def add_title_page(self, title_page_file=None):
-        if title_page_file is not None and title_page_file.type.startswith('image/'):
-            try:
-                # Save image temporarily
-                img_path = "temp_word_title.png"
-                with open(img_path, "wb") as f:
-                    f.write(title_page_file.getbuffer())
-                
-                # Add image to Word document
-                self.doc.add_picture(img_path, width=Inches(6))
-                
-                # Center the image
-                last_paragraph = self.doc.paragraphs[-1]
-                last_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                
-                # Add some space after image
-                self.doc.add_paragraph()
-                
-                # Clean up
-                if os.path.exists(img_path):
-                    os.remove(img_path)
-                    
-            except Exception as e:
-                # Fallback text title page
-                title = self.doc.add_heading('LIGHTNING PROTECTION CALCULATION', 0)
-                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                self.doc.add_paragraph()
-                self.doc.add_heading('TITLE PAGE', level=1)
-                self.doc.add_paragraph(f'File: {title_page_file.name}')
-        else:
-            # Default text title page
-            title = self.doc.add_heading('LIGHTNING PROTECTION CALCULATION', 0)
-            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            
-            for _ in range(3):
-                self.doc.add_paragraph()
-            
-            self.doc.add_heading('PROJECT INFORMATION', level=1)
-            self.doc.add_paragraph(f"Project: {st.session_state.project_info['project_title'].replace(chr(10), ' ')}")
-            self.doc.add_paragraph(f"Document No: {st.session_state.project_info['document_number']}")
-            self.doc.add_paragraph(f"Project No: {st.session_state.project_info['project_number']}")
-            self.doc.add_paragraph(f"Revision: {st.session_state.cover_details['revision']}")
-            self.doc.add_paragraph(f"Date: {st.session_state.cover_details['date']}")
-            
-            self.doc.add_paragraph("_" * 50)
-            self.doc.add_paragraph()
     
     def add_calculations(self, results, inputs):
-        self.doc.add_page_break()
         self.doc.add_heading('LIGHTNING PROTECTION CALCULATIONS', 0)
         
         # 1. Collection Area (Ad)
@@ -143,7 +109,7 @@ class Word_Report:
         p.add_run('Result: ').bold = True
         p.add_run(f'Ad = {results["ad"]:.2f} m²')
         
-        # 2. Near Strike Collection Area (Am) - NEW
+        # 2. Near Strike Collection Area (Am)
         self.doc.add_heading('1.2 Near Strike Collection Area (Am)', level=1)
         self.doc.add_paragraph('Formula: Am = 2 × 500 × (L + W) + π × 500²')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.7')
@@ -171,7 +137,7 @@ class Word_Report:
         p.add_run('Result: ').bold = True
         p.add_run(f'NG = {results.get("ng", 1)} flashes/km²/year')
         
-        # 5. Lightning Frequencies - UPDATED with Nd and Nm
+        # 5. Lightning Frequencies
         self.doc.add_heading('1.5 Lightning Frequencies', level=1)
         self.doc.add_paragraph('Direct Strike Frequency (Nd):')
         self.doc.add_paragraph('Formula: Nd = NG × Ad × CD × 10⁻⁶')
@@ -205,7 +171,7 @@ class Word_Report:
         p.add_run('Result: ').bold = True
         p.add_run(f'{results.get("air_terminals", 4)} air terminals required')
         
-        # Summary Table - UPDATED with Am
+        # Summary Table
         self.doc.add_page_break()
         self.doc.add_heading('SUMMARY OF RESULTS', level=1)
         
@@ -221,11 +187,11 @@ class Word_Report:
         
         summary_data = [
             ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
-            ('Near Strike Area (Am)', f"{results['am']:.2f} m²"),  # NEW
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m²"),
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
             ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
             ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
-            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),  # NEW
+            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
             ('Protection Level', results.get('lpl', 'Class III')),
             ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
@@ -262,70 +228,6 @@ class PDF_Report(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
     
-    def add_title_page(self, title_page_file=None):
-        self.add_page()
-        
-        if title_page_file is not None and title_page_file.type.startswith('image/'):
-            # For images - embed directly
-            try:
-                # Save image temporarily
-                img_path = "temp_title_image.png"
-                with open(img_path, "wb") as f:
-                    f.write(title_page_file.getbuffer())
-                
-                # Get image dimensions
-                from PIL import Image as PILImage
-                img = PILImage.open(img_path)
-                img_width, img_height = img.size
-                
-                # Calculate aspect ratio to fit on A4 page
-                page_width = 190  # mm
-                page_height = 277  # mm
-                
-                # Scale image to fit page
-                scale = min(page_width / img_width, page_height / img_height) * 0.9
-                scaled_width = img_width * scale
-                scaled_height = img_height * scale
-                
-                # Center image on page
-                x = (210 - scaled_width) / 2
-                y = (297 - scaled_height) / 2
-                
-                # Add image to PDF
-                self.image(img_path, x, y, scaled_width, scaled_height)
-                
-                # Clean up
-                if os.path.exists(img_path):
-                    os.remove(img_path)
-                    
-            except Exception as e:
-                # Fallback if image embedding fails
-                self.set_font('Arial', 'B', 24)
-                self.set_text_color(0, 51, 102)
-                self.cell(0, 40, 'TITLE PAGE', 0, 1, 'C')
-                self.set_font('Arial', '', 16)
-                self.cell(0, 20, f'File: {title_page_file.name}', 0, 1, 'C')
-                self.cell(0, 20, 'Image could not be embedded', 0, 1, 'C')
-        else:
-            # Default title page if no file uploaded
-            self.set_font('Arial', 'B', 24)
-            self.set_text_color(0, 51, 102)
-            self.cell(0, 40, 'LIGHTNING PROTECTION', 0, 1, 'C')
-            self.set_font('Arial', 'B', 20)
-            self.cell(0, 20, 'CALCULATION REPORT', 0, 1, 'C')
-            self.ln(20)
-            
-            self.set_font('Arial', 'B', 16)
-            self.cell(0, 15, 'PROJECT INFORMATION', 0, 1, 'C')
-            self.ln(5)
-            
-            self.set_font('Arial', '', 12)
-            self.cell(0, 8, f"Project: {st.session_state.project_info['project_title'].replace(chr(10), ' ')}", 0, 1, 'C')
-            self.cell(0, 8, f"Document No: {st.session_state.project_info['document_number']}", 0, 1, 'C')
-            self.cell(0, 8, f"Project No: {st.session_state.project_info['project_number']}", 0, 1, 'C')
-            self.cell(0, 8, f"Revision: {st.session_state.cover_details['revision']}", 0, 1, 'C')
-            self.cell(0, 8, f"Date: {st.session_state.cover_details['date']}", 0, 1, 'C')
-    
     def add_calculations(self, results, inputs):
         self.add_page()
         
@@ -352,7 +254,7 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
         self.ln(8)
         
-        # 2. Near Strike Collection Area (Am) - NEW
+        # 2. Near Strike Collection Area (Am)
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, '1.2 Near Strike Collection Area (Am)', 0, 1)
         self.set_font('Arial', '', 11)
@@ -396,7 +298,7 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
         self.ln(8)
         
-        # 5. Lightning Frequencies - UPDATED with Nd and Nm
+        # 5. Lightning Frequencies
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, '1.5 Lightning Frequencies', 0, 1)
         self.set_font('Arial', '', 11)
@@ -410,7 +312,7 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
         self.ln(4)
         
-        # Nm - NEW
+        # Nm
         self.set_font('Arial', '', 11)
         self.cell(0, 7, 'Near Strike Frequency (Nm):', 0, 1)
         self.cell(0, 7, 'Formula: Nm = NG x Am x 10^-6', 0, 1)
@@ -460,7 +362,7 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: {results.get("air_terminals", 4)} air terminals required', 0, 1)
         self.ln(10)
         
-        # Summary Section - UPDATED with Am and Nm
+        # Summary Section
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
         self.cell(0, 12, 'SUMMARY OF RESULTS', 0, 1, 'C')
@@ -475,11 +377,11 @@ class PDF_Report(FPDF):
         self.set_font('Arial', '', 10)
         summary_data = [
             ('Collection Area (Ad)', f"{results['ad']:.2f} m^2"),
-            ('Near Strike Area (Am)', f"{results['am']:.2f} m^2"),  # NEW
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m^2"),
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
             ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km^2/year"),
             ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
-            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),  # NEW
+            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
             ('Protection Level', results.get('lpl', 'Class III')),
             ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
@@ -498,8 +400,6 @@ if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
 if 'selected_calculator' not in st.session_state:
     st.session_state.selected_calculator = "⚡ Lightning Protection"
-if 'title_page_file' not in st.session_state:
-    st.session_state.title_page_file = None
 if 'cover_details' not in st.session_state:
     st.session_state.cover_details = {
         'revision': 'A',
@@ -538,28 +438,6 @@ with st.sidebar:
         if st.button(calc, key=f"nav_{calc}", use_container_width=True):
             st.session_state.selected_calculator = calc
             st.rerun()
-    
-    st.markdown("---")
-    
-    # Title Page Upload Option
-    st.markdown("### 📄 Title Page Image")
-    st.markdown("Upload an image to use as title page in both PDF and Word")
-    
-    title_page = st.file_uploader(
-        "Upload Title Page Image", 
-        type=['png', 'jpg', 'jpeg'], 
-        key="title_page",
-        help="Upload an image to use as the title page (will be embedded in both PDF and Word)"
-    )
-    
-    if title_page is not None:
-        st.session_state.title_page_file = title_page
-        st.markdown('<div class="success-box">✅ Image uploaded - will be used as title page in PDF and Word</div>', unsafe_allow_html=True)
-        # Show preview
-        st.image(title_page, width=200, caption="Title Page Preview")
-    else:
-        st.session_state.title_page_file = None
-        st.info("No title page uploaded - default title page will be used")
 
 # ========== MAIN CONTENT ==========
 st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
@@ -574,7 +452,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
         "📥 Download Report"
     ])
     
-    # TAB 1: Risk Assessment - UPDATED WITH Am
+    # TAB 1: Risk Assessment
     with lp_tabs[0]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## RISK ASSESSMENT (IEC 62305-2)")
@@ -635,12 +513,12 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             else:
                 ad = length * width + 2 * (3 * height) * (length + width) + math.pi * (3 * height)**2
             
-            # Am Calculation - Collection Area for near strike (NEW)
+            # Am Calculation
             am = 2 * 500 * (length + width) + math.pi * 500**2
             
             ng = 0.1 * td_days
             nd = ng * ad * cd * 1e-6
-            nm = ng * am * 1e-6  # NEW: Near strike frequency
+            nm = ng * am * 1e-6
             
             c_total = cd * c2 * c3 * c4 * c5
             nc = 1e-4 / c_total
@@ -670,14 +548,13 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             st.markdown("---")
             st.subheader("📊 Results")
             
-            # Display results in 4 columns to include Am
             col_a, col_b, col_c, col_d = st.columns(4)
             with col_a:
                 st.metric("Collection Area (Ad)", f"{ad:.0f} m²")
-                st.metric("Near Strike Area (Am)", f"{am:.0f} m²")  # NEW
+                st.metric("Near Strike Area (Am)", f"{am:.0f} m²")
             with col_b:
                 st.metric("Nd (Direct)", f"{nd:.6f}")
-                st.metric("Nm (Near)", f"{nm:.6f}")  # NEW
+                st.metric("Nm (Near)", f"{nm:.6f}")
             with col_c:
                 st.metric("Protection Level", lpl)
                 st.metric("Efficiency", f"{efficiency:.1%}")
@@ -685,9 +562,8 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.metric("Rolling Sphere", f"{sphere}m")
                 st.metric("Air Terminals", air_terminals)
             
-            # Store results including Am
             st.session_state.calc_results = {
-                'ad': ad, 'am': am, 'ng': ng, 'nd': nd, 'nm': nm,  # Added am and nm
+                'ad': ad, 'am': am, 'ng': ng, 'nd': nd, 'nm': nm,
                 'efficiency': efficiency,
                 'lpl': lpl, 'sphere': sphere, 'air_terminals': air_terminals
             }
@@ -697,7 +573,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             }
             st.session_state.calc_done = True
     
-    # TAB 2: Protection Design
+    # TAB 2: Protection Design (unchanged)
     with lp_tabs[1]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## PROTECTION DESIGN")
@@ -722,7 +598,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                     st.metric("Rod Diameter", "9.5 mm")
                     st.metric("Down Conductor", "29 mm²")
     
-    # TAB 3: Calculations - UPDATED WITH Am DETAILS
+    # TAB 3: Calculations (unchanged)
     with lp_tabs[2]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DETAILED CALCULATIONS")
@@ -743,7 +619,6 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            # NEW: Am Calculation Details
             with st.expander("2. Near Strike Collection Area (Am)", expanded=True):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown("**Formula:** Am = 2 × 500 × (L + W) + π × 500²")
@@ -769,7 +644,6 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            # NEW: Direct and Near Strike Frequencies
             with st.expander("5. Lightning Frequencies"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown("**Nd (Direct Strike Frequency):**")
@@ -787,7 +661,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.markdown(f"**Result:** **{results.get('lpl', 'Class III')}**")
                 st.markdown('</div>', unsafe_allow_html=True)
     
-    # TAB 4: Download Report - WITH UPLOADED TITLE PAGE IN BOTH FORMATS
+    # TAB 4: Download Report - WITHOUT FRONT PAGE
     with lp_tabs[3]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DOWNLOAD REPORT")
@@ -803,22 +677,16 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             with col1:
                 st.markdown("#### 📄 PDF Format")
                 if st.button("📥 Generate PDF", key="pdf_btn", use_container_width=True):
-                    with st.spinner("Generating PDF report with uploaded title page..."):
+                    with st.spinner("Generating PDF report..."):
                         pdf = PDF_Report()
-                        # Add uploaded title page if exists
-                        pdf.add_title_page(st.session_state.title_page_file)
-                        # Add calculations
+                        # NO TITLE PAGE - Direct calculations
                         pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
                         
                         pdf_output = pdf.output(dest='S')
                         b64 = base64.b64encode(pdf_output).decode()
                         
-                        if st.session_state.title_page_file is not None:
-                            filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}_with_title.pdf"
-                            page_count = "4 pages (Title Page + 3 Calculations)"
-                        else:
-                            filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                            page_count = "3 pages (Calculations only)"
+                        filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                        page_count = "3 pages (Calculations only)"
                         
                         st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Click to Download PDF ({page_count})</a>', unsafe_allow_html=True)
                         st.success("✅ PDF generated successfully!")
@@ -826,12 +694,10 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             with col2:
                 st.markdown("#### 📝 Word Format")
                 if st.button("📥 Generate Word", key="word_btn", use_container_width=True):
-                    with st.spinner("Generating Word report with uploaded title page..."):
+                    with st.spinner("Generating Word report..."):
                         try:
                             word = Word_Report()
-                            # ADD TITLE PAGE FIRST with uploaded image
-                            word.add_title_page(st.session_state.title_page_file)
-                            # THEN ADD CALCULATIONS
+                            # NO TITLE PAGE - Direct calculations
                             word.add_calculations(st.session_state.calc_results, st.session_state.input_values)
                             
                             word_path = "temp_report.docx"
@@ -842,10 +708,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                             
                             b64 = base64.b64encode(word_bytes).decode()
                             
-                            if st.session_state.title_page_file is not None:
-                                filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}_with_title.docx"
-                            else:
-                                filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                            filename = f"LPS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
                             
                             if os.path.exists(word_path):
                                 os.remove(word_path)
@@ -907,4 +770,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 30.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 31.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
