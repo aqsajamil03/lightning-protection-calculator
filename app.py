@@ -12,7 +12,7 @@ import PyPDF2
 from PyPDF2 import PdfReader, PdfWriter
 import img2pdf
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
@@ -155,7 +155,7 @@ class LightningWordReport:
         
         # 1. Collection Area (Ad)
         self.doc.add_heading('1.1 Collection Area (Ad)', level=1)
-        self.doc.add_paragraph('Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
+        self.doc.add_paragraph('Formula: Ad = L x W + 2 x (3H) x (L + W) + pi x (3H)^2')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -163,7 +163,7 @@ class LightningWordReport:
         
         # 2. Near Strike Collection Area (Am)
         self.doc.add_heading('1.2 Near Strike Collection Area (Am)', level=1)
-        self.doc.add_paragraph('Formula: Am = 2 × 500 × (L + W) + π × 500²')
+        self.doc.add_paragraph('Formula: Am = 2 x 500 x (L + W) + pi x 500^2')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.7')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -183,7 +183,7 @@ class LightningWordReport:
         
         # 4. Lightning Density
         self.doc.add_heading('1.4 Lightning Ground Flash Density (NG)', level=1)
-        self.doc.add_paragraph('Formula: NG = 0.1 × Td')
+        self.doc.add_paragraph('Formula: NG = 0.1 x Td')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.1, Equation A.1')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -192,7 +192,7 @@ class LightningWordReport:
         # 5. Lightning Frequencies
         self.doc.add_heading('1.5 Lightning Frequencies', level=1)
         self.doc.add_paragraph('Direct Strike Frequency (Nd):')
-        self.doc.add_paragraph('Formula: Nd = NG × Ad × CD × 10⁻⁶')
+        self.doc.add_paragraph('Formula: Nd = NG x Ad x CD x 10^-6')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.4, Equation A.4')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -200,7 +200,7 @@ class LightningWordReport:
         
         self.doc.add_paragraph()
         self.doc.add_paragraph('Near Strike Frequency (Nm):')
-        self.doc.add_paragraph('Formula: Nm = NG × Am × 10⁻⁶')
+        self.doc.add_paragraph('Formula: Nm = NG x Am x 10^-6')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.6')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -593,6 +593,7 @@ class CableSizingCalculator:
         
         return (max_vd / denominator) / 1000 if denominator > 0 else 0
 
+# ========== FIXED WORD REPORT CLASS ==========
 class CableWordReport:
     def __init__(self):
         self.doc = Document()
@@ -629,14 +630,14 @@ class CableWordReport:
         self.doc.add_heading('2. LOAD CURRENT CALCULATION', level=1)
         self.doc.add_paragraph('Reference: IEC 60364-5-52 Section 523')
         if phase == '3-phase':
-            self.doc.add_paragraph('Formula: I = P × 1000 / (√3 × V × PF)')
-            self.doc.add_paragraph(f'Calculation: I = {power_kw} × 1000 / (1.732 × {voltage_v} × {pf})')
+            self.doc.add_paragraph('Formula: I = P x 1000 / (1.732 x V x PF)')
+            self.doc.add_paragraph(f'Calculation: I = {power_kw} x 1000 / (1.732 x {voltage_v} x {pf})')
         elif phase == '1-phase':
-            self.doc.add_paragraph('Formula: I = P × 1000 / (V × PF)')
-            self.doc.add_paragraph(f'Calculation: I = {power_kw} × 1000 / ({voltage_v} × {pf})')
+            self.doc.add_paragraph('Formula: I = P x 1000 / (V x PF)')
+            self.doc.add_paragraph(f'Calculation: I = {power_kw} x 1000 / ({voltage_v} x {pf})')
         else:
-            self.doc.add_paragraph('Formula: I = P × 1000 / V')
-            self.doc.add_paragraph(f'Calculation: I = {power_kw} × 1000 / {voltage_v}')
+            self.doc.add_paragraph('Formula: I = P x 1000 / V')
+            self.doc.add_paragraph(f'Calculation: I = {power_kw} x 1000 / {voltage_v}')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'I = {load_current:.2f} A')
@@ -679,9 +680,9 @@ class CableWordReport:
             row_cells[0].text = str(cable['size'])
             row_cells[1].text = str(cable['base_ampacity'])
             row_cells[2].text = f"{cable['derated_ampacity']:.1f}"
-            row_cells[3].text = "✓" if cable['amp_ok'] else "✗"
+            row_cells[3].text = "PASS" if cable['amp_ok'] else "FAIL"
             row_cells[4].text = f"{cable['vd_percent']:.2f}"
-            row_cells[5].text = "✓" if cable['vd_ok'] else "✗"
+            row_cells[5].text = "PASS" if cable['vd_ok'] else "FAIL"
             
             if cable['size'] == selected_size:
                 for cell in row_cells:
@@ -692,13 +693,13 @@ class CableWordReport:
         self.doc.add_heading('5. SELECTED CABLE DETAILS', level=1)
         
         # Cable details table
-        table1 = self.doc.add_table(rows=1, cols=2)
-        table1.style = 'Light Grid Accent 1'
-        hdr1 = table1.rows[0].cells
-        hdr1[0].text = 'Parameter'
-        hdr1[1].text = 'Value'
-        hdr1[0].paragraphs[0].runs[0].bold = True
-        hdr1[1].paragraphs[0].runs[0].bold = True
+        table = self.doc.add_table(rows=1, cols=2)
+        table.style = 'Light Grid Accent 1'
+        hdr = table.rows[0].cells
+        hdr[0].text = 'Parameter'
+        hdr[1].text = 'Value'
+        hdr[0].paragraphs[0].runs[0].bold = True
+        hdr[1].paragraphs[0].runs[0].bold = True
         
         details = [
             ('Selected Size', f"{cable['size']} mm²"),
@@ -706,24 +707,23 @@ class CableWordReport:
             ('Derating Factor (K)', f"{total_k:.3f}"),
             ('Derated Ampacity (Id)', f"{cable['derated_ampacity']:.1f} A"),
             ('Load Current (IL)', f"{load_current:.1f} A"),
-            ('Ampacity Check', f"{cable['derated_ampacity']:.1f} A ≥ {load_current:.1f} A - {'PASS' if cable['amp_ok'] else 'FAIL'}"),
+            ('Ampacity Check', f"{cable['derated_ampacity']:.1f} A >= {load_current:.1f} A - {'PASS' if cable['amp_ok'] else 'FAIL'}"),
             ('Voltage Drop', f"{vd_percent:.2f}%"),
             ('Maximum Length', f"{max_length:.1f} m"),
         ]
         
         for param, value in details:
-            row = table1.add_row().cells
+            row = table.add_row().cells
             row[0].text = param
             row[1].text = value
         
         self.doc.add_paragraph()
         
-        # Status
+        # Status - FIXED: Removed RGBColor to avoid import issues
         status_para = self.doc.add_paragraph()
         status_para.add_run('FINAL STATUS: ').bold = True
         status_run = status_para.add_run('PASSED' if status == 'PASS' else 'FAILED')
         status_run.bold = True
-        status_run.font.color.rgb = RGBColor(0, 128, 0) if status == 'PASS' else RGBColor(255, 0, 0)
         
         # References
         self.doc.add_paragraph()
@@ -737,6 +737,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
+# ========== FIXED PDF REPORT CLASS ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -756,90 +757,90 @@ class CablePDFReport(FPDF):
     
     def add_title(self, load_tag, load_description):
         self.add_page()
-        self.set_font('Arial', 'B', 24)
+        self.set_font('Arial', 'B', 20)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 20, 'CABLE SIZING CALCULATION REPORT', 0, 1, 'C')
-        self.set_font('Arial', 'B', 16)
-        self.cell(0, 15, f'{load_tag} - {load_description}', 0, 1, 'C')
-        self.ln(10)
-        self.set_font('Arial', '', 11)
-        self.cell(0, 7, f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
-        self.cell(0, 7, 'References: IEC 60502, IEC 60364-5-52, IEC 60949', 0, 1, 'R')
+        self.cell(0, 15, 'CABLE SIZING CALCULATION REPORT', 0, 1, 'C')
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 12, f'{load_tag} - {load_description}', 0, 1, 'C')
+        self.ln(8)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 6, f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
+        self.cell(0, 6, 'References: IEC 60502, IEC 60364-5-52, IEC 60949', 0, 1, 'R')
         self.ln(10)
     
     def add_input_parameters(self, params):
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1. INPUT PARAMETERS', 0, 1)
-        self.ln(5)
-        self.set_font('Arial', '', 11)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '1. INPUT PARAMETERS', 0, 1)
+        self.ln(2)
+        self.set_font('Arial', '', 10)
         for key, value in params.items():
-            self.cell(0, 7, f'{key}: {value}', 0, 1)
-        self.ln(10)
+            self.cell(0, 5, f'{key}: {value}', 0, 1)
+        self.ln(5)
     
     def add_load_current_calculation(self, phase, power_kw, voltage_v, pf, load_current):
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '2. LOAD CURRENT CALCULATION', 0, 1)
-        self.ln(5)
-        self.set_font('Arial', '', 11)
-        self.cell(0, 7, 'Reference: IEC 60364-5-52 Section 523', 0, 1)
-        if phase == '3-phase':
-            self.cell(0, 7, 'Formula: I = P × 1000 / (√3 × V × PF)', 0, 1)
-            self.cell(0, 7, f'Calculation: I = {power_kw} × 1000 / (1.732 × {voltage_v} × {pf})', 0, 1)
-        elif phase == '1-phase':
-            self.cell(0, 7, 'Formula: I = P × 1000 / (V × PF)', 0, 1)
-            self.cell(0, 7, f'Calculation: I = {power_kw} × 1000 / ({voltage_v} × {pf})', 0, 1)
-        else:
-            self.cell(0, 7, 'Formula: I = P × 1000 / V', 0, 1)
-            self.cell(0, 7, f'Calculation: I = {power_kw} × 1000 / {voltage_v}', 0, 1)
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, f'Result: I = {load_current:.2f} A', 0, 1)
+        self.cell(0, 8, '2. LOAD CURRENT CALCULATION', 0, 1)
+        self.ln(2)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, 'Reference: IEC 60364-5-52 Section 523', 0, 1)
+        if phase == '3-phase':
+            self.cell(0, 5, 'Formula: I = P x 1000 / (1.732 x V x PF)', 0, 1)
+            self.cell(0, 5, f'Calculation: I = {power_kw} x 1000 / (1.732 x {voltage_v} x {pf})', 0, 1)
+        elif phase == '1-phase':
+            self.cell(0, 5, 'Formula: I = P x 1000 / (V x PF)', 0, 1)
+            self.cell(0, 5, f'Calculation: I = {power_kw} x 1000 / ({voltage_v} x {pf})', 0, 1)
+        else:
+            self.cell(0, 5, 'Formula: I = P x 1000 / V', 0, 1)
+            self.cell(0, 5, f'Calculation: I = {power_kw} x 1000 / {voltage_v}', 0, 1)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Result: I = {load_current:.2f} A', 0, 1)
         self.ln(5)
     
     def add_derating_factors(self, factors):
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '3. DERATING FACTORS (IEC 60502-2)', 0, 1)
-        self.ln(5)
-        self.set_font('Arial', '', 11)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '3. DERATING FACTORS (IEC 60502-2)', 0, 1)
+        self.ln(2)
+        self.set_font('Arial', '', 10)
         for key, value in factors.items():
             if key != 'total':
-                self.cell(0, 7, f'{key}: {value:.3f}', 0, 1)
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, f'Total Derating Factor: {factors["total"]:.3f}', 0, 1)
+                self.cell(0, 5, f'{key}: {value:.3f}', 0, 1)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, f'Total Derating Factor: {factors["total"]:.3f}', 0, 1)
         self.ln(5)
     
     def add_selected_cable(self, cable, load_current, total_k, vd_percent, max_length, status):
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '4. SELECTED CABLE DETAILS', 0, 1)
-        self.ln(5)
-        self.set_font('Arial', '', 11)
-        self.cell(0, 7, f'Selected Cable Size: {cable["size"]} mm²', 0, 1)
-        self.cell(0, 7, f'Base Ampacity (Ic): {cable["base_ampacity"]} A', 0, 1)
-        self.cell(0, 7, f'Derated Ampacity (Id): {cable["derated_ampacity"]:.1f} A', 0, 1)
-        self.cell(0, 7, f'Load Current (IL): {load_current:.1f} A', 0, 1)
-        self.cell(0, 7, f'Ampacity Check: {cable["derated_ampacity"]:.1f} A ≥ {load_current:.1f} A - {"PASS" if cable["amp_ok"] else "FAIL"}', 0, 1)
-        self.cell(0, 7, f'Resistance at 90°C: {cable["R"]:.4f} ohm/km', 0, 1)
-        self.cell(0, 7, f'Reactance: {cable["X"]:.4f} ohm/km', 0, 1)
-        self.cell(0, 7, f'Voltage Drop: {vd_percent:.2f}%', 0, 1)
-        self.cell(0, 7, f'Maximum Length: {max_length:.1f} m', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, '4. SELECTED CABLE DETAILS', 0, 1)
+        self.ln(2)
+        self.set_font('Arial', '', 10)
+        self.cell(0, 5, f'Selected Cable Size: {cable["size"]} mm²', 0, 1)
+        self.cell(0, 5, f'Base Ampacity (Ic): {cable["base_ampacity"]} A', 0, 1)
+        self.cell(0, 5, f'Derated Ampacity (Id): {cable["derated_ampacity"]:.1f} A', 0, 1)
+        self.cell(0, 5, f'Load Current (IL): {load_current:.1f} A', 0, 1)
+        check = "PASS" if cable['derated_ampacity'] >= load_current else "FAIL"
+        self.cell(0, 5, f'Ampacity Check: {cable["derated_ampacity"]:.1f} A >= {load_current:.1f} A - {check}', 0, 1)
+        self.cell(0, 5, f'Resistance at 90C: {cable["R"]:.4f} ohm/km', 0, 1)
+        self.cell(0, 5, f'Reactance: {cable["X"]:.4f} ohm/km', 0, 1)
+        self.cell(0, 5, f'Voltage Drop: {vd_percent:.2f}%', 0, 1)
+        self.cell(0, 5, f'Maximum Length: {max_length:.1f} m', 0, 1)
         self.ln(5)
         
-        # Status
-        self.set_font('Arial', 'B', 14)
+        # Status - using text only, no special characters
+        self.set_font('Arial', 'B', 12)
         if status == 'PASS':
             self.set_text_color(0, 128, 0)
-            self.cell(0, 10, '✓ CABLE SELECTION PASSED', 0, 1)
+            self.cell(0, 8, 'CABLE SELECTION PASSED', 0, 1)
         else:
             self.set_text_color(255, 0, 0)
-            self.cell(0, 10, '✗ CABLE SELECTION FAILED', 0, 1)
+            self.cell(0, 8, 'CABLE SELECTION FAILED', 0, 1)
         
         # References
         self.ln(5)
         self.set_font('Arial', 'I', 9)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 5, 'References:', 0, 1)
-        self.cell(0, 5, '1. IEC 60502-2: Power cables - Current ratings', 0, 1)
-        self.cell(0, 5, '2. IEC 60364-5-52: Selection of cables - Ampacity', 0, 1)
-        self.cell(0, 5, '3. IEC 60364-5-52 Section 525: Voltage drop requirements', 0, 1)
+        self.cell(0, 4, 'References:', 0, 1)
+        self.cell(0, 4, '1. IEC 60502-2: Power cables - Current ratings', 0, 1)
+        self.cell(0, 4, '2. IEC 60364-5-52: Selection of cables - Ampacity', 0, 1)
 
 # ========== SESSION STATE INITIALIZATION ==========
 if 'calc_results' not in st.session_state:
@@ -1341,7 +1342,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 </tr>
                 <tr>
                     <td><strong>Ampacity Check</strong></td>
-                    <td>{'✓ PASS' if r['cable_data']['derated_ampacity'] >= r['load_current'] else '✗ FAIL'}</td>
+                    <td>{'PASS' if r['cable_data']['derated_ampacity'] >= r['load_current'] else 'FAIL'}</td>
                 </tr>
                 <tr>
                     <td><strong>Voltage Drop</strong></td>
@@ -1353,7 +1354,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 </tr>
                 <tr>
                     <td><strong>VD Check</strong></td>
-                    <td>{'✓ PASS' if r['vd_percent'] <= r['voltage_drop_limit'] else '✗ FAIL'}</td>
+                    <td>{'PASS' if r['vd_percent'] <= r['voltage_drop_limit'] else 'FAIL'}</td>
                 </tr>
                 <tr>
                     <td><strong>Maximum Length</strong></td>
@@ -1365,7 +1366,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 </tr>
                 <tr>
                     <td><strong>Length Check</strong></td>
-                    <td>{'✓ PASS' if r['length_m'] <= r['max_length'] else '✗ FAIL'}</td>
+                    <td>{'PASS' if r['length_m'] <= r['max_length'] else 'FAIL'}</td>
                 </tr>
                 <tr>
                     <td><strong>FINAL STATUS</strong></td>
@@ -1383,9 +1384,9 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         'Size (mm²)': c['size'],
                         'Base Ampacity (A)': c['base_ampacity'],
                         'Derated (A)': f"{c['derated_ampacity']:.1f}",
-                        'Amp Check': '✓' if c['amp_ok'] else '✗',
+                        'Amp Check': 'PASS' if c['amp_ok'] else 'FAIL',
                         'VD (%)': f"{c['vd_percent']:.2f}",
-                        'VD Check': '✓' if c['vd_ok'] else '✗',
+                        'VD Check': 'PASS' if c['vd_ok'] else 'FAIL',
                         'Selected': '✓' if c['size'] == r['selected_size'] else ''
                     }
                     for c in st.session_state.cable_all_cables[-15:]  # Show last 15 cables
@@ -1463,7 +1464,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.markdown(f"**Base Ampacity (Ic):** {r['cable_data']['base_ampacity']} A")
                 st.markdown(f"**Derated Ampacity (Id):** Ic × K = {r['cable_data']['base_ampacity']} × {r['derating_factors']['total']:.3f} = **{r['cable_data']['derated_ampacity']:.1f} A**")
                 st.markdown(f"**Load Current (IL):** {r['load_current']:.1f} A")
-                st.markdown(f"**Check:** {r['cable_data']['derated_ampacity']:.1f} A {'≥' if r['cable_data']['derated_ampacity'] >= r['load_current'] else '<'} {r['load_current']:.1f} A → **{'✓ PASS' if r['cable_data']['derated_ampacity'] >= r['load_current'] else '✗ FAIL'}**")
+                st.markdown(f"**Check:** {r['cable_data']['derated_ampacity']:.1f} A {'≥' if r['cable_data']['derated_ampacity'] >= r['load_current'] else '<'} {r['load_current']:.1f} A → **{'PASS' if r['cable_data']['derated_ampacity'] >= r['load_current'] else 'FAIL'}**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with st.expander("4. Voltage Drop Calculation"):
@@ -1478,11 +1479,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 
                 st.markdown(f"**R:** {r['cable_data']['R']:.4f} ohm/km")
                 st.markdown(f"**X:** {r['cable_data']['X']:.4f} ohm/km")
-                st.markdown(f"**Z = R cosφ + X sinφ =** {r['cable_data']['R']:.4f}×{r['pf']:.2f} + {r['cable_data']['X']:.4f}×{math.sin(math.acos(r['pf'])):.3f}")
                 st.markdown(f"**Voltage Drop:** {r['vd_volts']:.2f} V")
                 st.markdown(f"**Percentage:** ({r['vd_volts']:.2f} / {r['voltage_v']}) × 100 = **{r['vd_percent']:.2f}%**")
                 st.markdown(f"**Limit:** {r['voltage_drop_limit']}%")
-                st.markdown(f"**Check:** {r['vd_percent']:.2f}% {'≤' if r['vd_percent'] <= r['voltage_drop_limit'] else '>'} {r['voltage_drop_limit']}% → **{'✓ PASS' if r['vd_percent'] <= r['voltage_drop_limit'] else '✗ FAIL'}**")
+                st.markdown(f"**Check:** {r['vd_percent']:.2f}% {'≤' if r['vd_percent'] <= r['voltage_drop_limit'] else '>'} {r['voltage_drop_limit']}% → **{'PASS' if r['vd_percent'] <= r['voltage_drop_limit'] else 'FAIL'}**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with st.expander("5. Maximum Length Calculation"):
@@ -1490,7 +1490,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.markdown("**Derived from IEC 60364-5-52 voltage drop formula**")
                 st.markdown(f"**Maximum Length:** {r['max_length']:.1f} m")
                 st.markdown(f"**Actual Length:** {r['length_m']:.1f} m")
-                st.markdown(f"**Check:** {r['length_m']:.1f} m {'≤' if r['length_m'] <= r['max_length'] else '>'} {r['max_length']:.1f} m → **{'✓ PASS' if r['length_m'] <= r['max_length'] else '✗ FAIL'}**")
+                st.markdown(f"**Check:** {r['length_m']:.1f} m {'≤' if r['length_m'] <= r['max_length'] else '>'} {r['max_length']:.1f} m → **{'PASS' if r['length_m'] <= r['max_length'] else 'FAIL'}**")
                 st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("👈 Calculate cable size first in Input tab")
@@ -1648,4 +1648,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 36.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 37.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
