@@ -108,6 +108,19 @@ st.markdown("""
         background-color: #e0e2e6;
         transform: scale(1.02);
     }
+    .reasoning-box {
+        background-color: #f0f7ff;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #1E3A8A;
+        margin: 20px 0;
+    }
+    .step-highlight {
+        background-color: #ffd966;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -412,7 +425,7 @@ class LightningPDFReport(FPDF):
             self.cell(90, 7, value, 1)
             self.ln()
 
-# ========== CABLE SIZING CALCULATOR - WITH REFERENCES ==========
+# ========== CABLE SIZING CALCULATOR - WITH REFERENCES AND EXPLANATION ==========
 # Cable Database (Based on Pakistan Cables Catalogue & IEC 60502)
 CABLE_DATA = {
     'copper': {
@@ -718,6 +731,8 @@ if 'selected_calculator' not in st.session_state:
     st.session_state.selected_calculator = "⚡ Lightning Protection"
 if 'cable_results' not in st.session_state:
     st.session_state.cable_results = {}
+if 'cable_selection_reason' not in st.session_state:
+    st.session_state.cable_selection_reason = ""
 if 'project_info' not in st.session_state:
     st.session_state.project_info = {
         'project_title': 'BASIC AND DETAIL ENGINEERING DESIGN SERVICES FOR\n70,000 BPD CDU and LPG UNIT FOR MAYSAN REFINERY',
@@ -1130,6 +1145,73 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                     # Status already PASS if we got here
                     status = "PASS"
                     
+                    # Generate selection reasoning
+                    reasoning = f"""
+### 🔍 Cable Selection Reasoning
+
+**Step 1: Load Current Calculation**
+- Power: {power_kw} kW
+- Voltage: {voltage_v} V
+- Power Factor: {pf}
+- **Load Current (IL) = {load_current:.2f} A**
+- Reference: IEC 60364-5-52 Section 523
+
+**Step 2: Derating Factors (IEC 60502-2)**
+- k1 (Temperature): {factors['k1']:.3f} at {ambient_temp}°C
+- k2 (Grouping): {factors['k2']:.3f} for {num_cables} cables ({grouping})
+{f"- k3 (Soil Resistivity): {factors['k3']:.3f}" if 'k3' in factors else ""}
+{f"- k4 (Depth): {factors['k4']:.3f}" if 'k4' in factors else ""}
+- **Total Derating Factor K = {total_k:.3f}**
+
+**Step 3: Cable Selection Process**
+The calculator checks each standard cable size from smallest to largest:
+
+| Size (mm²) | Base Ampacity | Derated Ampacity | Check | Voltage Drop | Check |
+|------------|---------------|------------------|-------|--------------|-------|
+"""
+                    
+                    # Add comparison table for all cables
+                    all_sizes = []
+                    for size, data in CABLE_DATA[material].items():
+                        derated = data['ampacity'] * total_k
+                        vd_v, vd_pct = cable_calc.calculate_voltage_drop(
+                            load_current, length_m, data['R'], data['X'], pf, voltage_v, phase
+                        )
+                        amp_ok = "✓" if derated >= load_current else "✗"
+                        vd_ok = "✓" if vd_pct <= voltage_drop_limit else "✗"
+                        
+                        if derated >= load_current and vd_pct <= voltage_drop_limit:
+                            is_selected = " ← **SELECTED**" if size == cable_data['size'] else ""
+                            all_sizes.append(f"| {size} | {data['ampacity']} | {derated:.1f} | {amp_ok} | {vd_pct:.2f}% | {vd_ok} |{is_selected}")
+                    
+                    reasoning += "\n".join(all_sizes[-10:])  # Show last 10 sizes
+                    
+                    reasoning += f"""
+
+**Step 4: Selected Cable**
+- **Selected Size:** {cable_data['size']} mm² {material}
+- **Base Ampacity (Ic):** {cable_data['base_ampacity']} A
+- **Derated Ampacity (Id):** K × Ic = {total_k:.3f} × {cable_data['base_ampacity']} = **{cable_data['derated_ampacity']:.1f} A**
+- **Ampacity Check:** {cable_data['derated_ampacity']:.1f} A ≥ {load_current:.1f} A → **✓ PASS**
+
+**Step 5: Voltage Drop Check**
+- **Voltage Drop:** {cable_data['vd_percent']:.2f}%
+- **Maximum Allowed:** {voltage_drop_limit}%
+- **Check:** {cable_data['vd_percent']:.2f}% ≤ {voltage_drop_limit}% → **✓ PASS**
+
+**Step 6: Final Selection**
+This is the **smallest standard cable size** that satisfies both:
+1. Ampacity requirement (Id ≥ IL)
+2. Voltage drop limit (Vd ≤ {voltage_drop_limit}%)
+
+**References:**
+- IEC 60502-2: Cable construction and ampacity tables
+- IEC 60364-5-52: Selection of cables - current-carrying capacity
+- IEC 60364-5-52 Section 525: Voltage drop requirements
+"""
+                    
+                    st.session_state.cable_selection_reason = reasoning
+                    
                     # Store results
                     st.session_state.cable_results = {
                         'load_tag': load_tag,
@@ -1156,7 +1238,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         'length_m': length_m
                     }
                     
-                    st.success("✅ Calculation complete! Go to Results tab to view.")
+                    st.success("✅ Calculation complete! Go to Results tab to view detailed reasoning.")
                 else:
                     st.error("❌ No suitable cable found! Try larger sizes or better conditions.")
     
@@ -1168,6 +1250,12 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         if st.session_state.cable_results:
             r = st.session_state.cable_results
+            
+            # Show selection reasoning
+            if st.session_state.cable_selection_reason:
+                st.markdown('<div class="reasoning-box">', unsafe_allow_html=True)
+                st.markdown(st.session_state.cable_selection_reason)
+                st.markdown('</div>', unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
             
@@ -1460,4 +1548,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 34.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 35.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
