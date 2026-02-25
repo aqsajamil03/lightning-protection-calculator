@@ -135,7 +135,7 @@ class Word_Report:
         self.doc.add_page_break()
         self.doc.add_heading('LIGHTNING PROTECTION CALCULATIONS', 0)
         
-        # 1. Collection Area
+        # 1. Collection Area (Ad)
         self.doc.add_heading('1.1 Collection Area (Ad)', level=1)
         self.doc.add_paragraph('Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2')
@@ -143,8 +143,16 @@ class Word_Report:
         p.add_run('Result: ').bold = True
         p.add_run(f'Ad = {results["ad"]:.2f} m²')
         
-        # 2. Environmental Factor
-        self.doc.add_heading('1.2 Environmental Factor (CD)', level=1)
+        # 2. Near Strike Collection Area (Am) - NEW
+        self.doc.add_heading('1.2 Near Strike Collection Area (Am)', level=1)
+        self.doc.add_paragraph('Formula: Am = 2 × 500 × (L + W) + π × 500²')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.7')
+        p = self.doc.add_paragraph()
+        p.add_run('Result: ').bold = True
+        p.add_run(f'Am = {results["am"]:.2f} m²')
+        
+        # 3. Environmental Factor
+        self.doc.add_heading('1.3 Environmental Factor (CD)', level=1)
         self.doc.add_paragraph('Reference: IEC 62305-2 Table A.1')
         self.doc.add_paragraph('• Surrounded by taller structures: CD = 0.25')
         self.doc.add_paragraph('• Similar height structures: CD = 0.5')
@@ -155,24 +163,33 @@ class Word_Report:
         p.add_run('Result: ').bold = True
         p.add_run(f'CD = {inputs.get("cd", 1)}')
         
-        # 3. Lightning Density
-        self.doc.add_heading('1.3 Lightning Ground Flash Density (NG)', level=1)
+        # 4. Lightning Density
+        self.doc.add_heading('1.4 Lightning Ground Flash Density (NG)', level=1)
         self.doc.add_paragraph('Formula: NG = 0.1 × Td')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.1, Equation A.1')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'NG = {results.get("ng", 1)} flashes/km²/year')
         
-        # 4. Expected Frequency
-        self.doc.add_heading('1.4 Expected Annual Frequency (Nd)', level=1)
+        # 5. Lightning Frequencies - UPDATED with Nd and Nm
+        self.doc.add_heading('1.5 Lightning Frequencies', level=1)
+        self.doc.add_paragraph('Direct Strike Frequency (Nd):')
         self.doc.add_paragraph('Formula: Nd = NG × Ad × CD × 10⁻⁶')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.4, Equation A.4')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'Nd = {results.get("nd", 0):.6f} events/year')
         
-        # 5. Protection Level
-        self.doc.add_heading('1.5 Protection Level', level=1)
+        self.doc.add_paragraph()
+        self.doc.add_paragraph('Near Strike Frequency (Nm):')
+        self.doc.add_paragraph('Formula: Nm = NG × Am × 10⁻⁶')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.6')
+        p = self.doc.add_paragraph()
+        p.add_run('Result: ').bold = True
+        p.add_run(f'Nm = {results.get("nm", 0):.6f} events/year')
+        
+        # 6. Protection Level
+        self.doc.add_heading('1.6 Protection Level', level=1)
         self.doc.add_paragraph('Reference: IEC 62305-1 Table 1 and Figure 1')
         self.doc.add_paragraph(f'Protection Efficiency: {results.get("efficiency", 0):.1%}')
         p = self.doc.add_paragraph()
@@ -180,15 +197,15 @@ class Word_Report:
         p.add_run(f'{results.get("lpl", "Class III")}')
         self.doc.add_paragraph(f'Rolling Sphere Radius: {results.get("sphere", 45)}m (IEC 62305-3 Table 2)')
         
-        # 6. Air Terminals
-        self.doc.add_heading('1.6 Air Terminals Required', level=1)
+        # 7. Air Terminals
+        self.doc.add_heading('1.7 Air Terminals Required', level=1)
         self.doc.add_paragraph('Method: Rolling Sphere Method')
         self.doc.add_paragraph('Reference: IEC 62305-3 Clause 5.2.2 Table 2')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'{results.get("air_terminals", 4)} air terminals required')
         
-        # Summary Table
+        # Summary Table - UPDATED with Am
         self.doc.add_page_break()
         self.doc.add_heading('SUMMARY OF RESULTS', level=1)
         
@@ -204,9 +221,11 @@ class Word_Report:
         
         summary_data = [
             ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m²"),  # NEW
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
             ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
-            ('Expected Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),  # NEW
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
             ('Protection Level', results.get('lpl', 'Class III')),
             ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
@@ -316,7 +335,7 @@ class PDF_Report(FPDF):
         self.cell(0, 15, 'LIGHTNING PROTECTION CALCULATIONS', 0, 1, 'C')
         self.ln(8)
         
-        # 1. Collection Area
+        # 1. Collection Area (Ad)
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, '1.1 Collection Area (Ad)', 0, 1)
         self.set_font('Arial', '', 11)
@@ -333,9 +352,20 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
         self.ln(8)
         
-        # 2. Environmental Factor
+        # 2. Near Strike Collection Area (Am) - NEW
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1.2 Environmental Factor (CD)', 0, 1)
+        self.cell(0, 10, '1.2 Near Strike Collection Area (Am)', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.multi_cell(0, 7, 'Formula: Am = 2 x 500 x (L + W) + pi x 500^2')
+        self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.3, Equation A.7', 0, 1)
+        self.cell(0, 7, f'Calculation: Am = 2 x 500 x ({inputs["length"]} + {inputs["width"]}) + pi x 500^2', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: Am = {results["am"]:.2f} m^2', 0, 1)
+        self.ln(8)
+        
+        # 3. Environmental Factor
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 10, '1.3 Environmental Factor (CD)', 0, 1)
         self.set_font('Arial', '', 11)
         self.cell(0, 7, 'Reference: IEC 62305-2 Table A.1', 0, 1)
         
@@ -355,9 +385,9 @@ class PDF_Report(FPDF):
         # Page 2
         self.add_page()
         
-        # 3. Lightning Density
+        # 4. Lightning Density
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1.3 Lightning Ground Flash Density (NG)', 0, 1)
+        self.cell(0, 10, '1.4 Lightning Ground Flash Density (NG)', 0, 1)
         self.set_font('Arial', '', 11)
         self.cell(0, 7, 'Formula: NG = 0.1 x Td', 0, 1)
         self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.1 Equation A.1', 0, 1)
@@ -366,20 +396,33 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
         self.ln(8)
         
-        # 4. Expected Frequency
+        # 5. Lightning Frequencies - UPDATED with Nd and Nm
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1.4 Expected Annual Frequency (Nd)', 0, 1)
+        self.cell(0, 10, '1.5 Lightning Frequencies', 0, 1)
         self.set_font('Arial', '', 11)
+        
+        # Nd
+        self.cell(0, 7, 'Direct Strike Frequency (Nd):', 0, 1)
         self.cell(0, 7, 'Formula: Nd = NG x Ad x CD x 10^-6', 0, 1)
         self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.2.4 Equation A.4', 0, 1)
         self.cell(0, 7, f'Calculation: Nd = {results.get("ng", 1)} x {results["ad"]:.0f} x {inputs.get("cd", 1)} x 10^-6', 0, 1)
         self.set_font('Arial', 'B', 12)
         self.cell(0, 8, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
+        self.ln(4)
+        
+        # Nm - NEW
+        self.set_font('Arial', '', 11)
+        self.cell(0, 7, 'Near Strike Frequency (Nm):', 0, 1)
+        self.cell(0, 7, 'Formula: Nm = NG x Am x 10^-6', 0, 1)
+        self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.3 Equation A.6', 0, 1)
+        self.cell(0, 7, f'Calculation: Nm = {results.get("ng", 1)} x {results["am"]:.0f} x 10^-6', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: Nm = {results.get("nm", 0):.6f} events/year', 0, 1)
         self.ln(8)
         
-        # 5. Protection Level
+        # 6. Protection Level
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1.5 Protection Level Determination', 0, 1)
+        self.cell(0, 10, '1.6 Protection Level Determination', 0, 1)
         self.set_font('Arial', '', 11)
         self.cell(0, 7, 'Reference: IEC 62305-1 Table 1 and Figure 1', 0, 1)
         self.cell(0, 7, f'Protection Efficiency: {results.get("efficiency", 0):.1%}', 0, 1)
@@ -401,9 +444,9 @@ class PDF_Report(FPDF):
         # Page 3
         self.add_page()
         
-        # 6. Air Terminals
+        # 7. Air Terminals
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, '1.6 Air Terminals Required', 0, 1)
+        self.cell(0, 10, '1.7 Air Terminals Required', 0, 1)
         self.set_font('Arial', '', 11)
         self.cell(0, 7, 'Method: Rolling Sphere Method', 0, 1)
         self.cell(0, 7, 'Reference: IEC 62305-3 Clause 5.2.2 Table 2', 0, 1)
@@ -417,7 +460,7 @@ class PDF_Report(FPDF):
         self.cell(0, 8, f'Result: {results.get("air_terminals", 4)} air terminals required', 0, 1)
         self.ln(10)
         
-        # Summary Section
+        # Summary Section - UPDATED with Am and Nm
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
         self.cell(0, 12, 'SUMMARY OF RESULTS', 0, 1, 'C')
@@ -432,9 +475,11 @@ class PDF_Report(FPDF):
         self.set_font('Arial', '', 10)
         summary_data = [
             ('Collection Area (Ad)', f"{results['ad']:.2f} m^2"),
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m^2"),  # NEW
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
             ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km^2/year"),
-            ('Expected Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),  # NEW
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
             ('Protection Level', results.get('lpl', 'Class III')),
             ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
@@ -529,7 +574,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
         "📥 Download Report"
     ])
     
-    # TAB 1: Risk Assessment
+    # TAB 1: Risk Assessment - UPDATED WITH Am
     with lp_tabs[0]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## RISK ASSESSMENT (IEC 62305-2)")
@@ -584,13 +629,18 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
         
         if st.button("🔧 CALCULATE RISK", type="primary", use_container_width=True):
             
+            # Ad Calculation
             if structure_type == "Column 4-C01":
                 ad = math.pi * 9 * height**2
             else:
                 ad = length * width + 2 * (3 * height) * (length + width) + math.pi * (3 * height)**2
             
+            # Am Calculation - Collection Area for near strike (NEW)
+            am = 2 * 500 * (length + width) + math.pi * 500**2
+            
             ng = 0.1 * td_days
             nd = ng * ad * cd * 1e-6
+            nm = ng * am * 1e-6  # NEW: Near strike frequency
             
             c_total = cd * c2 * c3 * c4 * c5
             nc = 1e-4 / c_total
@@ -620,18 +670,25 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
             st.markdown("---")
             st.subheader("📊 Results")
             
-            col_a, col_b, col_c = st.columns(3)
+            # Display results in 4 columns to include Am
+            col_a, col_b, col_c, col_d = st.columns(4)
             with col_a:
-                st.metric("Collection Area", f"{ad:.0f} m²")
+                st.metric("Collection Area (Ad)", f"{ad:.0f} m²")
+                st.metric("Near Strike Area (Am)", f"{am:.0f} m²")  # NEW
             with col_b:
+                st.metric("Nd (Direct)", f"{nd:.6f}")
+                st.metric("Nm (Near)", f"{nm:.6f}")  # NEW
+            with col_c:
                 st.metric("Protection Level", lpl)
                 st.metric("Efficiency", f"{efficiency:.1%}")
-            with col_c:
+            with col_d:
                 st.metric("Rolling Sphere", f"{sphere}m")
                 st.metric("Air Terminals", air_terminals)
             
+            # Store results including Am
             st.session_state.calc_results = {
-                'ad': ad, 'ng': ng, 'nd': nd, 'efficiency': efficiency,
+                'ad': ad, 'am': am, 'ng': ng, 'nd': nd, 'nm': nm,  # Added am and nm
+                'efficiency': efficiency,
                 'lpl': lpl, 'sphere': sphere, 'air_terminals': air_terminals
             }
             st.session_state.input_values = {
@@ -665,7 +722,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                     st.metric("Rod Diameter", "9.5 mm")
                     st.metric("Down Conductor", "29 mm²")
     
-    # TAB 3: Calculations
+    # TAB 3: Calculations - UPDATED WITH Am DETAILS
     with lp_tabs[2]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DETAILED CALCULATIONS")
@@ -686,7 +743,16 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.expander("2. Environmental Factor (CD)"):
+            # NEW: Am Calculation Details
+            with st.expander("2. Near Strike Collection Area (Am)", expanded=True):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** Am = 2 × 500 × (L + W) + π × 500²")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.3, Equation A.7")
+                st.markdown(f"**Calculation:** Am = 2 × 500 × ({inputs['length']} + {inputs['width']}) + π × 500²")
+                st.markdown(f"**Result:** Am = **{results['am']:.2f} m²**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("3. Environmental Factor (CD)"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown("**Reference:** IEC 62305-2 Table A.1")
                 st.markdown("**Values:**")
@@ -697,19 +763,25 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                 st.markdown(f"**Selected:** {inputs.get('environment', 'Isolated')} → **{inputs.get('cd', 1)}**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.expander("3. Lightning Density (NG)"):
+            with st.expander("4. Lightning Density (NG)"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown("**Formula:** NG = 0.1 × Td")
                 st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.expander("4. Expected Frequency (Nd)"):
+            # NEW: Direct and Near Strike Frequencies
+            with st.expander("5. Lightning Frequencies"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
-                st.markdown("**Formula:** Nd = NG × Ad × CD × 10⁻⁶")
-                st.markdown(f"**Result:** Nd = **{results.get('nd', 0):.6f} events/year**")
+                st.markdown("**Nd (Direct Strike Frequency):**")
+                st.markdown("Formula: Nd = NG × Ad × CD × 10⁻⁶")
+                st.markdown(f"Result: **{results.get('nd', 0):.6f} events/year**")
+                st.markdown("---")
+                st.markdown("**Nm (Near Strike Frequency):**")
+                st.markdown("Formula: Nm = NG × Am × 10⁻⁶")
+                st.markdown(f"Result: **{results.get('nm', 0):.6f} events/year**")
                 st.markdown('</div>', unsafe_allow_html=True)
             
-            with st.expander("5. Protection Level"):
+            with st.expander("6. Protection Level"):
                 st.markdown('<div class="formula-box">', unsafe_allow_html=True)
                 st.markdown(f"**Efficiency:** {results.get('efficiency', 0):.1%}")
                 st.markdown(f"**Result:** **{results.get('lpl', 'Class III')}**")
@@ -835,4 +907,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 29.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 30.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
