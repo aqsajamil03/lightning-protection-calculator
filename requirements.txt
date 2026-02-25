@@ -1,6 +1,6 @@
 streamlit
 fpdf2
-PyPDF2
-img2pdf
 python-docx
 pillow
+PyPDF2
+img2pdf
