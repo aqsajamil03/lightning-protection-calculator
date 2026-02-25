@@ -17,7 +17,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
 
-# Custom CSS - UPDATED with larger tab font
+# Custom CSS - UPDATED with much larger tab font
 st.markdown("""
 <style>
     .report-header {
@@ -75,18 +75,23 @@ st.markdown("""
     .word-btn {
         background-color: #1e3a8a;
     }
-    /* INCREASED TAB FONT SIZE */
+    /* MUCH LARGER TAB FONT SIZE */
     .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
-        font-size: 20px !important;
-        font-weight: 600 !important;
+        font-size: 24px !important;
+        font-weight: 700 !important;
     }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 15px;
     }
     .stTabs [data-baseweb="tab"] {
-        padding: 10px 20px;
+        padding: 15px 25px;
         background-color: #f0f2f6;
-        border-radius: 5px;
+        border-radius: 8px;
+    }
+    /* Make the tab text even larger on hover */
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #e0e2e6;
+        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -770,4 +775,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 31.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculations | Version 32.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
