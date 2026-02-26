@@ -12,7 +12,7 @@ import PyPDF2
 from PyPDF2 import PdfReader, PdfWriter
 import img2pdf
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
@@ -44,6 +44,20 @@ st.markdown("""
         border-left: 3px solid #4CAF50;
         margin: 5px 0;
         font-size: 0.9em;
+    }
+    .calculation-detail {
+        background-color: #F5F5F5;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        margin: 10px 0;
+        font-family: 'Courier New', monospace;
+    }
+    .param-highlight {
+        background-color: #FFE5B4;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-weight: bold;
     }
     .success-box {
         background-color: #D4EDDA;
@@ -103,9 +117,24 @@ st.markdown("""
         background-color: #f0f2f6;
         border-radius: 8px;
     }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: #e0e2e6;
-        transform: scale(1.02);
+    .parameter-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+    .parameter-table th {
+        background-color: #1E3A8A;
+        color: white;
+        padding: 10px;
+        text-align: center;
+    }
+    .parameter-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .parameter-table tr:nth-child(even) {
+        background-color: #f2f2f2;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -530,7 +559,8 @@ class CableSizingCalculator:
         self.results = {}
     
     def calculate_load_current(self, power_kw, voltage_v, pf, efficiency=1.0, phase='3-phase'):
-        """Calculate load current based on power and voltage"""
+        """Calculate load current based on power and voltage
+        Reference: IEC 60364-5-52 Section 523"""
         if phase == '3-phase':
             return (power_kw * 1000) / (1.732 * voltage_v * pf * efficiency)
         elif phase == '1-phase':
@@ -539,12 +569,14 @@ class CableSizingCalculator:
             return (power_kw * 1000) / voltage_v
     
     def get_derating_factors(self, temp_c, insulation_temp=90, num_cables=1, grouping='touching'):
+        """Calculate derating factors based on IEC 60502-2 Tables B.10-B.22"""
         k1 = TEMPERATURE_FACTORS[insulation_temp].get(temp_c, 1.0)
         k2 = GROUPING_FACTORS[grouping].get(min(num_cables, 16), 0.5)
         total_k = k1 * k2
         return total_k, {'k1': k1, 'k2': k2}
     
     def calculate_voltage_drop(self, current, length_m, R, X, pf, voltage_v, phase='3-phase'):
+        """Calculate voltage drop based on IEC 60364-5-52 Section 525"""
         R_total = R * length_m / 1000
         X_total = X * length_m / 1000
         
@@ -557,6 +589,13 @@ class CableSizingCalculator:
         
         Vd_percent = (Vd / voltage_v) * 100
         return Vd, Vd_percent
+    
+    def get_cable_by_phase(self, phase, material):
+        """Get appropriate cable database based on phase"""
+        if phase == '3-phase':
+            return CABLE_4CORE_DATA[material], '4-Core'
+        else:
+            return CABLE_2CORE_DATA[material], '2-Core'
 
 # ========== CIRCUIT BREAKER CALCULATOR CLASS ==========
 class CircuitBreakerCalculator:
@@ -564,7 +603,7 @@ class CircuitBreakerCalculator:
         pass
     
     def get_standard_rating(self, current, design_factor=1.25):
-        """Get next higher standard CB rating"""
+        """Get next higher standard CB rating (IEC 60898)"""
         required = current * design_factor
         for rating in CB_RATINGS:
             if rating >= required:
@@ -583,13 +622,10 @@ class CircuitBreakerCalculator:
     def get_poles(self, phase, rating):
         """Determine number of poles"""
         if phase == '1-phase':
-            if rating <= 125:
-                return '2P'
-            else:
-                return '2P'
+            return '2P'
         elif phase == '3-phase':
             return '3P'
-        else:  # DC
+        else:
             return '2P'
     
     def calculate_cb_size(self, loads_df, design_factor=1.25, manufacturer='Schneider Electric'):
@@ -665,15 +701,15 @@ if 'cover_details' not in st.session_state:
 if 'input_values' not in st.session_state:
     st.session_state.input_values = {}
 
-# Initialize loads dataframe
+# Initialize loads dataframe with 1 default row
 if 'loads_df' not in st.session_state:
     st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Load 1', 'Load 2', 'Load 3', 'Load 4', 'Load 5'],
-        'Power (kW)': [5, 10, 15, 20, 25],
-        'Voltage (V)': [400, 400, 400, 400, 400],
-        'Phase': ['1-phase', '1-phase', '1-phase', '3-phase', '3-phase'],
-        'Power Factor': [0.8, 0.8, 0.8, 0.8, 0.8],
-        'Length (m)': [50, 20, 50, 20, 50]
+        'Load Name': ['Load 1'],
+        'Power (kW)': [5.0],
+        'Voltage (V)': [400],
+        'Phase': ['3-phase'],
+        'Power Factor': [0.85],
+        'Length (m)': [50]
     })
 
 # ========== SIDEBAR ==========
@@ -963,18 +999,17 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click to Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word document generated successfully!")
 
-# ========== CABLE SIZING CALCULATOR ==========
+# ========== CABLE SIZING CALCULATOR - COMPLETE FIXED VERSION ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
-    # ✅ CABLE_TABS DEFINED HERE
     cable_tabs = st.tabs([
         "📥 Loads Table", 
-        "⚡ Circuit Breakers", 
-        "📊 Cable Sizing Results",
+        "📊 Detailed Calculations", 
+        "⚡ Circuit Breakers",
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS TABLE INPUT
+    # TAB 1: LOADS TABLE INPUT - DYNAMIC ROWS
     with cable_tabs[0]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## MULTIPLE LOADS INPUT")
@@ -982,113 +1017,232 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         st.markdown('<div class="info-box">', unsafe_allow_html=True)
         st.markdown("### 📋 Enter Load Details")
-        st.markdown("Edit the table below to add/remove loads. Single-phase loads use 2-core cables, three-phase loads use 4-core cables.")
+        st.markdown("""
+        - **Add/Delete Rows:** Use the buttons at the bottom of the table
+        - **Enter any values:** No dropdown restrictions
+        - **Phase:** Enter '1-phase', '3-phase', or 'DC'
+        - **Single-phase loads** use 2-core cables
+        - **Three-phase loads** use 4-core cables
+        """)
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Editable dataframe for loads
+        # Add row button
+        col1, col2, col3 = st.columns([1, 1, 5])
+        with col1:
+            if st.button("➕ Add Row", use_container_width=True):
+                new_row = pd.DataFrame({
+                    'Load Name': [f'Load {len(st.session_state.loads_df) + 1}'],
+                    'Power (kW)': [10.0],
+                    'Voltage (V)': [400],
+                    'Phase': ['3-phase'],
+                    'Power Factor': [0.85],
+                    'Length (m)': [50]
+                })
+                st.session_state.loads_df = pd.concat([st.session_state.loads_df, new_row], ignore_index=True)
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ Delete Last Row", use_container_width=True):
+                if len(st.session_state.loads_df) > 1:
+                    st.session_state.loads_df = st.session_state.loads_df[:-1]
+                    st.rerun()
+                else:
+                    st.warning("At least one row required")
+        
+        # Editable dataframe for loads - COMPLETELY FREE TEXT
         edited_df = st.data_editor(
             st.session_state.loads_df,
-            num_rows="dynamic",
+            num_rows="fixed",
             use_container_width=True,
             column_config={
                 "Load Name": st.column_config.TextColumn("Load Name", width="medium"),
-                "Power (kW)": st.column_config.NumberColumn("Power (kW)", min_value=0.1, max_value=10000, step=0.5),
-                "Voltage (V)": st.column_config.SelectboxColumn("Voltage (V)", options=[230, 400, 415, 690, 3300, 11000], default=400),
-                "Phase": st.column_config.SelectboxColumn("Phase", options=['1-phase', '3-phase', 'DC']),
-                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.1, max_value=1.0, step=0.05, default=0.85),
-                "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=1, max_value=10000, step=5)
+                "Power (kW)": st.column_config.NumberColumn("Power (kW)", min_value=0.0, max_value=100000.0, step=0.1, format="%.1f"),
+                "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", min_value=0.0, max_value=100000.0, step=1.0, format="%.0f"),
+                "Phase": st.column_config.TextColumn("Phase", help="Enter '1-phase', '3-phase', or 'DC'"),
+                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.0, max_value=1.0, step=0.05, format="%.2f"),
+                "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=0.0, max_value=100000.0, step=1.0, format="%.0f")
             }
         )
         
         st.session_state.loads_df = edited_df
         
-        col1, col2, col3 = st.columns(3)
+        st.markdown("### ⚙️ Installation Parameters")
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            ambient_temp = st.number_input("Ambient Temperature (°C)", value=55, min_value=0, max_value=80)
+            ambient_temp = st.number_input("Ambient Temperature (°C)", value=55.0, min_value=0.0, max_value=100.0, step=1.0)
         with col2:
-            num_cables = st.number_input("Number of Cables in Group", value=6, min_value=1, max_value=30)
+            num_cables = st.number_input("Number of Cables in Group", value=6, min_value=1, max_value=100, step=1)
         with col3:
             grouping = st.selectbox("Grouping Configuration", ["touching", "spaced"])
+        with col4:
+            voltage_drop_limit = st.number_input("Max Voltage Drop (%)", value=3.0, min_value=0.1, max_value=20.0, step=0.1)
         
-        material = st.selectbox("Conductor Material", ["copper", "aluminium"])
-        manufacturer = st.selectbox("Manufacturer", list(MANUFACTURERS.keys()))
-        design_factor = st.number_input("Design Factor (CB Sizing)", value=1.25, min_value=1.0, max_value=2.0, step=0.05)
+        col5, col6, col7 = st.columns(3)
+        with col5:
+            material = st.selectbox("Conductor Material", ["copper", "aluminium"])
+        with col6:
+            manufacturer = st.selectbox("Manufacturer", list(MANUFACTURERS.keys()))
+        with col7:
+            design_factor = st.number_input("Design Factor (CB Sizing)", value=1.25, min_value=1.0, max_value=2.0, step=0.05)
         
         if st.button("🔧 CALCULATE ALL", type="primary", use_container_width=True):
-            st.session_state.cable_calculated = True
-            
-            # Store ambient parameters in session state
-            st.session_state.ambient_temp = ambient_temp
-            st.session_state.grouping = grouping
-            
-            # Calculate CB sizes
-            cb_calc = CircuitBreakerCalculator()
-            st.session_state.cb_results = cb_calc.calculate_cb_size(
-                st.session_state.loads_df, design_factor, manufacturer
-            )
-            st.session_state.main_cb = cb_calc.calculate_main_cb(
-                st.session_state.loads_df, 400, 0.85, design_factor
-            )
-            
-            # Calculate cable sizes
-            cable_calc = CableSizingCalculator()
-            total_k, factors = cable_calc.get_derating_factors(ambient_temp, 90, num_cables, grouping)
-            
-            # Store derating factor in session state
-            st.session_state.derating_factor = total_k
-            
-            cable_results = []
-            for idx, load in st.session_state.loads_df.iterrows():
-                # Calculate load current
-                current = cable_calc.calculate_load_current(
-                    load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
+            with st.spinner("Calculating..."):
+                st.session_state.cable_calculated = True
+                
+                # Store parameters in session state
+                st.session_state.ambient_temp = ambient_temp
+                st.session_state.num_cables = num_cables
+                st.session_state.grouping = grouping
+                st.session_state.voltage_drop_limit = voltage_drop_limit
+                st.session_state.material = material
+                st.session_state.manufacturer = manufacturer
+                st.session_state.design_factor = design_factor
+                
+                # Calculate CB sizes
+                cb_calc = CircuitBreakerCalculator()
+                st.session_state.cb_results = cb_calc.calculate_cb_size(
+                    st.session_state.loads_df, design_factor, manufacturer
+                )
+                st.session_state.main_cb = cb_calc.calculate_main_cb(
+                    st.session_state.loads_df, 400, 0.85, design_factor
                 )
                 
-                # Select cable database based on phase
-                if load['Phase'] == '3-phase':
-                    cable_db = CABLE_4CORE_DATA[material]
-                    cable_type = '4-Core'
-                else:
-                    cable_db = CABLE_2CORE_DATA[material]
-                    cable_type = '2-Core'
+                # Calculate cable sizes
+                cable_calc = CableSizingCalculator()
+                total_k, factors = cable_calc.get_derating_factors(ambient_temp, 90, num_cables, grouping)
                 
-                # Find suitable cable
-                selected_cable = None
-                for size, data in cable_db.items():
-                    derated = data['ampacity'] * total_k
-                    if derated >= current:
-                        vd_v, vd_pct = cable_calc.calculate_voltage_drop(
-                            current, load['Length (m)'], data['R'], data['X'],
-                            load['Power Factor'], load['Voltage (V)'], load['Phase']
-                        )
-                        selected_cable = {
-                            'Load': load['Load Name'],
-                            'Power (kW)': load['Power (kW)'],
-                            'Current (A)': f"{current:.2f}",
-                            'Cable Size': f"{size} mm²",
-                            'Type': cable_type,
-                            'Base Ampacity': data['ampacity'],
-                            'Derated Ampacity': f"{derated:.1f}",
-                            'Voltage Drop %': f"{vd_pct:.3f}",
-                            'Status': 'PASS' if vd_pct <= 3 else 'CHECK VD'
-                        }
-                        break
+                # Store derating factor in session state
+                st.session_state.derating_factor = total_k
+                st.session_state.derating_factors = factors
                 
-                if selected_cable:
-                    cable_results.append(selected_cable)
-            
-            st.session_state.cable_results_df = pd.DataFrame(cable_results)
-            st.success("✅ Calculations complete! Check other tabs for results.")
+                # Calculate for each load
+                cable_results = []
+                detailed_calculations = []
+                
+                for idx, load in st.session_state.loads_df.iterrows():
+                    # Skip if invalid phase
+                    if load['Phase'] not in ['1-phase', '3-phase', 'DC']:
+                        continue
+                        
+                    # Calculate load current
+                    current = cable_calc.calculate_load_current(
+                        load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
+                    )
+                    
+                    # Get cable database based on phase
+                    cable_db, cable_type = cable_calc.get_cable_by_phase(load['Phase'], material)
+                    
+                    # Find suitable cable
+                    selected_cable = None
+                    for size, data in cable_db.items():
+                        derated = data['ampacity'] * total_k
+                        if derated >= current:
+                            vd_v, vd_pct = cable_calc.calculate_voltage_drop(
+                                current, load['Length (m)'], data['R'], data['X'],
+                                load['Power Factor'], load['Voltage (V)'], load['Phase']
+                            )
+                            selected_cable = {
+                                'Load Name': load['Load Name'],
+                                'Power (kW)': load['Power (kW)'],
+                                'Voltage (V)': load['Voltage (V)'],
+                                'Phase': load['Phase'],
+                                'PF': load['Power Factor'],
+                                'Length (m)': load['Length (m)'],
+                                'Current (A)': f"{current:.2f}",
+                                'Cable Size': f"{size} mm²",
+                                'Type': cable_type,
+                                'Base Ampacity': data['ampacity'],
+                                'Derated Ampacity': f"{derated:.1f}",
+                                'Voltage Drop %': f"{vd_pct:.3f}",
+                                'Status': 'PASS' if vd_pct <= voltage_drop_limit else 'FAIL',
+                                'R (ohm/km)': f"{data['R']:.3f}",
+                                'X (ohm/km)': f"{data['X']:.3f}"
+                            }
+                            
+                            # Store detailed calculation for this load
+                            detail = f"""
+### Load: {load['Load Name']}
+**Step 1: Load Current Calculation**
+Formula: I = P × 1000 / (√3 × V × PF) [IEC 60364-5-52 Section 523]
+Calculation: I = {load['Power (kW)']} × 1000 / (1.732 × {load['Voltage (V)']} × {load['Power Factor']}) = **{current:.2f} A**
+
+**Step 2: Derating Factors [IEC 60502-2 Tables B.10-B.22]**
+k1 (Temperature): {factors['k1']:.3f} at {ambient_temp}°C
+k2 (Grouping): {factors['k2']:.3f} for {num_cables} cables ({grouping})
+Total Derating Factor K = k1 × k2 = {total_k:.3f}
+
+**Step 3: Cable Selection**
+Selected Cable: {size} mm² {material} ({cable_type})
+Base Ampacity (Ic): {data['ampacity']} A
+Derated Ampacity (Id): K × Ic = {total_k:.3f} × {data['ampacity']} = {derated:.1f} A
+Check: {derated:.1f} A ≥ {current:.1f} A → **{'PASS' if derated >= current else 'FAIL'}**
+
+**Step 4: Voltage Drop Calculation [IEC 60364-5-52 Section 525]**
+R = {data['R']:.3f} ohm/km, X = {data['X']:.3f} ohm/km
+Vd = {vd_v:.2f} V
+Vd% = ({vd_v:.2f} / {load['Voltage (V)']}) × 100 = {vd_pct:.3f}%
+Limit: {voltage_drop_limit}%
+Check: {vd_pct:.3f}% ≤ {voltage_drop_limit}% → **{'PASS' if vd_pct <= voltage_drop_limit else 'FAIL'}**
+
+**Final Status:** {'✅ PASS' if vd_pct <= voltage_drop_limit and derated >= current else '❌ FAIL'}
+---
+"""
+                            detailed_calculations.append(detail)
+                            break
+                    
+                    if selected_cable:
+                        cable_results.append(selected_cable)
+                
+                st.session_state.cable_results_df = pd.DataFrame(cable_results)
+                st.session_state.detailed_calculations = detailed_calculations
+                st.success("✅ Calculations complete! Check other tabs for results.")
     
-    # TAB 2: CIRCUIT BREAKER RESULTS
+    # TAB 2: DETAILED CALCULATIONS - WITH FULL FORMULAS
     with cable_tabs[1]:
+        st.markdown('<div class="report-header">', unsafe_allow_html=True)
+        st.markdown("## DETAILED CALCULATIONS WITH REFERENCES")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        if 'detailed_calculations' in st.session_state:
+            st.markdown("### 📋 Installation Parameters")
+            params_html = f"""
+            <table class="parameter-table">
+                <tr><th colspan="2">Installation Parameters (IEC 60502-2)</th></tr>
+                <tr><td>Ambient Temperature</td><td>{st.session_state.ambient_temp} °C</td></tr>
+                <tr><td>Number of Cables in Group</td><td>{st.session_state.num_cables}</td></tr>
+                <tr><td>Grouping Configuration</td><td>{st.session_state.grouping}</td></tr>
+                <tr><td>Voltage Drop Limit</td><td>{st.session_state.voltage_drop_limit}% [IEC 60364-5-52 Sec 525]</td></tr>
+                <tr><td>Conductor Material</td><td>{st.session_state.material}</td></tr>
+            </table>
+            """
+            st.markdown(params_html, unsafe_allow_html=True)
+            
+            st.markdown("### 📊 Derating Factors [IEC 60502-2 Tables B.10-B.22]")
+            factors = st.session_state.derating_factors
+            factors_html = f"""
+            <table class="parameter-table">
+                <tr><th>Factor</th><th>Value</th><th>Reference</th></tr>
+                <tr><td>k1 - Temperature Correction</td><td>{factors['k1']:.3f}</td><td>Table B.10 at {st.session_state.ambient_temp}°C</td></tr>
+                <tr><td>k2 - Grouping Factor</td><td>{factors['k2']:.3f}</td><td>Table 4C1 ({st.session_state.grouping})</td></tr>
+                <tr><td><strong>Total K = k1 × k2</strong></td><td><strong>{st.session_state.derating_factor:.3f}</strong></td><td>IEC 60502-2</td></tr>
+            </table>
+            """
+            st.markdown(factors_html, unsafe_allow_html=True)
+            
+            st.markdown("### 🔍 Load-Wise Detailed Calculations")
+            for detail in st.session_state.detailed_calculations:
+                st.markdown(detail)
+        else:
+            st.info("👈 Enter loads in first tab and click CALCULATE")
+    
+    # TAB 3: CIRCUIT BREAKER RESULTS
+    with cable_tabs[2]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## CIRCUIT BREAKER SIZING")
         st.markdown('</div>', unsafe_allow_html=True)
         
         if 'cb_results' in st.session_state:
-            # Individual breakers
-            st.markdown("### ⚡ Individual Circuit Breakers")
+            st.markdown("### ⚡ Individual Circuit Breakers [IEC 60898]")
             cb_df = pd.DataFrame([{
                 'Load': r['Load'],
                 'Power (kW)': r['Power (kW)'],
@@ -1114,35 +1268,9 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             with col4:
                 st.metric("Selected CB", f"{main['selected_cb']} A {main['breaker_type']} {main['poles']}")
             
-            # Reference
             st.markdown('<div class="reference-box">', unsafe_allow_html=True)
             st.markdown("**Reference:** IEC 60898 - Circuit breakers for overcurrent protection")
             st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("👈 Enter loads in first tab and click CALCULATE")
-    
-    # TAB 3: CABLE SIZING RESULTS
-    with cable_tabs[2]:
-        st.markdown('<div class="report-header">', unsafe_allow_html=True)
-        st.markdown("## CABLE SIZING RESULTS")
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        if 'cable_results_df' in st.session_state:
-            st.dataframe(st.session_state.cable_results_df, use_container_width=True, hide_index=True)
-            
-            # Summary
-            st.markdown("### 📊 Summary")
-            total_power = st.session_state.loads_df['Power (kW)'].sum()
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Connected Load", f"{total_power:.1f} kW")
-                if 'ambient_temp' in st.session_state:
-                    st.metric("Ambient Temperature", f"{st.session_state.ambient_temp}°C")
-            with col2:
-                if 'derating_factor' in st.session_state:
-                    st.metric("Derating Factor", f"{st.session_state.derating_factor:.3f}")
-                if 'grouping' in st.session_state:
-                    st.metric("Grouping", st.session_state.grouping)
         else:
             st.info("👈 Enter loads in first tab and click CALCULATE")
     
@@ -1172,9 +1300,31 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         pdf.cell(0, 8, f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
                         pdf.ln(10)
                         
+                        # Installation Parameters
+                        pdf.set_font('Arial', 'B', 12)
+                        pdf.cell(0, 8, '1. INSTALLATION PARAMETERS', 0, 1)
+                        pdf.ln(4)
+                        pdf.set_font('Arial', '', 10)
+                        pdf.cell(0, 6, f"Ambient Temperature: {st.session_state.ambient_temp} °C", 0, 1)
+                        pdf.cell(0, 6, f"Number of Cables in Group: {st.session_state.num_cables}", 0, 1)
+                        pdf.cell(0, 6, f"Grouping Configuration: {st.session_state.grouping}", 0, 1)
+                        pdf.cell(0, 6, f"Voltage Drop Limit: {st.session_state.voltage_drop_limit}%", 0, 1)
+                        pdf.ln(5)
+                        
+                        # Derating Factors
+                        pdf.set_font('Arial', 'B', 12)
+                        pdf.cell(0, 8, '2. DERATING FACTORS (IEC 60502-2)', 0, 1)
+                        pdf.ln(4)
+                        pdf.set_font('Arial', '', 10)
+                        pdf.cell(0, 6, f"k1 (Temperature): {st.session_state.derating_factors['k1']:.3f}", 0, 1)
+                        pdf.cell(0, 6, f"k2 (Grouping): {st.session_state.derating_factors['k2']:.3f}", 0, 1)
+                        pdf.set_font('Arial', 'B', 10)
+                        pdf.cell(0, 6, f"Total Derating Factor (K): {st.session_state.derating_factor:.3f}", 0, 1)
+                        pdf.ln(5)
+                        
                         # Loads Table
                         pdf.set_font('Arial', 'B', 12)
-                        pdf.cell(0, 8, '1. LOAD DETAILS', 0, 1)
+                        pdf.cell(0, 8, '3. LOAD DETAILS', 0, 1)
                         pdf.ln(4)
                         
                         # Add loads table to PDF
@@ -1183,63 +1333,67 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         pdf.cell(20, 6, 'Power', 1, 0, 'C')
                         pdf.cell(20, 6, 'Voltage', 1, 0, 'C')
                         pdf.cell(20, 6, 'Phase', 1, 0, 'C')
+                        pdf.cell(20, 6, 'PF', 1, 0, 'C')
                         pdf.cell(20, 6, 'Length', 1, 1, 'C')
                         
                         pdf.set_font('Arial', '', 8)
                         for idx, load in st.session_state.loads_df.iterrows():
                             pdf.cell(30, 5, load['Load Name'][:15], 1, 0, 'L')
                             pdf.cell(20, 5, f"{load['Power (kW)']:.1f}", 1, 0, 'R')
-                            pdf.cell(20, 5, f"{load['Voltage (V)']}", 1, 0, 'R')
+                            pdf.cell(20, 5, f"{load['Voltage (V)']:.0f}", 1, 0, 'R')
                             pdf.cell(20, 5, load['Phase'], 1, 0, 'C')
+                            pdf.cell(20, 5, f"{load['Power Factor']:.2f}", 1, 0, 'R')
                             pdf.cell(20, 5, f"{load['Length (m)']:.0f}", 1, 1, 'R')
                         
                         pdf.ln(10)
                         
                         # Cable Results
                         pdf.set_font('Arial', 'B', 12)
-                        pdf.cell(0, 8, '2. CABLE SIZING RESULTS', 0, 1)
+                        pdf.cell(0, 8, '4. CABLE SIZING RESULTS', 0, 1)
                         pdf.ln(4)
                         
                         # Add cable results table
                         if 'cable_results_df' in st.session_state:
                             pdf.set_font('Arial', 'B', 8)
-                            pdf.cell(30, 5, 'Load', 1, 0, 'C')
-                            pdf.cell(20, 5, 'Cable', 1, 0, 'C')
-                            pdf.cell(20, 5, 'Type', 1, 0, 'C')
-                            pdf.cell(25, 5, 'Derated A', 1, 0, 'C')
-                            pdf.cell(20, 5, 'VD %', 1, 0, 'C')
-                            pdf.cell(20, 5, 'Status', 1, 1, 'C')
+                            pdf.cell(25, 5, 'Load', 1, 0, 'C')
+                            pdf.cell(15, 5, 'Cable', 1, 0, 'C')
+                            pdf.cell(15, 5, 'Type', 1, 0, 'C')
+                            pdf.cell(18, 5, 'Base A', 1, 0, 'C')
+                            pdf.cell(18, 5, 'Derated A', 1, 0, 'C')
+                            pdf.cell(15, 5, 'VD %', 1, 0, 'C')
+                            pdf.cell(15, 5, 'Status', 1, 1, 'C')
                             
                             pdf.set_font('Arial', '', 7)
                             for idx, row in st.session_state.cable_results_df.iterrows():
-                                pdf.cell(30, 4, row['Load'][:15], 1, 0, 'L')
-                                pdf.cell(20, 4, row['Cable Size'], 1, 0, 'C')
-                                pdf.cell(20, 4, row['Type'], 1, 0, 'C')
-                                pdf.cell(25, 4, row['Derated Ampacity'], 1, 0, 'R')
-                                pdf.cell(20, 4, row['Voltage Drop %'], 1, 0, 'R')
-                                pdf.cell(20, 4, row['Status'], 1, 1, 'C')
+                                pdf.cell(25, 4, row['Load Name'][:12], 1, 0, 'L')
+                                pdf.cell(15, 4, row['Cable Size'], 1, 0, 'C')
+                                pdf.cell(15, 4, row['Type'], 1, 0, 'C')
+                                pdf.cell(18, 4, str(row['Base Ampacity']), 1, 0, 'R')
+                                pdf.cell(18, 4, row['Derated Ampacity'], 1, 0, 'R')
+                                pdf.cell(15, 4, row['Voltage Drop %'], 1, 0, 'R')
+                                pdf.cell(15, 4, row['Status'], 1, 1, 'C')
                         
                         pdf.ln(10)
                         
                         # CB Results
                         pdf.set_font('Arial', 'B', 12)
-                        pdf.cell(0, 8, '3. CIRCUIT BREAKER SIZING', 0, 1)
+                        pdf.cell(0, 8, '5. CIRCUIT BREAKER SIZING (IEC 60898)', 0, 1)
                         pdf.ln(4)
                         
                         # Add CB results table
                         pdf.set_font('Arial', 'B', 8)
-                        pdf.cell(30, 5, 'Load', 1, 0, 'C')
-                        pdf.cell(20, 5, 'Current', 1, 0, 'C')
-                        pdf.cell(25, 5, 'Selected CB', 1, 0, 'C')
-                        pdf.cell(25, 5, 'Type', 1, 0, 'C')
+                        pdf.cell(25, 5, 'Load', 1, 0, 'C')
+                        pdf.cell(15, 5, 'Current', 1, 0, 'C')
+                        pdf.cell(20, 5, 'Selected CB', 1, 0, 'C')
+                        pdf.cell(20, 5, 'Type', 1, 0, 'C')
                         pdf.cell(30, 5, 'Manufacturer', 1, 1, 'C')
                         
                         pdf.set_font('Arial', '', 7)
                         for cb in st.session_state.cb_results:
-                            pdf.cell(30, 4, cb['Load'][:15], 1, 0, 'L')
-                            pdf.cell(20, 4, f"{cb['Current (A)']:.1f}", 1, 0, 'R')
-                            pdf.cell(25, 4, f"{cb['Selected CB (A)']} A", 1, 0, 'C')
-                            pdf.cell(25, 4, f"{cb['Breaker Type']} {cb['Poles']}", 1, 0, 'C')
+                            pdf.cell(25, 4, cb['Load'][:12], 1, 0, 'L')
+                            pdf.cell(15, 4, f"{cb['Current (A)']:.1f}", 1, 0, 'R')
+                            pdf.cell(20, 4, f"{cb['Selected CB (A)']} A", 1, 0, 'C')
+                            pdf.cell(20, 4, f"{cb['Breaker Type']} {cb['Poles']}", 1, 0, 'C')
                             pdf.cell(30, 4, cb['Manufacturer'], 1, 1, 'L')
                         
                         pdf.ln(5)
@@ -1268,53 +1422,73 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         doc.add_paragraph(f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}')
                         doc.add_paragraph()
                         
+                        # Installation Parameters
+                        doc.add_heading('1. INSTALLATION PARAMETERS', level=1)
+                        doc.add_paragraph(f"Ambient Temperature: {st.session_state.ambient_temp} °C")
+                        doc.add_paragraph(f"Number of Cables in Group: {st.session_state.num_cables}")
+                        doc.add_paragraph(f"Grouping Configuration: {st.session_state.grouping}")
+                        doc.add_paragraph(f"Voltage Drop Limit: {st.session_state.voltage_drop_limit}%")
+                        doc.add_paragraph()
+                        
+                        # Derating Factors
+                        doc.add_heading('2. DERATING FACTORS (IEC 60502-2)', level=1)
+                        doc.add_paragraph(f"k1 (Temperature): {st.session_state.derating_factors['k1']:.3f}")
+                        doc.add_paragraph(f"k2 (Grouping): {st.session_state.derating_factors['k2']:.3f}")
+                        p = doc.add_paragraph()
+                        p.add_run(f"Total Derating Factor (K): {st.session_state.derating_factor:.3f}").bold = True
+                        doc.add_paragraph()
+                        
                         # Loads Table
-                        doc.add_heading('1. LOAD DETAILS', level=1)
-                        table = doc.add_table(rows=1, cols=5)
+                        doc.add_heading('3. LOAD DETAILS', level=1)
+                        table = doc.add_table(rows=1, cols=6)
                         table.style = 'Light Grid Accent 1'
                         hdr_cells = table.rows[0].cells
                         hdr_cells[0].text = 'Load Name'
                         hdr_cells[1].text = 'Power (kW)'
                         hdr_cells[2].text = 'Voltage (V)'
                         hdr_cells[3].text = 'Phase'
-                        hdr_cells[4].text = 'Length (m)'
+                        hdr_cells[4].text = 'PF'
+                        hdr_cells[5].text = 'Length (m)'
                         
                         for idx, load in st.session_state.loads_df.iterrows():
                             row_cells = table.add_row().cells
                             row_cells[0].text = load['Load Name']
                             row_cells[1].text = f"{load['Power (kW)']:.1f}"
-                            row_cells[2].text = f"{load['Voltage (V)']}"
+                            row_cells[2].text = f"{load['Voltage (V)']:.0f}"
                             row_cells[3].text = load['Phase']
-                            row_cells[4].text = f"{load['Length (m)']:.0f}"
+                            row_cells[4].text = f"{load['Power Factor']:.2f}"
+                            row_cells[5].text = f"{load['Length (m)']:.0f}"
                         
                         doc.add_paragraph()
                         
                         # Cable Results
-                        doc.add_heading('2. CABLE SIZING RESULTS', level=1)
+                        doc.add_heading('4. CABLE SIZING RESULTS', level=1)
                         if 'cable_results_df' in st.session_state:
-                            table = doc.add_table(rows=1, cols=6)
+                            table = doc.add_table(rows=1, cols=7)
                             table.style = 'Light Grid Accent 1'
                             hdr_cells = table.rows[0].cells
                             hdr_cells[0].text = 'Load'
                             hdr_cells[1].text = 'Cable Size'
                             hdr_cells[2].text = 'Type'
-                            hdr_cells[3].text = 'Derated A'
-                            hdr_cells[4].text = 'VD %'
-                            hdr_cells[5].text = 'Status'
+                            hdr_cells[3].text = 'Base A'
+                            hdr_cells[4].text = 'Derated A'
+                            hdr_cells[5].text = 'VD %'
+                            hdr_cells[6].text = 'Status'
                             
                             for idx, row in st.session_state.cable_results_df.iterrows():
                                 row_cells = table.add_row().cells
-                                row_cells[0].text = row['Load']
+                                row_cells[0].text = row['Load Name']
                                 row_cells[1].text = row['Cable Size']
                                 row_cells[2].text = row['Type']
-                                row_cells[3].text = row['Derated Ampacity']
-                                row_cells[4].text = row['Voltage Drop %']
-                                row_cells[5].text = row['Status']
+                                row_cells[3].text = str(row['Base Ampacity'])
+                                row_cells[4].text = row['Derated Ampacity']
+                                row_cells[5].text = row['Voltage Drop %']
+                                row_cells[6].text = row['Status']
                         
                         doc.add_paragraph()
                         
                         # CB Results
-                        doc.add_heading('3. CIRCUIT BREAKER SIZING', level=1)
+                        doc.add_heading('5. CIRCUIT BREAKER SIZING (IEC 60898)', level=1)
                         table = doc.add_table(rows=1, cols=5)
                         table.style = 'Light Grid Accent 1'
                         hdr_cells = table.rows[0].cells
@@ -1336,7 +1510,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         
                         # Main CB
                         main = st.session_state.main_cb
-                        doc.add_heading('4. MAIN CIRCUIT BREAKER', level=1)
+                        doc.add_heading('6. MAIN CIRCUIT BREAKER', level=1)
                         doc.add_paragraph(f"Selected: {main['selected_cb']} A {main['breaker_type']} {main['poles']}")
                         
                         # Save Word document
@@ -1402,4 +1576,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | Version 42.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | Version 44.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
