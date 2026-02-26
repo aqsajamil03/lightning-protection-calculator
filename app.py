@@ -117,6 +117,10 @@ st.markdown("""
         background-color: #f0f2f6;
         border-radius: 8px;
     }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #e0e2e6;
+        transform: scale(1.02);
+    }
     .parameter-table {
         width: 100%;
         border-collapse: collapse;
@@ -127,6 +131,7 @@ st.markdown("""
         color: white;
         padding: 10px;
         text-align: center;
+        font-weight: bold;
     }
     .parameter-table td {
         border: 1px solid #ddd;
@@ -135,6 +140,12 @@ st.markdown("""
     }
     .parameter-table tr:nth-child(even) {
         background-color: #f2f2f2;
+    }
+    .parameter-table tr:nth-child(odd) {
+        background-color: white;
+    }
+    .parameter-table td {
+        color: black !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1207,12 +1218,31 @@ Check: {vd_pct:.3f}% ≤ {voltage_drop_limit}% → **{'PASS' if vd_pct <= voltag
             st.markdown("### 📋 Installation Parameters")
             params_html = f"""
             <table class="parameter-table">
-                <tr><th colspan="2">Installation Parameters (IEC 60502-2)</th></tr>
-                <tr><td>Ambient Temperature</td><td>{st.session_state.ambient_temp} °C</td></tr>
-                <tr><td>Number of Cables in Group</td><td>{st.session_state.num_cables}</td></tr>
-                <tr><td>Grouping Configuration</td><td>{st.session_state.grouping}</td></tr>
-                <tr><td>Voltage Drop Limit</td><td>{st.session_state.voltage_drop_limit}% [IEC 60364-5-52 Sec 525]</td></tr>
-                <tr><td>Conductor Material</td><td>{st.session_state.material}</td></tr>
+                <tr>
+                    <th colspan="2" style="background-color: #1E3A8A; color: white; padding: 10px; text-align: center; font-weight: bold;">
+                        Installation Parameters (IEC 60502-2)
+                    </th>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; width: 40%; color: black;">Ambient Temperature</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{st.session_state.ambient_temp} °C</td>
+                </tr>
+                <tr style="background-color: #f2f2f2;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">Number of Cables in Group</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{st.session_state.num_cables}</td>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">Grouping Configuration</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{st.session_state.grouping}</td>
+                </tr>
+                <tr style="background-color: #f2f2f2;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">Voltage Drop Limit</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{st.session_state.voltage_drop_limit}% [IEC 60364-5-52 Sec 525]</td>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">Conductor Material</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{st.session_state.material}</td>
+                </tr>
             </table>
             """
             st.markdown(params_html, unsafe_allow_html=True)
@@ -1221,10 +1251,26 @@ Check: {vd_pct:.3f}% ≤ {voltage_drop_limit}% → **{'PASS' if vd_pct <= voltag
             factors = st.session_state.derating_factors
             factors_html = f"""
             <table class="parameter-table">
-                <tr><th>Factor</th><th>Value</th><th>Reference</th></tr>
-                <tr><td>k1 - Temperature Correction</td><td>{factors['k1']:.3f}</td><td>Table B.10 at {st.session_state.ambient_temp}°C</td></tr>
-                <tr><td>k2 - Grouping Factor</td><td>{factors['k2']:.3f}</td><td>Table 4C1 ({st.session_state.grouping})</td></tr>
-                <tr><td><strong>Total K = k1 × k2</strong></td><td><strong>{st.session_state.derating_factor:.3f}</strong></td><td>IEC 60502-2</td></tr>
+                <tr>
+                    <th style="background-color: #1E3A8A; color: white; padding: 10px; text-align: center; font-weight: bold; width: 30%;">Factor</th>
+                    <th style="background-color: #1E3A8A; color: white; padding: 10px; text-align: center; font-weight: bold; width: 30%;">Value</th>
+                    <th style="background-color: #1E3A8A; color: white; padding: 10px; text-align: center; font-weight: bold; width: 40%;">Reference</th>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">k1 - Temperature Correction</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{factors['k1']:.3f}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">Table B.10 at {st.session_state.ambient_temp}°C</td>
+                </tr>
+                <tr style="background-color: #f2f2f2;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;">k2 - Grouping Factor</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">{factors['k2']:.3f}</td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">Table 4C1 ({st.session_state.grouping})</td>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; color: black;"><strong>Total K = k1 × k2</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;"><strong>{st.session_state.derating_factor:.3f}</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd; color: black;">IEC 60502-2</td>
+                </tr>
             </table>
             """
             st.markdown(factors_html, unsafe_allow_html=True)
@@ -1576,4 +1622,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | Version 44.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | Version 45.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
