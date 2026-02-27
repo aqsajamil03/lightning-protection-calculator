@@ -488,7 +488,7 @@ class LightningWordReport:
         
         # 1. Collection Area (Ad)
         self.doc.add_heading('1.1 Collection Area (Ad)', level=1)
-        self.doc.add_paragraph('Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
+        self.doc.add_paragraph('Formula: Ad = L x W + 2 x (3H) x (L + W) + pi x (3H)^2')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -497,7 +497,7 @@ class LightningWordReport:
         
         # 2. Near Strike Collection Area (Am)
         self.doc.add_heading('1.2 Near Strike Collection Area (Am)', level=1)
-        self.doc.add_paragraph('Formula: Am = 2 × 500 × (L + W) + π × 500²')
+        self.doc.add_paragraph('Formula: Am = 2 x 500 x (L + W) + pi x 500^2')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.7')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -519,7 +519,7 @@ class LightningWordReport:
         
         # 4. Lightning Density
         self.doc.add_heading('1.4 Lightning Ground Flash Density (NG)', level=1)
-        self.doc.add_paragraph('Formula: NG = 0.1 × Td')
+        self.doc.add_paragraph('Formula: NG = 0.1 x Td')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.1, Equation A.1')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -529,7 +529,7 @@ class LightningWordReport:
         # 5. Lightning Frequencies
         self.doc.add_heading('1.5 Lightning Frequencies', level=1)
         self.doc.add_paragraph('Direct Strike Frequency (Nd):')
-        self.doc.add_paragraph('Formula: Nd = NG × Ad × CD × 10⁻⁶')
+        self.doc.add_paragraph('Formula: Nd = NG x Ad x CD x 10^-6')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.4, Equation A.4')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -537,7 +537,7 @@ class LightningWordReport:
         
         self.doc.add_paragraph()
         self.doc.add_paragraph('Near Strike Frequency (Nm):')
-        self.doc.add_paragraph('Formula: Nm = NG × Am × 10⁻⁶')
+        self.doc.add_paragraph('Formula: Nm = NG x Am x 10^-6')
         self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.6')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
@@ -647,18 +647,18 @@ class LightningPDFReport(FPDF):
         self.cell(0, 10, '1.1 Collection Area (Ad)', 0, 1)
         self.set_font('Arial', '', 11)
         self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 7, 'Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
+        self.multi_cell(0, 7, 'Formula: Ad = L x W + 2 x (3H) x (L + W) + pi x (3H)^2')
         self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.2.1.1 Equation A.2', 0, 1)
         self.ln(2)
         
         if inputs.get('width', 0) == 0:
-            self.cell(0, 7, f'Calculation: Ad = π × 9 × ({inputs["height"]})²', 0, 1)
+            self.cell(0, 7, f'Calculation: Ad = pi x 9 x ({inputs["height"]})^2', 0, 1)
         else:
-            self.cell(0, 7, f'Calculation: Ad = {inputs["length"]} × {inputs["width"]} + 2 × (3 × {inputs["height"]}) × ({inputs["length"]} + {inputs["width"]}) + π × (3 × {inputs["height"]})²', 0, 1)
+            self.cell(0, 7, f'Calculation: Ad = {inputs["length"]} x {inputs["width"]} + 2 x (3 x {inputs["height"]}) x ({inputs["length"]} + {inputs["width"]}) + pi x (3 x {inputs["height"]})^2', 0, 1)
         
         self.ln(2)
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, f'Result: Ad = {results["ad"]:.2f} m²', 0, 1)
+        self.cell(0, 8, f'Result: Ad = {results["ad"]:.2f} m^2', 0, 1)
         self.ln(8)
         
         # 2. Near Strike Collection Area (Am)
@@ -667,38 +667,136 @@ class LightningPDFReport(FPDF):
         self.cell(0, 10, '1.2 Near Strike Collection Area (Am)', 0, 1)
         self.set_font('Arial', '', 11)
         self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 7, 'Formula: Am = 2 × 500 × (L + W) + π × 500²')
+        self.multi_cell(0, 7, 'Formula: Am = 2 x 500 x (L + W) + pi x 500^2')
         self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.3, Equation A.7', 0, 1)
         self.ln(2)
-        self.cell(0, 7, f'Calculation: Am = 2 × 500 × ({inputs["length"]} + {inputs["width"]}) + π × 500²', 0, 1)
+        self.cell(0, 7, f'Calculation: Am = 2 x 500 x ({inputs["length"]} + {inputs["width"]}) + pi x 500^2', 0, 1)
         self.ln(2)
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, f'Result: Am = {results["am"]:.2f} m²', 0, 1)
+        self.cell(0, 8, f'Result: Am = {results["am"]:.2f} m^2', 0, 1)
         self.ln(8)
         
-        # Add more sections... (continuing similar pattern)
+        # 3. Environmental Factor
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1.3 Environmental Factor (CD)', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 7, 'Reference: IEC 62305-2 Table A.1', 0, 1)
+        self.ln(2)
         
-        # Summary Table - New Page
+        self.set_font('Arial', '', 10)
+        self.cell(0, 6, 'Surrounded by taller structures: CD = 0.25', 0, 1)
+        self.cell(0, 6, 'Similar height structures: CD = 0.5', 0, 1)
+        self.cell(0, 6, 'Isolated structure: CD = 1.0', 0, 1)
+        self.cell(0, 6, 'Hilltop or knoll: CD = 2.0', 0, 1)
+        self.ln(4)
+        
+        self.set_font('Arial', '', 11)
+        self.cell(0, 7, f'Selected Environment: {inputs.get("environment", "Isolated")}', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: CD = {inputs.get("cd", 1)}', 0, 1)
+        self.ln(8)
+        
+        # 4. Lightning Density
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1.4 Lightning Ground Flash Density (NG)', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 7, 'Formula: NG = 0.1 x Td', 0, 1)
+        self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.1 Equation A.1', 0, 1)
+        self.cell(0, 7, f'Calculation: NG = 0.1 x {inputs.get("td_days", 10)}', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: NG = {results.get("ng", 1)} flashes/km^2/year', 0, 1)
+        self.ln(8)
+        
+        # 5. Lightning Frequencies
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1.5 Lightning Frequencies', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.set_text_color(0, 0, 0)
+        
+        # Nd
+        self.cell(0, 7, 'Direct Strike Frequency (Nd):', 0, 1)
+        self.cell(0, 7, 'Formula: Nd = NG x Ad x CD x 10^-6', 0, 1)
+        self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.2.4 Equation A.4', 0, 1)
+        self.cell(0, 7, f'Calculation: Nd = {results.get("ng", 1)} x {results["ad"]:.0f} x {inputs.get("cd", 1)} x 10^-6', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: Nd = {results.get("nd", 0):.6f} events/year', 0, 1)
+        self.ln(4)
+        
+        # Nm
+        self.set_font('Arial', '', 11)
+        self.cell(0, 7, 'Near Strike Frequency (Nm):', 0, 1)
+        self.cell(0, 7, 'Formula: Nm = NG x Am x 10^-6', 0, 1)
+        self.cell(0, 7, 'Reference: IEC 62305-2 Annex A.3 Equation A.6', 0, 1)
+        self.cell(0, 7, f'Calculation: Nm = {results.get("ng", 1)} x {results["am"]:.0f} x 10^-6', 0, 1)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: Nm = {results.get("nm", 0):.6f} events/year', 0, 1)
+        self.ln(8)
+        
+        # 6. Protection Level
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1.6 Protection Level Determination', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 7, 'Reference: IEC 62305-1 Table 1 and Figure 1', 0, 1)
+        self.cell(0, 7, f'Protection Efficiency: {results.get("efficiency", 0):.1%}', 0, 1)
+        
+        if results.get("efficiency", 0) > 0.98:
+            lpl_text = "Class I (Maximum Protection)"
+        elif results.get("efficiency", 0) > 0.95:
+            lpl_text = "Class II (High Protection)"
+        elif results.get("efficiency", 0) > 0.90:
+            lpl_text = "Class III (Standard Protection)"
+        else:
+            lpl_text = "Class IV (Basic Protection)"
+        
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: {lpl_text}', 0, 1)
+        self.cell(0, 8, f'Rolling Sphere Radius: {results.get("sphere", 45)}m (IEC 62305-3 Table 2)', 0, 1)
+        self.ln(8)
+        
+        # 7. Air Terminals
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1.7 Air Terminals Required', 0, 1)
+        self.set_font('Arial', '', 11)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 7, 'Method: Rolling Sphere Method', 0, 1)
+        self.cell(0, 7, 'Reference: IEC 62305-3 Clause 5.2.2 Table 2', 0, 1)
+        
+        if inputs.get('height', 0) <= results.get('sphere', 45):
+            self.cell(0, 7, 'Using: Protection Width Method', 0, 1)
+        else:
+            self.cell(0, 7, 'Using: Mesh Method for tall structures', 0, 1)
+        
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 8, f'Result: {results.get("air_terminals", 4)} air terminals required', 0, 1)
+        self.ln(10)
+        
+        # Summary Section
         self.add_page()
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 15, 'SUMMARY OF RESULTS', 0, 1, 'C')
-        self.ln(10)
+        self.cell(0, 12, 'SUMMARY OF RESULTS', 0, 1, 'C')
+        self.ln(6)
         
-        # Table Header
+        # Summary Table
         self.set_font('Arial', 'B', 11)
         self.set_fill_color(240, 240, 240)
-        self.cell(90, 10, 'Parameter', 1, 0, 'C', 1)
-        self.cell(90, 10, 'Value', 1, 1, 'C', 1)
+        self.cell(80, 8, 'Parameter', 1, 0, 'C', 1)
+        self.cell(90, 8, 'Value', 1, 1, 'C', 1)
         
-        # Table Data
         self.set_font('Arial', '', 10)
-        self.set_fill_color(255, 255, 255)
         summary_data = [
-            ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
-            ('Near Strike Area (Am)', f"{results['am']:.2f} m²"),
+            ('Collection Area (Ad)', f"{results['ad']:.2f} m^2"),
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m^2"),
             ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
-            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
+            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km^2/year"),
             ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
             ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),
             ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
@@ -709,8 +807,8 @@ class LightningPDFReport(FPDF):
         
         fill = False
         for param, value in summary_data:
-            self.cell(90, 8, param, 1, 0, 'L', fill)
-            self.cell(90, 8, value, 1, 1, 'R', fill)
+            self.cell(80, 7, param, 1, 0, 'L', fill)
+            self.cell(90, 7, value, 1, 1, 'R', fill)
             fill = not fill
 
 # ========== ENHANCED CABLE SIZING CALCULATOR CLASS ==========
@@ -875,7 +973,7 @@ class CircuitBreakerCalculator:
             'standard': standard
         }
 
-# ========== ENHANCED PDF REPORT CLASSES WITH DETAILED CALCULATIONS ==========
+# ========== ENHANCED PDF REPORT CLASSES WITH FIXED UNICODE ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -1020,6 +1118,7 @@ class CablePDFReport(FPDF):
         self.ln(10)
     
     def add_detailed_calculations(self, detailed_calcs):
+        """Add detailed calculations to PDF with proper Unicode handling - using ASCII only"""
         self.add_page()
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
@@ -1031,19 +1130,20 @@ class CablePDFReport(FPDF):
             if self.get_y() > 250:
                 self.add_page()
             
+            # Load heading
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
             self.cell(0, 8, f'Load {i+1}: {calc["load_name"]}', 0, 1)
             self.ln(2)
             
+            # Step 1: Load Current
             self.set_font('Arial', 'B', 10)
             self.set_text_color(0, 0, 0)
-            
-            # Step 1: Load Current
             self.cell(0, 6, 'Step 1: Load Current Calculation [IEC 60364-5-52 Section 523]', 0, 1)
             self.set_font('Arial', '', 9)
-            self.cell(0, 5, f'Formula: I = P × 1000 / (√3 × V × PF)', 0, 1)
-            self.cell(0, 5, f'Calculation: I = {calc["power"]} × 1000 / (1.732 × {calc["voltage"]} × {calc["pf"]}) = {calc["current"]:.1f} A', 0, 1)
+            # Use simple ASCII characters instead of Unicode symbols
+            self.cell(0, 5, 'Formula: I = P x 1000 / (1.732 x V x PF) for 3-phase', 0, 1)
+            self.cell(0, 5, f'Calculation: I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A', 0, 1)
             self.ln(2)
             
             # Step 2: Derating Factors
@@ -1067,7 +1167,7 @@ class CablePDFReport(FPDF):
             self.cell(0, 5, f'Base Ampacity: {calc["base_amp"]} A', 0, 1)
             self.cell(0, 5, f'Derated Ampacity: {calc["derated_amp"]:.1f} A', 0, 1)
             status = 'PASS' if calc['derated_amp'] >= calc['current'] else 'FAIL'
-            self.cell(0, 5, f'Check: {calc["derated_amp"]:.1f} A ≥ {calc["current"]:.1f} A → {status}', 0, 1)
+            self.cell(0, 5, f'Check: {calc["derated_amp"]:.1f} A >= {calc["current"]:.1f} A -> {status}', 0, 1)
             self.ln(2)
             
             # Step 4: Voltage Drop
@@ -1075,16 +1175,17 @@ class CablePDFReport(FPDF):
             self.cell(0, 6, 'Step 4: Voltage Drop [IEC 60364-5-52 Section 525]', 0, 1)
             self.set_font('Arial', '', 9)
             self.cell(0, 5, f'Voltage Drop: {calc["vd_pct"]:.3f}%', 0, 1)
-            self.cell(0, 5, f'Limit: 2.5%', 0, 1)
+            self.cell(0, 5, 'Limit: 2.5%', 0, 1)
             status = 'PASS' if calc['vd_pct'] <= 2.5 else 'FAIL'
-            self.cell(0, 5, f'Check: {calc["vd_pct"]:.3f}% ≤ 2.5% → {status}', 0, 1)
+            self.cell(0, 5, f'Check: {calc["vd_pct"]:.3f}% <= 2.5% -> {status}', 0, 1)
             self.ln(2)
             
             # Step 5: Short Circuit
             self.set_font('Arial', 'B', 10)
             self.cell(0, 6, 'Step 5: Short Circuit [IEC 60949]', 0, 1)
             self.set_font('Arial', '', 9)
-            self.cell(0, 5, f'Isc = 143 × {calc["size"]} / √1.0 = {calc["sc"]:.2f} kA', 0, 1)
+            # Use 'x' instead of '*' and 'v' instead of '√'
+            self.cell(0, 5, f'Isc = 143 x {calc["size"]} / v1.0 = {calc["sc"]:.2f} kA', 0, 1)
             self.ln(2)
             
             # Step 6: Efficiency
@@ -1092,9 +1193,21 @@ class CablePDFReport(FPDF):
             self.cell(0, 6, 'Step 6: Efficiency', 0, 1)
             self.set_font('Arial', '', 9)
             self.cell(0, 5, f'Efficiency: {calc["efficiency"]:.1f}%', 0, 1)
+            self.ln(2)
+            
+            # Final Status
+            self.set_font('Arial', 'B', 10)
+            final_status = 'PASS' if calc['status'] == 'PASS' else 'FAIL'
+            # Set color based on status
+            if calc['status'] == 'PASS':
+                self.set_text_color(0, 128, 0)  # Green
+            else:
+                self.set_text_color(255, 0, 0)  # Red
+            self.cell(0, 6, f'Final Status: {final_status}', 0, 1)
+            self.set_text_color(0, 0, 0)  # Reset to black
             self.ln(5)
             
-            # Separator
+            # Separator line
             self.set_draw_color(200, 200, 200)
             self.line(10, self.get_y(), 200, self.get_y())
             self.ln(5)
@@ -2049,7 +2162,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             df = st.session_state.cable_results_df[['Load Name', 'Size (mm²)', 'Short Circuit (kA)']]
             st.dataframe(df, use_container_width=True, hide_index=True)
     
-    # TAB 5: DOWNLOAD REPORT - WITH DETAILED CALCULATIONS
+    # TAB 5: DOWNLOAD REPORT - WITH DETAILED CALCULATIONS (FIXED)
     with cable_tabs[4]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DOWNLOAD REPORT")
@@ -2253,4 +2366,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 49.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 50.0 | {datetime.now().strftime('%Y%m%d_%H%M')}</div>", unsafe_allow_html=True)
