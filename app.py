@@ -17,9 +17,10 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
 
-# Custom CSS
+# ========== CUSTOM CSS WITH FIXED TEXT COLORS ==========
 st.markdown("""
 <style>
+    /* HEADER STYLES */
     .report-header {
         background-color: #1E3A8A;
         color: white;
@@ -29,6 +30,8 @@ st.markdown("""
         margin-bottom: 20px;
         font-size: 24px;
     }
+    
+    /* BOX STYLES - ALL TEXT BLACK */
     .formula-box {
         background-color: #F3F4F6;
         padding: 15px;
@@ -36,7 +39,12 @@ st.markdown("""
         border-left: 5px solid #1E3A8A;
         margin: 10px 0;
         font-family: 'Courier New', monospace;
+        color: #000000 !important;
     }
+    .formula-box * {
+        color: #000000 !important;
+    }
+    
     .reference-box {
         background-color: #E8F5E9;
         padding: 10px;
@@ -44,7 +52,12 @@ st.markdown("""
         border-left: 3px solid #4CAF50;
         margin: 5px 0;
         font-size: 0.9em;
+        color: #000000 !important;
     }
+    .reference-box * {
+        color: #000000 !important;
+    }
+    
     .calculation-detail {
         background-color: #F5F5F5;
         padding: 15px;
@@ -52,42 +65,72 @@ st.markdown("""
         border: 1px solid #ddd;
         margin: 10px 0;
         font-family: 'Courier New', monospace;
+        color: #000000 !important;
     }
+    .calculation-detail * {
+        color: #000000 !important;
+    }
+    .calculation-detail h3, 
+    .calculation-detail h4, 
+    .calculation-detail p, 
+    .calculation-detail li,
+    .calculation-detail table,
+    .calculation-detail td,
+    .calculation-detail th {
+        color: #000000 !important;
+    }
+    
     .param-highlight {
         background-color: #FFE5B4;
         padding: 2px 5px;
         border-radius: 3px;
         font-weight: bold;
+        color: #000000 !important;
     }
+    
+    /* STATUS BOXES */
     .success-box {
         background-color: #D4EDDA;
-        color: #155724;
+        color: #155724 !important;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #28A745;
         margin: 10px 0;
     }
+    .success-box * {
+        color: #155724 !important;
+    }
+    
     .warning-box {
         background-color: #FFF3CD;
-        color: #856404;
+        color: #856404 !important;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #FFC107;
         margin: 10px 0;
     }
+    .warning-box * {
+        color: #856404 !important;
+    }
+    
     .info-box {
         background-color: #E7F3FF;
-        color: #004085;
+        color: #004085 !important;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #1E3A8A;
         margin: 10px 0;
     }
+    .info-box * {
+        color: #004085 !important;
+    }
+    
+    /* DOWNLOAD BUTTONS */
     .download-btn {
         display: inline-block;
         padding: 12px 24px;
         margin: 10px;
-        color: white;
+        color: white !important;
         text-decoration: none;
         border-radius: 5px;
         font-size: 16px;
@@ -97,7 +140,7 @@ st.markdown("""
     }
     .download-btn:hover {
         transform: scale(1.05);
-        color: white;
+        color: white !important;
     }
     .pdf-btn {
         background-color: #dc3545;
@@ -105,9 +148,12 @@ st.markdown("""
     .word-btn {
         background-color: #1e3a8a;
     }
+    
+    /* TABS STYLES */
     .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
         font-size: 24px !important;
         font-weight: 700 !important;
+        color: #000000 !important;
     }
     .stTabs [data-baseweb="tab-list"] {
         gap: 15px;
@@ -121,6 +167,8 @@ st.markdown("""
         background-color: #e0e2e6;
         transform: scale(1.02);
     }
+    
+    /* PARAMETER TABLE - FIXED TEXT COLORS */
     .parameter-table {
         width: 100%;
         border-collapse: collapse;
@@ -128,7 +176,7 @@ st.markdown("""
     }
     .parameter-table th {
         background-color: #1E3A8A;
-        color: white;
+        color: white !important;
         padding: 10px;
         text-align: center;
         font-weight: bold;
@@ -137,18 +185,283 @@ st.markdown("""
         border: 1px solid #ddd;
         padding: 8px;
         text-align: left;
-        color: black;
+        color: #000000 !important;
     }
     .parameter-table tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .parameter-table tr:nth-child(even) td {
+        color: #000000 !important;
         background-color: #f2f2f2;
     }
     .parameter-table tr:nth-child(odd) {
         background-color: white;
     }
+    .parameter-table tr:nth-child(odd) td {
+        color: #000000 !important;
+        background-color: white;
+    }
+    
+    /* STREAMILT DATAFRAME FIXES */
+    .stDataFrame {
+        color: #000000 !important;
+    }
+    .stDataFrame table {
+        color: #000000 !important;
+    }
+    .stDataFrame td {
+        color: #000000 !important;
+        background-color: white !important;
+    }
+    .stDataFrame th {
+        color: white !important;
+        background-color: #1E3A8A !important;
+    }
+    .stDataFrame tr:nth-child(even) td {
+        background-color: #f9f9f9 !important;
+        color: #000000 !important;
+    }
+    .stDataFrame tr:nth-child(odd) td {
+        background-color: white !important;
+        color: #000000 !important;
+    }
+    
+    /* EXPANDER CONTENT FIX */
+    .streamlit-expanderContent {
+        color: #000000 !important;
+        background-color: white;
+    }
+    .streamlit-expanderContent p, 
+    .streamlit-expanderContent span, 
+    .streamlit-expanderContent div,
+    .streamlit-expanderContent li,
+    .streamlit-expanderContent table,
+    .streamlit-expanderContent td,
+    .streamlit-expanderContent th {
+        color: #000000 !important;
+    }
+    
+    /* METRIC CARDS */
+    [data-testid="stMetricValue"] {
+        color: #000000 !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #333333 !important;
+    }
+    
+    /* MAIN CONTENT TEXT */
+    .main .block-container {
+        color: #000000 !important;
+    }
+    .main .block-container p,
+    .main .block-container span,
+    .main .block-container div,
+    .main .block-container li {
+        color: #000000 !important;
+    }
+    
+    /* FORCE ALL TABLE TEXT TO BLACK */
+    table, tr, td, th, tbody, thead {
+        color: #000000 !important;
+    }
+    td p, th p {
+        color: #000000 !important;
+    }
+    
+    /* SPECIFIC FIX FOR CABLE RESULTS TABLE */
+    div[data-testid="stHorizontalBlock"] table,
+    div[data-testid="stDataFrame"] table,
+    .stDataFrame table,
+    [data-testid="column"] table {
+        color: #000000 !important;
+    }
+    div[data-testid="stHorizontalBlock"] table td,
+    div[data-testid="stDataFrame"] table td,
+    .stDataFrame table td,
+    [data-testid="column"] table td {
+        color: #000000 !important;
+        background-color: white;
+    }
+    div[data-testid="stHorizontalBlock"] table tr:nth-child(even) td,
+    div[data-testid="stDataFrame"] table tr:nth-child(even) td,
+    .stDataFrame table tr:nth-child(even) td {
+        background-color: #f9f9f9 !important;
+        color: #000000 !important;
+    }
+    
+    /* MARKDOWN TEXT FIX */
+    .stMarkdown {
+        color: #000000 !important;
+    }
+    .stMarkdown p,
+    .stMarkdown h1,
+    .stMarkdown h2,
+    .stMarkdown h3,
+    .stMarkdown h4,
+    .stMarkdown li {
+        color: #000000 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ========== LIGHTNING PROTECTION CALCULATOR - EXISTING CLASSES (UNCHANGED) ==========
+# ========== CIRCUIT BREAKER DATA AND CALCULATIONS ==========
+# Circuit Breaker Standard Ratings (IEC 60898 / IEC 60947-2)
+CB_RATINGS = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
+
+# Breaker Types and Pole Selection (IEC 60947-2)
+BREAKER_TYPES = {
+    'MCB': {'min': 6, 'max': 125, 'standard': 'IEC 60898', 'application': 'Miniature Circuit Breaker - For final circuits'},
+    'MCCB': {'min': 125, 'max': 1600, 'standard': 'IEC 60947-2', 'application': 'Moulded Case Circuit Breaker - For distribution'},
+    'ACB': {'min': 1600, 'max': 6300, 'standard': 'IEC 60947-2', 'application': 'Air Circuit Breaker - For main incomers'}
+}
+
+# Pole Selection Guide (IEC 60364-5-53)
+POLE_GUIDE = {
+    '1-phase': {
+        '2P': 'Phase + Neutral protection - Required for single-phase circuits',
+        '1P': 'Phase only protection - Not recommended for final circuits'
+    },
+    '3-phase': {
+        '3P': '3-Pole - For 3-wire systems (no neutral)',
+        '4P': '4-Pole - For 4-wire systems with neutral protection'
+    },
+    'DC': {
+        '2P': 'Both poles protection - Required for DC circuits'
+    }
+}
+
+# Manufacturers
+MANUFACTURERS = {
+    'Schneider Electric': {
+        'MCB': 'Acti9 series',
+        'MCCB': 'EasyPact EVC series',
+        'ACB': 'MasterPact MTZ series'
+    },
+    'Siemens': {
+        'MCB': '5SY series',
+        'MCCB': '3VA series',
+        'ACB': '3WL series'
+    },
+    'ABB': {
+        'MCB': 'S200 series',
+        'MCCB': 'Tmax XT series',
+        'ACB': 'Emax 2 series'
+    },
+    'Legrand': {
+        'MCB': 'DX³ series',
+        'MCCB': 'DPX³ series',
+        'ACB': 'DMX³ series'
+    }
+}
+
+# ========== CABLE DATABASE (COPPER ONLY - XLPE Insulated) ==========
+# LV Cables - 0.6/1kV, XLPE Insulated, Copper Conductors
+LV_CABLE_DATA = {
+    'unarmoured': {  # PVC Sheathed, Unarmoured
+        1.5: {'R': 12.1, 'X': 0.093, 'ampacity': 22, 'diameter': 2.9},
+        2.5: {'R': 7.41, 'X': 0.088, 'ampacity': 30, 'diameter': 3.7},
+        4: {'R': 4.61, 'X': 0.088, 'ampacity': 40, 'diameter': 4.3},
+        6: {'R': 3.08, 'X': 0.088, 'ampacity': 51, 'diameter': 5.0},
+        10: {'R': 1.83, 'X': 0.084, 'ampacity': 70, 'diameter': 6.4},
+        16: {'R': 1.15, 'X': 0.077, 'ampacity': 94, 'diameter': 7.8},
+        25: {'R': 0.727, 'X': 0.074, 'ampacity': 123, 'diameter': 9.8},
+        35: {'R': 0.524, 'X': 0.074, 'ampacity': 150, 'diameter': 11.0},
+        50: {'R': 0.387, 'X': 0.071, 'ampacity': 181, 'diameter': 12.8},
+        70: {'R': 0.268, 'X': 0.069, 'ampacity': 228, 'diameter': 15.1},
+        95: {'R': 0.193, 'X': 0.068, 'ampacity': 276, 'diameter': 17.2},
+        120: {'R': 0.153, 'X': 0.067, 'ampacity': 318, 'diameter': 19.1},
+        150: {'R': 0.124, 'X': 0.066, 'ampacity': 364, 'diameter': 21.1},
+        185: {'R': 0.0991, 'X': 0.066, 'ampacity': 415, 'diameter': 23.2},
+        240: {'R': 0.0754, 'X': 0.065, 'ampacity': 492, 'diameter': 26.3},
+        300: {'R': 0.0601, 'X': 0.064, 'ampacity': 567, 'diameter': 29.5},
+    },
+    'armoured': {  # SWA - Steel Wire Armoured
+        1.5: {'R': 12.1, 'X': 0.098, 'ampacity': 25, 'diameter': 3.2},
+        2.5: {'R': 7.41, 'X': 0.093, 'ampacity': 34, 'diameter': 4.0},
+        4: {'R': 4.61, 'X': 0.092, 'ampacity': 45, 'diameter': 4.7},
+        6: {'R': 3.08, 'X': 0.091, 'ampacity': 57, 'diameter': 5.5},
+        10: {'R': 1.83, 'X': 0.088, 'ampacity': 78, 'diameter': 7.0},
+        16: {'R': 1.15, 'X': 0.082, 'ampacity': 105, 'diameter': 8.5},
+        25: {'R': 0.727, 'X': 0.079, 'ampacity': 138, 'diameter': 10.5},
+        35: {'R': 0.524, 'X': 0.078, 'ampacity': 168, 'diameter': 12.0},
+        50: {'R': 0.387, 'X': 0.075, 'ampacity': 203, 'diameter': 14.0},
+        70: {'R': 0.268, 'X': 0.073, 'ampacity': 255, 'diameter': 16.5},
+        95: {'R': 0.193, 'X': 0.072, 'ampacity': 310, 'diameter': 19.0},
+        120: {'R': 0.153, 'X': 0.071, 'ampacity': 357, 'diameter': 21.0},
+        150: {'R': 0.124, 'X': 0.070, 'ampacity': 408, 'diameter': 23.5},
+        185: {'R': 0.0991, 'X': 0.070, 'ampacity': 466, 'diameter': 26.0},
+        240: {'R': 0.0754, 'X': 0.069, 'ampacity': 553, 'diameter': 29.0},
+        300: {'R': 0.0601, 'X': 0.068, 'ampacity': 637, 'diameter': 32.5},
+    }
+}
+
+# MV Cables - 3.6/6kV to 12/20kV, XLPE Insulated, Copper Conductors
+MV_CABLE_DATA = {
+    'unarmoured': {
+        25: {'R': 0.727, 'X': 0.120, 'ampacity': 145, 'diameter': 18.5},
+        35: {'R': 0.524, 'X': 0.115, 'ampacity': 175, 'diameter': 20.0},
+        50: {'R': 0.387, 'X': 0.110, 'ampacity': 210, 'diameter': 22.0},
+        70: {'R': 0.268, 'X': 0.105, 'ampacity': 265, 'diameter': 24.5},
+        95: {'R': 0.193, 'X': 0.100, 'ampacity': 320, 'diameter': 27.0},
+        120: {'R': 0.153, 'X': 0.095, 'ampacity': 370, 'diameter': 29.5},
+        150: {'R': 0.124, 'X': 0.092, 'ampacity': 420, 'diameter': 32.0},
+        185: {'R': 0.0991, 'X': 0.090, 'ampacity': 475, 'diameter': 34.5},
+        240: {'R': 0.0754, 'X': 0.088, 'ampacity': 560, 'diameter': 38.0},
+        300: {'R': 0.0601, 'X': 0.086, 'ampacity': 645, 'diameter': 42.0},
+    },
+    'armoured': {
+        25: {'R': 0.727, 'X': 0.135, 'ampacity': 155, 'diameter': 21.0},
+        35: {'R': 0.524, 'X': 0.130, 'ampacity': 188, 'diameter': 23.0},
+        50: {'R': 0.387, 'X': 0.125, 'ampacity': 225, 'diameter': 25.0},
+        70: {'R': 0.268, 'X': 0.120, 'ampacity': 285, 'diameter': 27.5},
+        95: {'R': 0.193, 'X': 0.115, 'ampacity': 345, 'diameter': 30.0},
+        120: {'R': 0.153, 'X': 0.110, 'ampacity': 398, 'diameter': 33.0},
+        150: {'R': 0.124, 'X': 0.107, 'ampacity': 452, 'diameter': 36.0},
+        185: {'R': 0.0991, 'X': 0.105, 'ampacity': 512, 'diameter': 39.0},
+        240: {'R': 0.0754, 'X': 0.102, 'ampacity': 605, 'diameter': 43.0},
+        300: {'R': 0.0601, 'X': 0.100, 'ampacity': 695, 'diameter': 47.0},
+    }
+}
+
+# ========== COMPLETE DERATING FACTORS TABLES (IEC 60502-2) ==========
+TEMPERATURE_FACTORS = {
+    90: {  # XLPE Insulation
+        20: 1.07, 25: 1.04, 30: 1.00, 35: 0.96, 40: 0.91, 
+        45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71, 65: 0.65, 70: 0.58
+    }
+}
+
+GROUPING_FACTORS = {
+    'touching': {
+        1: 1.00, 2: 0.80, 3: 0.70, 4: 0.65, 5: 0.60, 6: 0.57,
+        7: 0.54, 8: 0.52, 9: 0.50, 10: 0.48, 11: 0.46, 12: 0.45,
+        13: 0.44, 14: 0.43, 15: 0.42, 16: 0.41, 17: 0.40, 18: 0.39
+    },
+    'spaced': {
+        1: 1.00, 2: 0.85, 3: 0.79, 4: 0.75, 5: 0.73, 6: 0.72,
+        7: 0.71, 8: 0.70, 9: 0.70, 10: 0.70, 11: 0.70, 12: 0.70
+    }
+}
+
+SOIL_RESISTIVITY_FACTORS = {
+    0.7: 1.28, 0.8: 1.24, 0.9: 1.19, 1.0: 1.15,
+    1.5: 1.00, 2.0: 0.89, 2.5: 0.81, 3.0: 0.75
+}
+
+DEPTH_FACTORS = {
+    0.5: 1.04, 0.6: 1.02, 0.7: 1.01, 0.8: 1.00,
+    0.9: 0.99, 1.0: 0.98, 1.25: 0.96, 1.5: 0.95,
+    1.75: 0.94, 2.0: 0.93
+}
+
+CABLE_LAYING_FACTORS = {
+    'air': 1.00,  # Cables in air
+    'surface': 0.98,  # Cables on surface
+    'buried': 0.95,  # Direct buried
+    'duct': 0.92  # In ducts
+}
+
+# ========== LIGHTNING PROTECTION REPORT CLASSES ==========
 class LightningWordReport:
     def __init__(self):
         self.doc = Document()
@@ -449,163 +762,6 @@ class LightningPDFReport(FPDF):
             self.cell(90, 7, value, 1)
             self.ln()
 
-# ========== CIRCUIT BREAKER DATA AND CALCULATIONS ==========
-# Circuit Breaker Standard Ratings (IEC 60898 / IEC 60947-2)
-CB_RATINGS = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600]
-
-# Breaker Types and Pole Selection (IEC 60947-2)
-BREAKER_TYPES = {
-    'MCB': {'min': 6, 'max': 125, 'standard': 'IEC 60898', 'application': 'Miniature Circuit Breaker - For final circuits'},
-    'MCCB': {'min': 125, 'max': 1600, 'standard': 'IEC 60947-2', 'application': 'Moulded Case Circuit Breaker - For distribution'},
-    'ACB': {'min': 1600, 'max': 6300, 'standard': 'IEC 60947-2', 'application': 'Air Circuit Breaker - For main incomers'}
-}
-
-# Pole Selection Guide (IEC 60364-5-53)
-POLE_GUIDE = {
-    '1-phase': {
-        '2P': 'Phase + Neutral protection - Required for single-phase circuits',
-        '1P': 'Phase only protection - Not recommended for final circuits'
-    },
-    '3-phase': {
-        '3P': '3-Pole - For 3-wire systems (no neutral)',
-        '4P': '4-Pole - For 4-wire systems with neutral protection'
-    },
-    'DC': {
-        '2P': 'Both poles protection - Required for DC circuits'
-    }
-}
-
-# Manufacturers
-MANUFACTURERS = {
-    'Schneider Electric': {
-        'MCB': 'Acti9 series',
-        'MCCB': 'EasyPact EVC series',
-        'ACB': 'MasterPact MTZ series'
-    },
-    'Siemens': {
-        'MCB': '5SY series',
-        'MCCB': '3VA series',
-        'ACB': '3WL series'
-    },
-    'ABB': {
-        'MCB': 'S200 series',
-        'MCCB': 'Tmax XT series',
-        'ACB': 'Emax 2 series'
-    },
-    'Legrand': {
-        'MCB': 'DX³ series',
-        'MCCB': 'DPX³ series',
-        'ACB': 'DMX³ series'
-    }
-}
-
-# ========== CABLE DATABASE (COPPER ONLY - XLPE Insulated) ==========
-# LV Cables - 0.6/1kV, XLPE Insulated, Copper Conductors
-LV_CABLE_DATA = {
-    'unarmoured': {  # PVC Sheathed, Unarmoured
-        1.5: {'R': 12.1, 'X': 0.093, 'ampacity': 22, 'diameter': 2.9},
-        2.5: {'R': 7.41, 'X': 0.088, 'ampacity': 30, 'diameter': 3.7},
-        4: {'R': 4.61, 'X': 0.088, 'ampacity': 40, 'diameter': 4.3},
-        6: {'R': 3.08, 'X': 0.088, 'ampacity': 51, 'diameter': 5.0},
-        10: {'R': 1.83, 'X': 0.084, 'ampacity': 70, 'diameter': 6.4},
-        16: {'R': 1.15, 'X': 0.077, 'ampacity': 94, 'diameter': 7.8},
-        25: {'R': 0.727, 'X': 0.074, 'ampacity': 123, 'diameter': 9.8},
-        35: {'R': 0.524, 'X': 0.074, 'ampacity': 150, 'diameter': 11.0},
-        50: {'R': 0.387, 'X': 0.071, 'ampacity': 181, 'diameter': 12.8},
-        70: {'R': 0.268, 'X': 0.069, 'ampacity': 228, 'diameter': 15.1},
-        95: {'R': 0.193, 'X': 0.068, 'ampacity': 276, 'diameter': 17.2},
-        120: {'R': 0.153, 'X': 0.067, 'ampacity': 318, 'diameter': 19.1},
-        150: {'R': 0.124, 'X': 0.066, 'ampacity': 364, 'diameter': 21.1},
-        185: {'R': 0.0991, 'X': 0.066, 'ampacity': 415, 'diameter': 23.2},
-        240: {'R': 0.0754, 'X': 0.065, 'ampacity': 492, 'diameter': 26.3},
-        300: {'R': 0.0601, 'X': 0.064, 'ampacity': 567, 'diameter': 29.5},
-    },
-    'armoured': {  # SWA - Steel Wire Armoured
-        1.5: {'R': 12.1, 'X': 0.098, 'ampacity': 25, 'diameter': 3.2},
-        2.5: {'R': 7.41, 'X': 0.093, 'ampacity': 34, 'diameter': 4.0},
-        4: {'R': 4.61, 'X': 0.092, 'ampacity': 45, 'diameter': 4.7},
-        6: {'R': 3.08, 'X': 0.091, 'ampacity': 57, 'diameter': 5.5},
-        10: {'R': 1.83, 'X': 0.088, 'ampacity': 78, 'diameter': 7.0},
-        16: {'R': 1.15, 'X': 0.082, 'ampacity': 105, 'diameter': 8.5},
-        25: {'R': 0.727, 'X': 0.079, 'ampacity': 138, 'diameter': 10.5},
-        35: {'R': 0.524, 'X': 0.078, 'ampacity': 168, 'diameter': 12.0},
-        50: {'R': 0.387, 'X': 0.075, 'ampacity': 203, 'diameter': 14.0},
-        70: {'R': 0.268, 'X': 0.073, 'ampacity': 255, 'diameter': 16.5},
-        95: {'R': 0.193, 'X': 0.072, 'ampacity': 310, 'diameter': 19.0},
-        120: {'R': 0.153, 'X': 0.071, 'ampacity': 357, 'diameter': 21.0},
-        150: {'R': 0.124, 'X': 0.070, 'ampacity': 408, 'diameter': 23.5},
-        185: {'R': 0.0991, 'X': 0.070, 'ampacity': 466, 'diameter': 26.0},
-        240: {'R': 0.0754, 'X': 0.069, 'ampacity': 553, 'diameter': 29.0},
-        300: {'R': 0.0601, 'X': 0.068, 'ampacity': 637, 'diameter': 32.5},
-    }
-}
-
-# MV Cables - 3.6/6kV to 12/20kV, XLPE Insulated, Copper Conductors
-MV_CABLE_DATA = {
-    'unarmoured': {
-        25: {'R': 0.727, 'X': 0.120, 'ampacity': 145, 'diameter': 18.5},
-        35: {'R': 0.524, 'X': 0.115, 'ampacity': 175, 'diameter': 20.0},
-        50: {'R': 0.387, 'X': 0.110, 'ampacity': 210, 'diameter': 22.0},
-        70: {'R': 0.268, 'X': 0.105, 'ampacity': 265, 'diameter': 24.5},
-        95: {'R': 0.193, 'X': 0.100, 'ampacity': 320, 'diameter': 27.0},
-        120: {'R': 0.153, 'X': 0.095, 'ampacity': 370, 'diameter': 29.5},
-        150: {'R': 0.124, 'X': 0.092, 'ampacity': 420, 'diameter': 32.0},
-        185: {'R': 0.0991, 'X': 0.090, 'ampacity': 475, 'diameter': 34.5},
-        240: {'R': 0.0754, 'X': 0.088, 'ampacity': 560, 'diameter': 38.0},
-        300: {'R': 0.0601, 'X': 0.086, 'ampacity': 645, 'diameter': 42.0},
-    },
-    'armoured': {
-        25: {'R': 0.727, 'X': 0.135, 'ampacity': 155, 'diameter': 21.0},
-        35: {'R': 0.524, 'X': 0.130, 'ampacity': 188, 'diameter': 23.0},
-        50: {'R': 0.387, 'X': 0.125, 'ampacity': 225, 'diameter': 25.0},
-        70: {'R': 0.268, 'X': 0.120, 'ampacity': 285, 'diameter': 27.5},
-        95: {'R': 0.193, 'X': 0.115, 'ampacity': 345, 'diameter': 30.0},
-        120: {'R': 0.153, 'X': 0.110, 'ampacity': 398, 'diameter': 33.0},
-        150: {'R': 0.124, 'X': 0.107, 'ampacity': 452, 'diameter': 36.0},
-        185: {'R': 0.0991, 'X': 0.105, 'ampacity': 512, 'diameter': 39.0},
-        240: {'R': 0.0754, 'X': 0.102, 'ampacity': 605, 'diameter': 43.0},
-        300: {'R': 0.0601, 'X': 0.100, 'ampacity': 695, 'diameter': 47.0},
-    }
-}
-
-# ========== COMPLETE DERATING FACTORS TABLES (IEC 60502-2) ==========
-TEMPERATURE_FACTORS = {
-    90: {  # XLPE Insulation
-        20: 1.07, 25: 1.04, 30: 1.00, 35: 0.96, 40: 0.91, 
-        45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71, 65: 0.65, 70: 0.58
-    }
-}
-
-GROUPING_FACTORS = {
-    'touching': {
-        1: 1.00, 2: 0.80, 3: 0.70, 4: 0.65, 5: 0.60, 6: 0.57,
-        7: 0.54, 8: 0.52, 9: 0.50, 10: 0.48, 11: 0.46, 12: 0.45,
-        13: 0.44, 14: 0.43, 15: 0.42, 16: 0.41, 17: 0.40, 18: 0.39
-    },
-    'spaced': {
-        1: 1.00, 2: 0.85, 3: 0.79, 4: 0.75, 5: 0.73, 6: 0.72,
-        7: 0.71, 8: 0.70, 9: 0.70, 10: 0.70, 11: 0.70, 12: 0.70
-    }
-}
-
-SOIL_RESISTIVITY_FACTORS = {
-    0.7: 1.28, 0.8: 1.24, 0.9: 1.19, 1.0: 1.15,
-    1.5: 1.00, 2.0: 0.89, 2.5: 0.81, 3.0: 0.75
-}
-
-DEPTH_FACTORS = {
-    0.5: 1.04, 0.6: 1.02, 0.7: 1.01, 0.8: 1.00,
-    0.9: 0.99, 1.0: 0.98, 1.25: 0.96, 1.5: 0.95,
-    1.75: 0.94, 2.0: 0.93
-}
-
-CABLE_LAYING_FACTORS = {
-    'air': 1.00,  # Cables in air
-    'surface': 0.98,  # Cables on surface
-    'buried': 0.95,  # Direct buried
-    'duct': 0.92  # In ducts
-}
-
 # ========== CABLE SIZING CALCULATOR CLASS ==========
 class CableSizingCalculator:
     def __init__(self):
@@ -767,43 +923,6 @@ class CircuitBreakerCalculator:
             'poles': poles,
             'standard': standard
         }
-
-# ========== SESSION STATE INITIALIZATION ==========
-if 'calc_results' not in st.session_state:
-    st.session_state.calc_results = {}
-if 'calc_done' not in st.session_state:
-    st.session_state.calc_done = False
-if 'selected_calculator' not in st.session_state:
-    st.session_state.selected_calculator = "⚡ Lightning Protection"
-if 'cable_results' not in st.session_state:
-    st.session_state.cable_results = {}
-if 'cable_all_cables' not in st.session_state:
-    st.session_state.cable_all_cables = []
-if 'project_info' not in st.session_state:
-    st.session_state.project_info = {
-        'project_title': 'BASIC AND DETAIL ENGINEERING DESIGN SERVICES FOR\n70,000 BPD CDU and LPG UNIT FOR MAYSAN REFINERY',
-        'document_number': 'B049-BED-MAY-100-EL-CAL-0004',
-        'project_number': '2024B049'
-    }
-if 'cover_details' not in st.session_state:
-    st.session_state.cover_details = {'revision': 'A', 'date': '09 Sep 2025'}
-if 'input_values' not in st.session_state:
-    st.session_state.input_values = {}
-if 'loads_df' not in st.session_state:
-    st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Load 1'],
-        'Power (kW)': [5.0],
-        'Voltage (V)': [400],
-        'Phase': ['3-phase'],
-        'Power Factor': [0.85],
-        'Length (m)': [50]
-    })
-if 'cable_results_df' not in st.session_state:
-    st.session_state.cable_results_df = pd.DataFrame()
-if 'detailed_calcs' not in st.session_state:
-    st.session_state.detailed_calcs = []
-if 'derating_factors' not in st.session_state:
-    st.session_state.derating_factors = None
 
 # ========== PDF Report Classes ==========
 class CablePDFReport(FPDF):
@@ -979,6 +1098,43 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
+# ========== SESSION STATE INITIALIZATION ==========
+if 'calc_results' not in st.session_state:
+    st.session_state.calc_results = {}
+if 'calc_done' not in st.session_state:
+    st.session_state.calc_done = False
+if 'selected_calculator' not in st.session_state:
+    st.session_state.selected_calculator = "⚡ Lightning Protection"
+if 'cable_results' not in st.session_state:
+    st.session_state.cable_results = {}
+if 'cable_all_cables' not in st.session_state:
+    st.session_state.cable_all_cables = []
+if 'project_info' not in st.session_state:
+    st.session_state.project_info = {
+        'project_title': 'BASIC AND DETAIL ENGINEERING DESIGN SERVICES FOR\n70,000 BPD CDU and LPG UNIT FOR MAYSAN REFINERY',
+        'document_number': 'B049-BED-MAY-100-EL-CAL-0004',
+        'project_number': '2024B049'
+    }
+if 'cover_details' not in st.session_state:
+    st.session_state.cover_details = {'revision': 'A', 'date': '09 Sep 2025'}
+if 'input_values' not in st.session_state:
+    st.session_state.input_values = {}
+if 'loads_df' not in st.session_state:
+    st.session_state.loads_df = pd.DataFrame({
+        'Load Name': ['Load 1'],
+        'Power (kW)': [5.0],
+        'Voltage (V)': [400],
+        'Phase': ['3-phase'],
+        'Power Factor': [0.85],
+        'Length (m)': [50]
+    })
+if 'cable_results_df' not in st.session_state:
+    st.session_state.cable_results_df = pd.DataFrame()
+if 'detailed_calcs' not in st.session_state:
+    st.session_state.detailed_calcs = []
+if 'derating_factors' not in st.session_state:
+    st.session_state.derating_factors = None
+
 # ========== SIDEBAR ==========
 with st.sidebar:
     st.markdown("### ⚡ CES-Electrical Design Calculations")
@@ -1006,7 +1162,7 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
 
-# ========== LIGHTNING PROTECTION CALCULATOR (COMPLETELY UNCHANGED) ==========
+# ========== LIGHTNING PROTECTION CALCULATOR (UNCHANGED) ==========
 if st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs([
@@ -1267,7 +1423,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click to Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word document generated successfully!")
 
-# ========== CABLE SIZING CALCULATOR - COMPLETE FIXED VERSION ==========
+# ========== CABLE SIZING CALCULATOR ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1824,4 +1980,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 47.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 48.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
