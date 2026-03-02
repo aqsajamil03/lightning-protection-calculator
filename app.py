@@ -359,22 +359,54 @@ MV_CABLE_DATA = {
     }
 }
 
-# ========== DERATING FACTORS ==========
+# ========== ENHANCED DERATING FACTORS WITH SPACING AND ARRANGEMENT ==========
 TEMPERATURE_FACTORS = {
     90: {20: 1.07, 25: 1.04, 30: 1.00, 35: 0.96, 40: 0.91, 
          45: 0.87, 50: 0.82, 55: 0.76, 60: 0.71, 65: 0.65, 70: 0.58}
 }
 
+# Enhanced grouping factors based on cable arrangement, formation, and spacing
 GROUPING_FACTORS = {
-    'touching': {
+    'touching': {  # Cables touching each other
         1: 1.00, 2: 0.80, 3: 0.70, 4: 0.65, 5: 0.60, 6: 0.57,
         7: 0.54, 8: 0.52, 9: 0.50, 10: 0.48, 11: 0.46, 12: 0.45,
         13: 0.44, 14: 0.43, 15: 0.42, 16: 0.41, 17: 0.40, 18: 0.39
     },
-    'spaced': {
-        1: 1.00, 2: 0.85, 3: 0.79, 4: 0.75, 5: 0.73, 6: 0.72,
-        7: 0.71, 8: 0.70, 9: 0.70, 10: 0.70, 11: 0.70, 12: 0.70
+    'spaced_1d': {  # Spaced by 1 x cable diameter
+        1: 1.00, 2: 0.90, 3: 0.85, 4: 0.82, 5: 0.80, 6: 0.78,
+        7: 0.76, 8: 0.74, 9: 0.72, 10: 0.70, 11: 0.68, 12: 0.66
+    },
+    'spaced_2d': {  # Spaced by 2 x cable diameter
+        1: 1.00, 2: 0.95, 3: 0.92, 4: 0.90, 5: 0.88, 6: 0.86,
+        7: 0.84, 8: 0.82, 9: 0.80, 10: 0.78, 11: 0.76, 12: 0.74
+    },
+    'spaced_3d': {  # Spaced by 3 x cable diameter
+        1: 1.00, 2: 0.98, 3: 0.96, 4: 0.94, 5: 0.92, 6: 0.90,
+        7: 0.88, 8: 0.86, 9: 0.84, 10: 0.82, 11: 0.80, 12: 0.78
+    },
+    'cleated': {  # Cables with cleats/spacers
+        1: 1.00, 2: 0.95, 3: 0.90, 4: 0.85, 5: 0.82, 6: 0.80,
+        7: 0.78, 8: 0.76, 9: 0.74, 10: 0.72, 11: 0.70, 12: 0.68
     }
+}
+
+# Formation factors (flat vs trefoil)
+FORMATION_FACTORS = {
+    'flat': 1.00,      # Flat formation - base case
+    'trefoil': 0.95,   # Trefoil formation - reduced rating due to mutual heating
+    'single': 1.00      # Single cable
+}
+
+# Installation method factors
+INSTALLATION_FACTORS = {
+    'air': 1.00,           # Cables in free air
+    'surface': 0.98,       # Cables on surface (wall/celling)
+    'tray': 0.95,          # Cables on perforated tray
+    'ladder': 0.96,        # Cables on ladder rack
+    'trench': 0.90,        # Cables in open trench
+    'buried': 0.85,        # Direct buried in ground
+    'duct': 0.82,          # Cables in underground ducts
+    'conduit': 0.80        # Cables in conduit
 }
 
 SOIL_RESISTIVITY_FACTORS = {
@@ -388,9 +420,27 @@ DEPTH_FACTORS = {
     1.75: 0.94, 2.0: 0.93
 }
 
-CABLE_LAYING_FACTORS = {
-    'air': 1.00, 'surface': 0.98, 'buried': 0.95, 'duct': 0.92
-}
+# Function to determine grouping factor based on spacing and arrangement
+def get_grouping_factor(num_cables, spacing_mm, cable_diameter, arrangement='touching'):
+    """Calculate grouping factor based on cable spacing and arrangement"""
+    if arrangement == 'touching':
+        return GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
+    elif arrangement == 'cleated':
+        return GROUPING_FACTORS['cleated'].get(min(num_cables, 12), 0.68)
+    else:
+        # Calculate spacing ratio relative to cable diameter
+        if cable_diameter > 0:
+            spacing_ratio = spacing_mm / cable_diameter
+            if spacing_ratio < 0.5:
+                return GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
+            elif spacing_ratio < 1.5:
+                return GROUPING_FACTORS['spaced_1d'].get(min(num_cables, 12), 0.66)
+            elif spacing_ratio < 2.5:
+                return GROUPING_FACTORS['spaced_2d'].get(min(num_cables, 12), 0.74)
+            else:
+                return GROUPING_FACTORS['spaced_3d'].get(min(num_cables, 12), 0.78)
+        else:
+            return GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
 
 # ========== LIGHTNING PROTECTION CLASSES ==========
 class LightningWordReport:
@@ -638,7 +688,7 @@ class LightningPDFReport(FPDF):
             self.cell(90, 7, value, 1, 1, 'R', fill)
             fill = not fill
 
-# ========== CABLE SIZING CALCULATOR CLASS ==========
+# ========== ENHANCED CABLE SIZING CALCULATOR CLASS ==========
 class CableSizingCalculator:
     def __init__(self):
         self.results = {}
@@ -651,22 +701,63 @@ class CableSizingCalculator:
         else:
             return (power_kw * 1000) / voltage_v
     
-    def get_all_derating_factors(self, temp_c, insulation_temp=90, num_cables=1, grouping='touching',
-                                 soil_resistivity=1.5, depth=0.8, laying='air'):
-        k1 = TEMPERATURE_FACTORS[insulation_temp].get(temp_c, 1.0)
-        k2 = GROUPING_FACTORS[grouping].get(min(num_cables, 18), 0.5)
-        k3 = SOIL_RESISTIVITY_FACTORS.get(soil_resistivity, 1.0)
-        k4 = DEPTH_FACTORS.get(depth, 1.0)
-        k5 = CABLE_LAYING_FACTORS.get(laying, 1.0)
+    def get_all_derating_factors(self, temp_c, insulation_temp=90, num_cables=1, 
+                                  arrangement='touching', spacing_mm=0, cable_diameter=0,
+                                  formation='flat', installation='air',
+                                  soil_resistivity=1.5, depth=0.8):
+        """Calculate ALL derating factors with enhanced parameters"""
         
-        total_k = k1 * k2 * k3 * k4 * k5
+        # Temperature factor (k1)
+        k1 = TEMPERATURE_FACTORS[insulation_temp].get(temp_c, 1.0)
+        
+        # Grouping factor based on spacing and arrangement (k2)
+        if arrangement == 'touching':
+            k2 = GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
+        elif arrangement == 'cleated':
+            k2 = GROUPING_FACTORS['cleated'].get(min(num_cables, 12), 0.68)
+        else:
+            # Calculate spacing ratio
+            if cable_diameter > 0:
+                spacing_ratio = spacing_mm / cable_diameter
+                if spacing_ratio < 0.5:
+                    k2 = GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
+                elif spacing_ratio < 1.5:
+                    k2 = GROUPING_FACTORS['spaced_1d'].get(min(num_cables, 12), 0.66)
+                elif spacing_ratio < 2.5:
+                    k2 = GROUPING_FACTORS['spaced_2d'].get(min(num_cables, 12), 0.74)
+                else:
+                    k2 = GROUPING_FACTORS['spaced_3d'].get(min(num_cables, 12), 0.78)
+            else:
+                k2 = GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
+        
+        # Formation factor (k_formation)
+        k_formation = FORMATION_FACTORS.get(formation, 1.0)
+        
+        # Installation method factor (k_install)
+        k_install = INSTALLATION_FACTORS.get(installation, 1.0)
+        
+        # Soil resistivity factor (k3) - only applicable for buried/duct installations
+        if installation in ['buried', 'duct', 'trench']:
+            k3 = SOIL_RESISTIVITY_FACTORS.get(soil_resistivity, 1.0)
+        else:
+            k3 = 1.0
+        
+        # Depth factor (k4) - only applicable for buried/duct installations
+        if installation in ['buried', 'duct', 'trench']:
+            k4 = DEPTH_FACTORS.get(depth, 1.0)
+        else:
+            k4 = 1.0
+        
+        # Total derating factor = k1 * k2 * k_formation * k_install * k3 * k4
+        total_k = k1 * k2 * k_formation * k_install * k3 * k4
         
         factors = {
             'k1 (Temperature)': {'value': k1, 'reference': 'IEC 60502-2 Table B.10'},
-            'k2 (Grouping)': {'value': k2, 'reference': f'IEC 60502-2 Table 4C1 ({grouping})'},
+            'k2 (Grouping/Spacing)': {'value': k2, 'reference': f'IEC 60502-2 Table 4C1 - {arrangement}, spacing={spacing_mm}mm'},
+            'k_formation (Formation)': {'value': k_formation, 'reference': f'IEC 60502-2 - {formation} formation'},
+            'k_install (Installation)': {'value': k_install, 'reference': f'IEC 60502-2 - {installation} method'},
             'k3 (Soil Resistivity)': {'value': k3, 'reference': 'IEC 60502-2 Table B.14'},
             'k4 (Depth)': {'value': k4, 'reference': 'IEC 60502-2 Table B.12'},
-            'k5 (Laying)': {'value': k5, 'reference': 'IEC 60502-2 Table B.5'},
             'total': total_k
         }
         return total_k, factors
@@ -838,7 +929,7 @@ FINAL SELECTION: {rating} A {breaker_type} {poles}
             'detailed_reason': detailed_reason
         }
 
-# ========== PDF REPORT CLASSES - COMPLETELY ASCII ONLY ==========
+# ========== PDF REPORT CLASSES ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -1008,13 +1099,14 @@ class CablePDFReport(FPDF):
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'Reference: IEC 60502-2 Tables B.10-B.22', 0, 1)
-            self.cell(0, 6, f'k1 (Temperature Correction) : {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C', 0, 1)
-            self.cell(0, 6, f'k2 (Grouping Factor)      : {calc["k2"]:.3f} - Table 4C1 ({st.session_state.grouping})', 0, 1)
-            self.cell(0, 6, f'k3 (Soil Resistivity)     : {calc["k3"]:.3f} - Table B.14', 0, 1)
-            self.cell(0, 6, f'k4 (Depth Factor)         : {calc["k4"]:.3f} - Table B.12', 0, 1)
-            self.cell(0, 6, f'k5 (Laying Method)        : {calc["k5"]:.3f} - Table B.5', 0, 1)
+            self.cell(0, 6, f'k1 (Temperature Correction) : {calc["k1"]:.3f} - Table B.10 at {calc["ambient_temp"]}°C', 0, 1)
+            self.cell(0, 6, f'k2 (Grouping/Spacing)      : {calc["k2"]:.3f} - {calc["arrangement"]}, spacing={calc["spacing"]}mm', 0, 1)
+            self.cell(0, 6, f'k_formation (Formation)    : {calc["k_formation"]:.3f} - {calc["formation"]} formation', 0, 1)
+            self.cell(0, 6, f'k_install (Installation)   : {calc["k_install"]:.3f} - {calc["installation"]} method', 0, 1)
+            self.cell(0, 6, f'k3 (Soil Resistivity)      : {calc["k3"]:.3f} - Table B.14', 0, 1)
+            self.cell(0, 6, f'k4 (Depth)                 : {calc["k4"]:.3f} - Table B.12', 0, 1)
             self.set_font('Arial', 'B', 10)
-            self.cell(0, 6, f'TOTAL K = k1 x k2 x k3 x k4 x k5 = {calc["total_k"]:.3f}', 0, 1)
+            self.cell(0, 6, f'TOTAL K = {calc["total_k"]:.3f}', 0, 1)
             self.ln(3)
             
             self.set_font('Arial', 'B', 12)
@@ -1308,11 +1400,12 @@ class CableWordReport:
             p.add_run(f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A')
             
             self.doc.add_heading('STEP 2: DERATING FACTORS [IEC 60502-2 Tables B.10-B.22]', level=3)
-            self.doc.add_paragraph(f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C')
-            self.doc.add_paragraph(f'k2 (Grouping Factor): {calc["k2"]:.3f} - Table 4C1 ({st.session_state.grouping})')
-            self.doc.add_paragraph(f'k3 (Soil Resistivity): {calc["k3"]:.3f} - Table B.14')
-            self.doc.add_paragraph(f'k4 (Depth Factor): {calc["k4"]:.3f} - Table B.12')
-            self.doc.add_paragraph(f'k5 (Laying Method): {calc["k5"]:.3f} - Table B.5')
+            self.doc.add_paragraph(f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {calc["ambient_temp"]}°C')
+            self.doc.add_paragraph(f'k2 (Grouping/Spacing)      : {calc["k2"]:.3f} - {calc["arrangement"]}, spacing={calc["spacing"]}mm')
+            self.doc.add_paragraph(f'k_formation (Formation)    : {calc["k_formation"]:.3f} - {calc["formation"]} formation')
+            self.doc.add_paragraph(f'k_install (Installation)   : {calc["k_install"]:.3f} - {calc["installation"]} method')
+            self.doc.add_paragraph(f'k3 (Soil Resistivity)      : {calc["k3"]:.3f} - Table B.14')
+            self.doc.add_paragraph(f'k4 (Depth)                 : {calc["k4"]:.3f} - Table B.12')
             p = self.doc.add_paragraph()
             p.add_run('Total K = ').bold = True
             p.add_run(f'{calc["total_k"]:.3f}')
@@ -1728,50 +1821,105 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         st.markdown("### ⚙️ Installation Parameters")
         
+        # ENHANCED INSTALLATION PARAMETERS
         col1, col2 = st.columns(2)
+        
         with col1:
+            st.markdown("#### Cable Parameters")
             cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
             ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp_input")
-            num_cables = st.number_input("Cables in Group", value=3, min_value=1, max_value=18, key="num_cables_input")
-            grouping = st.selectbox("Grouping", ['touching', 'spaced'], key="grouping_select")
+            
+            st.markdown("#### Arrangement & Spacing")
+            arrangement = st.selectbox("Cable Arrangement", 
+                                      ['touching', 'spaced', 'cleated'], 
+                                      key="arrangement_select",
+                                      help="How cables are arranged relative to each other")
+            
+            spacing_mm = st.number_input("Spacing Between Cables (mm)", 
+                                        value=0.0, step=5.0, min_value=0.0, max_value=500.0,
+                                        key="spacing_input",
+                                        help="Center-to-center distance between cables")
+            
+            formation = st.selectbox("Cable Formation", 
+                                    ['flat', 'trefoil', 'single'], 
+                                    key="formation_select",
+                                    help="Flat = side by side, Trefoil = triangular")
         
         with col2:
-            laying = st.selectbox("Laying Method", ['air', 'surface', 'buried', 'duct'], key="laying_select")
-            soil_res = st.number_input("Soil Resistivity (K.m/W)", value=1.5, step=0.5, min_value=0.5, max_value=3.0, key="soil_res_input")
-            depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0, key="depth_input")
-            system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="system_type_select")
+            st.markdown("#### Installation Environment")
+            installation = st.selectbox("Installation Method", 
+                                       ['air', 'surface', 'tray', 'ladder', 'trench', 'buried', 'duct', 'conduit'], 
+                                       key="installation_select",
+                                       help="How and where cables are installed")
+            
+            num_cables = st.number_input("Number of Cables in Group", 
+                                        value=3, min_value=1, max_value=18, 
+                                        key="num_cables_input")
+            
+            st.markdown("#### Soil & Depth (for buried/duct)")
+            soil_res = st.number_input("Soil Resistivity (K.m/W)", 
+                                      value=1.5, step=0.5, min_value=0.5, max_value=3.0, 
+                                      key="soil_res_input")
+            
+            depth = st.number_input("Burial Depth (m)", 
+                                   value=0.8, step=0.1, min_value=0.3, max_value=2.0, 
+                                   key="depth_input")
+            
+            system_type = st.selectbox("System Type", 
+                                      ['TN-S', 'TN-C', 'TN-C-S', 'TT'], 
+                                      key="system_type_select")
         
+        # Store in session state
         st.session_state.cable_type = cable_type
         st.session_state.ambient_temp = ambient_temp
         st.session_state.num_cables = num_cables
-        st.session_state.grouping = grouping
-        st.session_state.laying = laying
+        st.session_state.arrangement = arrangement
+        st.session_state.spacing_mm = spacing_mm
+        st.session_state.formation = formation
+        st.session_state.installation = installation
         st.session_state.soil_res = soil_res
         st.session_state.depth = depth
         st.session_state.system_type = system_type
         
+        # Display Current Settings in a nice table
         st.markdown("### 📊 Current Installation Settings")
-        st.markdown(f"""
+        
+        settings_html = f"""
         <table class="param-table">
-            <tr><th colspan="2">Installation Parameters</th></tr>
+            <tr><th colspan="2">Cable Parameters</th></tr>
             <tr><td>Cable Type</td><td>{cable_type} copper</td></tr>
             <tr><td>Ambient Temperature</td><td>{ambient_temp} °C</td></tr>
-            <tr><td>Cables in Group</td><td>{num_cables}</td></tr>
-            <tr><td>Grouping</td><td>{grouping}</td></tr>
-            <tr><td>Laying Method</td><td>{laying}</td></tr>
+            
+            <tr><th colspan="2">Arrangement & Spacing</th></tr>
+            <tr><td>Cable Arrangement</td><td>{arrangement}</td></tr>
+            <tr><td>Spacing Between Cables</td><td>{spacing_mm} mm</td></tr>
+            <tr><td>Cable Formation</td><td>{formation}</td></tr>
+            
+            <tr><th colspan="2">Installation Environment</th></tr>
+            <tr><td>Installation Method</td><td>{installation}</td></tr>
+            <tr><td>Number of Cables in Group</td><td>{num_cables}</td></tr>
+            
+            <tr><th colspan="2">Soil & Depth (for buried/duct)</th></tr>
             <tr><td>Soil Resistivity</td><td>{soil_res} K.m/W</td></tr>
             <tr><td>Burial Depth</td><td>{depth} m</td></tr>
+            
+            <tr><th colspan="2">Electrical System</th></tr>
             <tr><td>System Type</td><td>{system_type}</td></tr>
         </table>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(settings_html, unsafe_allow_html=True)
         
+        # CALCULATE Button
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
+                # Get values from session state
                 cable_type = st.session_state.cable_type
                 ambient_temp = st.session_state.ambient_temp
                 num_cables = st.session_state.num_cables
-                grouping = st.session_state.grouping
-                laying = st.session_state.laying
+                arrangement = st.session_state.arrangement
+                spacing_mm = st.session_state.spacing_mm
+                formation = st.session_state.formation
+                installation = st.session_state.installation
                 soil_res = st.session_state.soil_res
                 depth = st.session_state.depth
                 system_type = st.session_state.system_type
@@ -1788,16 +1936,24 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
                     )
                     
-                    total_k, factors = cable_calc.get_all_derating_factors(
-                        ambient_temp, 90, num_cables, grouping, soil_res, depth, laying
-                    )
-                    
-                    st.session_state.derating_factors = factors
-                    
+                    # For each cable size, we need to get its diameter for spacing calculations
+                    # We'll try each size and find the first that works
                     found = False
                     for size, data in db.items():
                         if found:
                             break
+                        
+                        # Get cable diameter for spacing calculations
+                        cable_diameter = data['diameter']
+                        
+                        # Calculate derating factors with all parameters
+                        total_k, factors = cable_calc.get_all_derating_factors(
+                            ambient_temp, 90, num_cables, arrangement, spacing_mm, cable_diameter,
+                            formation, installation, soil_res, depth
+                        )
+                        
+                        st.session_state.derating_factors = factors
+                        
                         derated = data['ampacity'] * total_k
                         if derated >= current:
                             vd_v, vd_pct = cable_calc.calculate_voltage_drop(
@@ -1853,11 +2009,17 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 'efficiency': efficiency,
                                 'input_power': input_power,
                                 'k1': factors['k1 (Temperature)']['value'],
-                                'k2': factors['k2 (Grouping)']['value'],
+                                'k2': factors['k2 (Grouping/Spacing)']['value'],
+                                'k_formation': factors['k_formation (Formation)']['value'],
+                                'k_install': factors['k_install (Installation)']['value'],
                                 'k3': factors['k3 (Soil Resistivity)']['value'],
                                 'k4': factors['k4 (Depth)']['value'],
-                                'k5': factors['k5 (Laying)']['value'],
                                 'total_k': total_k,
+                                'ambient_temp': ambient_temp,
+                                'arrangement': arrangement,
+                                'spacing': spacing_mm,
+                                'formation': formation,
+                                'installation': installation,
                                 'status': 'PASS' if vd_pct <= 2.5 and derated >= current else 'FAIL'
                             })
                             found = True
@@ -1868,6 +2030,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.session_state.cable_results_df = pd.DataFrame(cable_results)
                 st.session_state.detailed_calcs = detailed_calcs
                 
+                # Calculate Circuit Breakers
                 cb_calc = CircuitBreakerCalculator()
                 manufacturer = 'Schneider Electric'
                 cb_results, cb_details = cb_calc.calculate_cb_size(
@@ -1911,7 +2074,12 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
 I = {calc['power']} x 1000 / (1.732 x {calc['voltage']} x {calc['pf']}) = **{calc['current']:.1f} A**
 
 **STEP 2: DERATING FACTORS [IEC 60502-2]**  
-k1={calc['k1']:.3f}, k2={calc['k2']:.3f}, k3={calc['k3']:.3f}, k4={calc['k4']:.3f}, k5={calc['k5']:.3f}  
+k1 (Temperature): {calc['k1']:.3f}  
+k2 (Grouping/Spacing): {calc['k2']:.3f} ({calc['arrangement']}, spacing={calc['spacing']}mm)  
+k_formation (Formation): {calc['k_formation']:.3f} ({calc['formation']})  
+k_install (Installation): {calc['k_install']:.3f} ({calc['installation']})  
+k3 (Soil Resistivity): {calc['k3']:.3f}  
+k4 (Depth): {calc['k4']:.3f}  
 Total K = **{calc['total_k']:.3f}**
 
 **STEP 3: CABLE SELECTION**  
@@ -2056,9 +2224,11 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         params = {
                             'Cable Type': f'{st.session_state.cable_type} copper',
                             'Ambient Temperature': f'{st.session_state.ambient_temp}°C',
+                            'Cable Arrangement': st.session_state.arrangement,
+                            'Spacing': f'{st.session_state.spacing_mm} mm',
+                            'Cable Formation': st.session_state.formation,
+                            'Installation Method': st.session_state.installation,
                             'Cables in Group': str(st.session_state.num_cables),
-                            'Grouping': st.session_state.grouping,
-                            'Laying Method': st.session_state.laying,
                             'Soil Resistivity': f'{st.session_state.soil_res} K.m/W',
                             'Burial Depth': f'{st.session_state.depth} m',
                             'System Type': st.session_state.system_type
@@ -2092,9 +2262,11 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         params = {
                             'Cable Type': f'{st.session_state.cable_type} copper',
                             'Ambient Temperature': f'{st.session_state.ambient_temp}°C',
+                            'Cable Arrangement': st.session_state.arrangement,
+                            'Spacing': f'{st.session_state.spacing_mm} mm',
+                            'Cable Formation': st.session_state.formation,
+                            'Installation Method': st.session_state.installation,
                             'Cables in Group': str(st.session_state.num_cables),
-                            'Grouping': st.session_state.grouping,
-                            'Laying Method': st.session_state.laying,
                             'Soil Resistivity': f'{st.session_state.soil_res} K.m/W',
                             'Burial Depth': f'{st.session_state.depth} m',
                             'System Type': st.session_state.system_type
@@ -2140,4 +2312,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 58.0 | {datetime.now().strftime("%Y-%m-%d %H:%M")}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 59.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
