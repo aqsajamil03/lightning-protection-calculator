@@ -20,9 +20,10 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - FIXED TAB SIZES AND TABLE COLORS ==========
 st.markdown("""
 <style>
+    /* REPORT HEADER */
     .report-header {
         background-color: #1E3A8A;
         color: white;
@@ -30,26 +31,34 @@ st.markdown("""
         border-radius: 10px;
         text-align: center;
         margin-bottom: 20px;
-        font-size: 24px;
+        font-size: 28px;
+        font-weight: bold;
     }
+    
+    /* FORMULA BOX */
     .formula-box {
-        background-color: #F3F4F6;
+        background-color: #F8F9FA;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #1E3A8A;
         margin: 10px 0;
         font-family: 'Courier New', monospace;
         color: #000000 !important;
+        border: 1px solid #DEE2E6;
     }
+    
+    /* CALCULATION DETAIL */
     .calculation-detail {
-        background-color: #F5F5F5;
+        background-color: #FFFFFF;
         padding: 15px;
         border-radius: 8px;
-        border: 1px solid #ddd;
+        border: 1px solid #DEE2E6;
         margin: 10px 0;
         font-family: 'Courier New', monospace;
         color: #000000 !important;
     }
+    
+    /* INFO BOX */
     .info-box {
         background-color: #E7F3FF;
         color: #004085 !important;
@@ -57,7 +66,10 @@ st.markdown("""
         border-radius: 8px;
         border-left: 5px solid #1E3A8A;
         margin: 10px 0;
+        border: 1px solid #B8DAFF;
     }
+    
+    /* DOWNLOAD BUTTONS */
     .download-btn {
         display: inline-block;
         padding: 12px 24px;
@@ -70,62 +82,211 @@ st.markdown("""
         transition: all 0.3s;
         text-align: center;
     }
+    .download-btn:hover {
+        transform: scale(1.05);
+        color: white !important;
+    }
     .pdf-btn {
         background-color: #dc3545;
     }
     .word-btn {
         background-color: #1e3a8a;
     }
+    
+    /* ===== FIXED TABLE COLORS - CLEARLY VISIBLE TEXT ===== */
     .parameter-table {
         width: 100%;
         border-collapse: collapse;
         margin: 20px 0;
+        border: 2px solid #1E3A8A;
     }
     .parameter-table th {
         background-color: #1E3A8A;
-        color: white !important;
-        padding: 10px;
+        color: WHITE !important;
+        padding: 12px;
         text-align: center;
         font-weight: bold;
+        font-size: 14px;
+        border: 1px solid #0D1B4A;
     }
     .parameter-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
+        border: 1px solid #A0AEC0;
+        padding: 10px;
         text-align: left;
         color: #000000 !important;
+        font-size: 13px;
     }
+    .parameter-table tr:nth-child(even) {
+        background-color: #F0F4FA !important;
+    }
+    .parameter-table tr:nth-child(even) td {
+        color: #000000 !important;
+        background-color: #F0F4FA;
+    }
+    .parameter-table tr:nth-child(odd) {
+        background-color: #FFFFFF !important;
+    }
+    .parameter-table tr:nth-child(odd) td {
+        color: #000000 !important;
+        background-color: #FFFFFF;
+    }
+    
+    /* STREAMLIT DATAFRAME FIXES */
     .stDataFrame {
         color: #000000 !important;
     }
+    .stDataFrame table {
+        color: #000000 !important;
+        border: 2px solid #1E3A8A;
+    }
+    .stDataFrame th {
+        color: WHITE !important;
+        background-color: #1E3A8A !important;
+        font-weight: bold;
+        padding: 10px !important;
+    }
     .stDataFrame td {
         color: #000000 !important;
+        padding: 8px !important;
     }
+    .stDataFrame tr:nth-child(even) td {
+        background-color: #F0F4FA !important;
+        color: #000000 !important;
+    }
+    .stDataFrame tr:nth-child(odd) td {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+    }
+    
+    /* PARAMETER TABLE - CUSTOM */
     .param-table {
         width: 100%;
         border-collapse: collapse;
         margin: 15px 0;
         font-family: Arial, sans-serif;
+        border: 2px solid #1E3A8A;
     }
     .param-table th {
         background-color: #1E3A8A;
-        color: white !important;
+        color: WHITE !important;
         padding: 12px;
         text-align: left;
+        font-size: 15px;
+        border: 1px solid #0D1B4A;
     }
     .param-table td {
         padding: 10px;
-        border: 1px solid #ddd;
+        border: 1px solid #A0AEC0;
         color: #000000 !important;
+        font-size: 14px;
     }
     .param-table tr:nth-child(even) {
-        background-color: #f9f9f9;
+        background-color: #F0F4FA !important;
     }
+    .param-table tr:nth-child(odd) {
+        background-color: #FFFFFF !important;
+    }
+    
+    /* ===== INCREASED TAB SIZES ===== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+        background-color: #F8F9FA;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 15px 30px !important;
+        background-color: #E9ECEF !important;
+        border-radius: 8px !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        color: #1E3A8A !important;
+        border: 1px solid #CED4DA !important;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #1E3A8A !important;
+        color: WHITE !important;
+        transform: scale(1.05);
+        border-color: #1E3A8A !important;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #1E3A8A !important;
+        color: WHITE !important;
+        font-weight: 700 !important;
+        border-color: #0D1B4A !important;
+    }
+    
+    .stTabs [data-baseweb="tab-panel"] {
+        padding-top: 20px;
+    }
+    
+    /* METRIC CARDS */
+    [data-testid="stMetricValue"] {
+        color: #1E3A8A !important;
+        font-size: 24px !important;
+        font-weight: bold;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #2D3748 !important;
+        font-size: 16px !important;
+    }
+    
+    /* EXPANDER */
+    .streamlit-expanderHeader {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #1E3A8A !important;
+        background-color: #F0F4FA !important;
+        border-radius: 5px;
+    }
+    
+    /* MAIN CONTENT */
+    .main .block-container {
+        color: #000000 !important;
+    }
+    .main h1, .main h2, .main h3 {
+        color: #1E3A8A !important;
+    }
+    
+    /* SUCCESS/WARNING/INFO BOXES */
+    .success-box {
+        background-color: #D4EDDA;
+        color: #155724 !important;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #28A745;
+        margin: 10px 0;
+    }
+    .warning-box {
+        background-color: #FFF3CD;
+        color: #856404 !important;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #FFC107;
+        margin: 10px 0;
+    }
+    .info-box {
+        background-color: #E7F3FF;
+        color: #004085 !important;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #1E3A8A;
+        margin: 10px 0;
+    }
+    
+    /* CB SELECTION REASON */
     .cb-selection-reason {
-        background-color: #fff3cd;
-        border-left: 5px solid #ffc107;
+        background-color: #FFF3CD;
+        border-left: 5px solid #FFC107;
         padding: 15px;
         margin: 10px 0;
         border-radius: 5px;
+        color: #856404 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -690,31 +851,31 @@ class CircuitBreakerCalculator:
         poles, reason = self.select_poles('3-phase', system_type)
         
         detailed_reason = f"""
-### Main Circuit Breaker Calculation
+Main Circuit Breaker Calculation
 
-**Step 1: Total Load Calculation**
+Step 1: Total Load Calculation
 - Total Connected Load: {total_power:.2f} kW
 - System Voltage: {voltage} V, 3-phase
 - Power Factor: {pf}
 
-**Step 2: Load Current Calculation**
-I = {total_power:.2f} × 1000 / (1.732 × {voltage} × {pf}) = {current:.2f} A
+Step 2: Load Current Calculation
+I = {total_power:.2f} x 1000 / (1.732 x {voltage} x {pf}) = {current:.2f} A
 
-**Step 3: Circuit Breaker Sizing [IEC 60898/IEC 60947-2]**
+Step 3: Circuit Breaker Sizing [IEC 60898/IEC 60947-2]
 - Design Factor: {design_factor}
-- Required Rating = {current:.2f} × {design_factor} = {required:.2f} A
+- Required Rating = {current:.2f} x {design_factor} = {required:.2f} A
 - Selected Standard Rating: {rating} A
 
-**Step 4: Breaker Type Selection**
-- Based on rating {rating} A → {breaker_type} ({standard})
+Step 4: Breaker Type Selection
+- Based on rating {rating} A -> {breaker_type} ({standard})
 - Application: {BREAKER_TYPES[breaker_type]['application']}
 
-**Step 5: Pole Selection [IEC 60364-5-53]**
+Step 5: Pole Selection [IEC 60364-5-53]
 - System Type: {system_type}
 - Selected Poles: {poles}
 - Reason: {reason}
 
-**Final Selection: {rating} A {breaker_type} {poles}**
+Final Selection: {rating} A {breaker_type} {poles}
 """
         
         return {
@@ -728,7 +889,7 @@ I = {total_power:.2f} × 1000 / (1.732 × {voltage} × {pf}) = {current:.2f} A
             'detailed_reason': detailed_reason
         }
 
-# ========== PDF REPORT CLASSES ==========
+# ========== PDF REPORT CLASSES - FIXED UNICODE ERROR ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -958,7 +1119,7 @@ class CablePDFReport(FPDF):
             fill = not fill
         self.ln(10)
         
-        # Main CB
+        # Main CB - FIXED UNICODE ERROR - Using write instead of multi_cell for text with special characters
         self.set_font('Arial', 'B', 12)
         self.set_text_color(0, 51, 102)
         self.cell(0, 10, '6.2 Main Circuit Breaker', 0, 1)
@@ -966,7 +1127,14 @@ class CablePDFReport(FPDF):
         
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 6, main_cb['detailed_reason'])
+        
+        # Split the detailed reason into lines and write each line separately
+        lines = main_cb['detailed_reason'].split('\n')
+        for line in lines:
+            if line.strip():
+                # Remove any special characters that might cause issues
+                clean_line = line.strip().replace('•', '-').replace('→', '->').replace('×', 'x')
+                self.cell(0, 6, clean_line, 0, 1)
         self.ln(5)
         
         # Detailed CB Selection Reasons
@@ -981,17 +1149,22 @@ class CablePDFReport(FPDF):
             self.cell(0, 6, f'Load: {detail["load_name"]}', 0, 1)
             self.set_font('Arial', '', 9)
             self.set_text_color(0, 0, 0)
-            self.multi_cell(0, 5, f"""
-• Load Type: {detail['phase_desc']}
-• Load Current: {detail['current']:.2f} A
-• Design Factor: {detail['design_factor']}
-• Required Rating: {detail['required']:.2f} A
-• Selected Standard Rating: {detail['selected']} A
-• Breaker Type: {detail['breaker_type']} ({detail['standard']})
-• Poles: {detail['poles']}
-• Reason: {detail['pole_reason']}
-• Manufacturer: {detail['manufacturer']} - {detail['series']}
-            """)
+            
+            # Write each detail line with clean characters
+            detail_lines = [
+                f'- Load Type: {detail["phase_desc"]}',
+                f'- Load Current: {detail["current"]:.2f} A',
+                f'- Design Factor: {detail["design_factor"]}',
+                f'- Required Rating: {detail["required"]:.2f} A',
+                f'- Selected Standard Rating: {detail["selected"]} A',
+                f'- Breaker Type: {detail["breaker_type"]} ({detail["standard"]})',
+                f'- Poles: {detail["poles"]}',
+                f'- Reason: {detail["pole_reason"]}',
+                f'- Manufacturer: {detail["manufacturer"]} - {detail["series"]}'
+            ]
+            
+            for line in detail_lines:
+                self.cell(0, 5, line, 0, 1)
             self.ln(3)
 
 class CableWordReport:
@@ -1124,7 +1297,7 @@ class CableWordReport:
             self.doc.add_heading('Step 1: Load Current', level=3)
             p = self.doc.add_paragraph()
             p.add_run('I = ').bold = True
-            p.add_run(f'{calc["power"]} × 1000 / (1.732 × {calc["voltage"]} × {calc["pf"]}) = {calc["current"]:.1f} A')
+            p.add_run(f'{calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A')
             
             self.doc.add_heading('Step 2: Derating Factors', level=3)
             p = self.doc.add_paragraph()
@@ -1200,16 +1373,16 @@ class CableWordReport:
             self.doc.add_heading(f'Load: {detail["load_name"]}', level=3)
             p = self.doc.add_paragraph()
             p.add_run(f'Load Type: {detail["phase_desc"]}').bold = True
-            self.doc.add_paragraph(f'• Load Current: {detail["current"]:.2f} A')
-            self.doc.add_paragraph(f'• Design Factor: {detail["design_factor"]}')
-            self.doc.add_paragraph(f'• Required Rating: {detail["required"]:.2f} A')
-            self.doc.add_paragraph(f'• Selected Standard Rating: {detail["selected"]} A')
-            self.doc.add_paragraph(f'• Breaker Type: {detail["breaker_type"]} ({detail["standard"]})')
-            self.doc.add_paragraph(f'• Poles: {detail["poles"]}')
+            self.doc.add_paragraph(f'- Load Current: {detail["current"]:.2f} A')
+            self.doc.add_paragraph(f'- Design Factor: {detail["design_factor"]}')
+            self.doc.add_paragraph(f'- Required Rating: {detail["required"]:.2f} A')
+            self.doc.add_paragraph(f'- Selected Standard Rating: {detail["selected"]} A')
+            self.doc.add_paragraph(f'- Breaker Type: {detail["breaker_type"]} ({detail["standard"]})')
+            self.doc.add_paragraph(f'- Poles: {detail["poles"]}')
             p = self.doc.add_paragraph()
             p.add_run('Reason: ').bold = True
             p.add_run(detail["pole_reason"])
-            self.doc.add_paragraph(f'• Manufacturer: {detail["manufacturer"]} - {detail["series"]}')
+            self.doc.add_paragraph(f'- Manufacturer: {detail["manufacturer"]} - {detail["series"]}')
             self.doc.add_paragraph()
     
     def save(self, filename):
@@ -1461,7 +1634,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR (WITH CB INSIDE) - FIXED SESSION STATE ==========
+# ========== CABLE SIZING CALCULATOR (WITH CB INSIDE) ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1473,7 +1646,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT - ALL VARIABLES DEFINED HERE
+    # TAB 1: LOADS INPUT
     with cable_tabs[0]:
         st.markdown('<div class="report-header">CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
         
@@ -1518,7 +1691,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         st.markdown("### ⚙️ Installation Parameters")
         
-        # PARAMETERS DEFINED HERE - INSIDE THE TAB
+        # Parameters Input
         col1, col2 = st.columns(2)
         with col1:
             cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
@@ -1532,7 +1705,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0, key="depth_input")
             system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="system_type_select")
         
-        # STORE IN SESSION STATE - HERE, AFTER VARIABLES ARE DEFINED
+        # Store in session state
         st.session_state.cable_type = cable_type
         st.session_state.ambient_temp = ambient_temp
         st.session_state.num_cables = num_cables
@@ -1558,7 +1731,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         </table>
         """, unsafe_allow_html=True)
         
-        # CALCULATE BUTTON - USE VALUES FROM SESSION STATE
+        # CALCULATE Button
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
                 # Get values from session state
@@ -1935,4 +2108,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 53.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 54.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
