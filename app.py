@@ -304,6 +304,37 @@ st.markdown("""
     .stMarkdown li {
         color: #000000 !important;
     }
+    
+    /* CUSTOM TABLE FOR INSTALLATION PARAMETERS */
+    .param-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-family: Arial, sans-serif;
+    }
+    .param-table th {
+        background-color: #1E3A8A;
+        color: white !important;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .param-table td {
+        padding: 10px;
+        border: 1px solid #ddd;
+        color: #000000 !important;
+    }
+    .param-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .param-table tr:nth-child(odd) {
+        background-color: white;
+    }
+    .param-table td:first-child {
+        font-weight: bold;
+        width: 40%;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1801,7 +1832,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click to Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word document generated successfully!")
 
-# ========== CABLE SIZING CALCULATOR ==========
+# ========== CABLE SIZING CALCULATOR - FIXED INSTALLATION PARAMETERS ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1812,7 +1843,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT
+    # TAB 1: LOADS INPUT - FIXED INSTALLATION PARAMETERS DISPLAY
     with cable_tabs[0]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## CABLE SIZING - LOADS INPUT")
@@ -1865,25 +1896,35 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         st.session_state.loads_df = edited_df
         
         st.markdown("### ⚙️ Installation Parameters")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'])
-        with col2:
-            ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0)
-        with col3:
-            num_cables = st.number_input("Cables in Group", value=3, min_value=1, max_value=18)
-        with col4:
-            grouping = st.selectbox("Grouping", ['touching', 'spaced'])
         
-        col5, col6, col7, col8 = st.columns(4)
-        with col5:
-            laying = st.selectbox("Laying Method", ['air', 'surface', 'buried', 'duct'])
-        with col6:
-            soil_res = st.number_input("Soil Resistivity (K.m/W)", value=1.5, step=0.5, min_value=0.5, max_value=3.0)
-        with col7:
-            depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0)
-        with col8:
-            system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'])
+        # FIXED: Using two columns for better layout
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            <div style="background-color: #f0f2f6; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <h4 style="color: #1E3A8A; margin-top: 0;">Cable Parameters</h4>
+            """, unsafe_allow_html=True)
+            
+            cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
+            ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp_input")
+            num_cables = st.number_input("Cables in Group", value=3, min_value=1, max_value=18, key="num_cables_input")
+            grouping = st.selectbox("Grouping", ['touching', 'spaced'], key="grouping_select")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("""
+            <div style="background-color: #f0f2f6; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <h4 style="color: #1E3A8A; margin-top: 0;">Installation Environment</h4>
+            """, unsafe_allow_html=True)
+            
+            laying = st.selectbox("Laying Method", ['air', 'surface', 'buried', 'duct'], key="laying_select")
+            soil_res = st.number_input("Soil Resistivity (K.m/W)", value=1.5, step=0.5, min_value=0.5, max_value=3.0, key="soil_res_input")
+            depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0, key="depth_input")
+            system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="system_type_select")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
         
         # Store parameters in session state
         st.session_state.cable_type = cable_type
@@ -1893,6 +1934,51 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         st.session_state.laying = laying
         st.session_state.soil_res = soil_res
         st.session_state.depth = depth
+        st.session_state.system_type = system_type
+        
+        # FIXED: Display current settings in a clean table
+        st.markdown("### 📊 Current Installation Settings")
+        
+        # Create HTML table for better control
+        st.markdown(f"""
+        <table class="param-table">
+            <tr>
+                <th colspan="2" style="text-align: center;">Installation Parameters</th>
+            </tr>
+            <tr>
+                <td><strong>Cable Type</strong></td>
+                <td>{cable_type} copper</td>
+            </tr>
+            <tr>
+                <td><strong>Ambient Temperature</strong></td>
+                <td>{ambient_temp} °C</td>
+            </tr>
+            <tr>
+                <td><strong>Cables in Group</strong></td>
+                <td>{num_cables}</td>
+            </tr>
+            <tr>
+                <td><strong>Grouping</strong></td>
+                <td>{grouping}</td>
+            </tr>
+            <tr>
+                <td><strong>Laying Method</strong></td>
+                <td>{laying}</td>
+            </tr>
+            <tr>
+                <td><strong>Soil Resistivity</strong></td>
+                <td>{soil_res} K.m/W</td>
+            </tr>
+            <tr>
+                <td><strong>Burial Depth</strong></td>
+                <td>{depth} m</td>
+            </tr>
+            <tr>
+                <td><strong>System Type</strong></td>
+                <td>{system_type}</td>
+            </tr>
+        </table>
+        """, unsafe_allow_html=True)
         
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
@@ -2162,7 +2248,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             df = st.session_state.cable_results_df[['Load Name', 'Size (mm²)', 'Short Circuit (kA)']]
             st.dataframe(df, use_container_width=True, hide_index=True)
     
-    # TAB 5: DOWNLOAD REPORT - WITH DETAILED CALCULATIONS (FIXED)
+    # TAB 5: DOWNLOAD REPORT - WITH DETAILED CALCULATIONS
     with cable_tabs[4]:
         st.markdown('<div class="report-header">', unsafe_allow_html=True)
         st.markdown("## DOWNLOAD REPORT")
@@ -2188,7 +2274,8 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             'Grouping': st.session_state.get("grouping", "touching"),
                             'Laying Method': st.session_state.get("laying", "air"),
                             'Soil Resistivity': f'{st.session_state.get("soil_res", 1.5)} K.m/W',
-                            'Burial Depth': f'{st.session_state.get("depth", 0.8)} m'
+                            'Burial Depth': f'{st.session_state.get("depth", 0.8)} m',
+                            'System Type': st.session_state.get("system_type", "TN-S")
                         }
                         pdf.add_installation_parameters(params)
                         
@@ -2227,7 +2314,8 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             'Grouping': st.session_state.get("grouping", "touching"),
                             'Laying Method': st.session_state.get("laying", "air"),
                             'Soil Resistivity': f'{st.session_state.get("soil_res", 1.5)} K.m/W',
-                            'Burial Depth': f'{st.session_state.get("depth", 0.8)} m'
+                            'Burial Depth': f'{st.session_state.get("depth", 0.8)} m',
+                            'System Type': st.session_state.get("system_type", "TN-S")
                         }
                         word.add_installation_parameters(params)
                         
@@ -2286,8 +2374,8 @@ elif st.session_state.selected_calculator == "⚡ Circuit Breaker Sizing":
     
     if 'loads_df' in st.session_state and not st.session_state.loads_df.empty:
         cb_calc = CircuitBreakerCalculator()
-        system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'])
-        manufacturer = st.selectbox("Manufacturer", list(MANUFACTURERS.keys()))
+        system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="cb_system_type")
+        manufacturer = st.selectbox("Manufacturer", list(MANUFACTURERS.keys()), key="cb_manufacturer")
         
         cb_results = cb_calc.calculate_cb_size(st.session_state.loads_df, 1.25, manufacturer, system_type)
         
@@ -2366,4 +2454,4 @@ elif st.session_state.selected_calculator == "📉 Voltage Drop":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 50.0 | {datetime.now().strftime('%Y%m%d_%H%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical Design Calculators | IEC Compliant | Version 51.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
