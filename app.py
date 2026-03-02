@@ -596,7 +596,6 @@ class CircuitBreakerCalculator:
         pass
     
     def get_standard_rating(self, current, design_factor=1.25):
-        """Get next higher standard CB rating (IEC 60898 / IEC 60947-2)"""
         required = current * design_factor
         for rating in CB_RATINGS:
             if rating >= required:
@@ -604,7 +603,6 @@ class CircuitBreakerCalculator:
         return CB_RATINGS[-1], required
     
     def get_breaker_type(self, rating):
-        """Determine breaker type based on rating"""
         if rating <= 125:
             return 'MCB', 'IEC 60898'
         elif rating <= 1600:
@@ -613,50 +611,44 @@ class CircuitBreakerCalculator:
             return 'ACB', 'IEC 60947-2'
     
     def select_poles(self, phase, system_type='TN-S'):
-        """Select number of poles based on system type (IEC 60364-5-53)"""
         if phase == '1-phase':
             if system_type in ['TN-S', 'TN-C-S', 'TT']:
-                return '2P', 'Phase + Neutral protection required for TN/TT systems. Neutral conductor must be switched and protected.'
+                return '2P', 'Phase + Neutral protection required for TN/TT systems.'
             else:
-                return '1P', 'Phase only protection - For IT systems only. Not recommended for final circuits.'
+                return '1P', 'Phase only protection - For IT systems only.'
         
         elif phase == '3-phase':
             if system_type == 'TN-S':
-                return '4P', '4-Pole required for TN-S systems with separate neutral. All live conductors including neutral must be switched.'
+                return '4P', '4-Pole required for TN-S systems with separate neutral.'
             elif system_type == 'TN-C':
-                return '3P', '3-Pole for TN-C systems where neutral and protective functions are combined (PEN conductor). Neutral not switched.'
+                return '3P', '3-Pole for TN-C systems (PEN conductor).'
             else:
-                return '3P', '3-Pole standard for 3-wire systems. Suitable for most industrial applications.'
+                return '3P', '3-Pole standard for 3-wire systems.'
         
-        else:  # DC
-            return '2P', '2-Pole required for DC circuits as per IEC 60947-2. Both poles must be protected.'
+        else:
+            return '2P', '2-Pole required for DC circuits as per IEC 60947-2.'
     
     def calculate_cb_size(self, loads_df, design_factor=1.25, manufacturer='Schneider Electric', system_type='TN-S'):
-        """Calculate CB sizes with detailed reasoning"""
         results = []
         detailed_reasons = []
         
         for idx, load in loads_df.iterrows():
-            # Calculate load current
             if load['Phase'] == '3-phase':
                 current = load['Power (kW)'] * 1000 / (1.732 * load['Voltage (V)'] * load['Power Factor'])
                 phase_desc = "Three-phase"
             elif load['Phase'] == '1-phase':
                 current = load['Power (kW)'] * 1000 / (load['Voltage (V)'] * load['Power Factor'])
                 phase_desc = "Single-phase"
-            else:  # DC
+            else:
                 current = load['Power (kW)'] * 1000 / load['Voltage (V)']
                 phase_desc = "DC"
             
-            # Get standard CB rating
             rating, required = self.get_standard_rating(current, design_factor)
             breaker_type, standard = self.get_breaker_type(rating)
             poles, reason = self.select_poles(load['Phase'], system_type)
             
-            # Get manufacturer series
             series = MANUFACTURERS[manufacturer][breaker_type]
             
-            # Store result
             results.append({
                 'Load': load['Load Name'],
                 'Power (kW)': load['Power (kW)'],
@@ -672,7 +664,6 @@ class CircuitBreakerCalculator:
                 'Series': series
             })
             
-            # Store detailed reasoning
             detailed_reasons.append({
                 'load_name': load['Load Name'],
                 'phase_desc': phase_desc,
@@ -692,7 +683,6 @@ class CircuitBreakerCalculator:
         return results, detailed_reasons
     
     def calculate_main_cb(self, loads_df, voltage=400, pf=0.85, design_factor=1.25, system_type='TN-S'):
-        """Calculate main circuit breaker with detailed reasoning"""
         total_power = loads_df['Power (kW)'].sum()
         current = total_power * 1000 / (1.732 * voltage * pf)
         rating, required = self.get_standard_rating(current, design_factor)
@@ -708,26 +698,21 @@ class CircuitBreakerCalculator:
 - Power Factor: {pf}
 
 **Step 2: Load Current Calculation**
-Formula: I = P × 1000 / (√3 × V × PF)
 I = {total_power:.2f} × 1000 / (1.732 × {voltage} × {pf}) = {current:.2f} A
 
 **Step 3: Circuit Breaker Sizing [IEC 60898/IEC 60947-2]**
-- Design Factor (safety margin): {design_factor}
-- Required Rating = Load Current × Design Factor = {current:.2f} × {design_factor} = {required:.2f} A
+- Design Factor: {design_factor}
+- Required Rating = {current:.2f} × {design_factor} = {required:.2f} A
 - Selected Standard Rating: {rating} A
 
 **Step 4: Breaker Type Selection**
 - Based on rating {rating} A → {breaker_type} ({standard})
-- {breaker_type} Application: {BREAKER_TYPES[breaker_type]['application']}
+- Application: {BREAKER_TYPES[breaker_type]['application']}
 
 **Step 5: Pole Selection [IEC 60364-5-53]**
 - System Type: {system_type}
 - Selected Poles: {poles}
 - Reason: {reason}
-
-**Step 6: Manufacturer Selection**
-- Manufacturer: Schneider Electric
-- Series: {MANUFACTURERS['Schneider Electric'][breaker_type]}
 
 **Final Selection: {rating} A {breaker_type} {poles}**
 """
@@ -1004,7 +989,7 @@ class CablePDFReport(FPDF):
 • Selected Standard Rating: {detail['selected']} A
 • Breaker Type: {detail['breaker_type']} ({detail['standard']})
 • Poles: {detail['poles']}
-• Reason for Pole Selection: {detail['pole_reason']}
+• Reason: {detail['pole_reason']}
 • Manufacturer: {detail['manufacturer']} - {detail['series']}
             """)
             self.ln(3)
@@ -1230,7 +1215,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== SESSION STATE ==========
+# ========== SESSION STATE INITIALIZATION ==========
 if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
 if 'calc_done' not in st.session_state:
@@ -1476,7 +1461,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR (WITH CB INSIDE) ==========
+# ========== CABLE SIZING CALCULATOR (WITH CB INSIDE) - FIXED SESSION STATE ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1484,14 +1469,15 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📊 Derating Factors", 
         "⚡ Cable Selection",
         "🔧 Short Circuit",
-        "⚡ Circuit Breakers",  # New tab for CB
+        "⚡ Circuit Breakers",
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT
+    # TAB 1: LOADS INPUT - ALL VARIABLES DEFINED HERE
     with cable_tabs[0]:
         st.markdown('<div class="report-header">CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
         
+        # Load Table Controls
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("➕ Add Load", use_container_width=True):
@@ -1514,6 +1500,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 else:
                     st.warning("At least one row required")
         
+        # Load Table Editor
         edited_df = st.data_editor(
             st.session_state.loads_df,
             num_rows="fixed",
@@ -1531,19 +1518,21 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         st.markdown("### ⚙️ Installation Parameters")
         
+        # PARAMETERS DEFINED HERE - INSIDE THE TAB
         col1, col2 = st.columns(2)
         with col1:
-            cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type")
-            ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp")
-            num_cables = st.number_input("Cables in Group", value=3, min_value=1, max_value=18, key="num_cables")
-            grouping = st.selectbox("Grouping", ['touching', 'spaced'], key="grouping")
+            cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
+            ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp_input")
+            num_cables = st.number_input("Cables in Group", value=3, min_value=1, max_value=18, key="num_cables_input")
+            grouping = st.selectbox("Grouping", ['touching', 'spaced'], key="grouping_select")
         
         with col2:
-            laying = st.selectbox("Laying Method", ['air', 'surface', 'buried', 'duct'], key="laying")
-            soil_res = st.number_input("Soil Resistivity (K.m/W)", value=1.5, step=0.5, min_value=0.5, max_value=3.0, key="soil_res")
-            depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0, key="depth")
-            system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="system_type")
+            laying = st.selectbox("Laying Method", ['air', 'surface', 'buried', 'duct'], key="laying_select")
+            soil_res = st.number_input("Soil Resistivity (K.m/W)", value=1.5, step=0.5, min_value=0.5, max_value=3.0, key="soil_res_input")
+            depth = st.number_input("Burial Depth (m)", value=0.8, step=0.1, min_value=0.3, max_value=2.0, key="depth_input")
+            system_type = st.selectbox("System Type", ['TN-S', 'TN-C', 'TN-C-S', 'TT'], key="system_type_select")
         
+        # STORE IN SESSION STATE - HERE, AFTER VARIABLES ARE DEFINED
         st.session_state.cable_type = cable_type
         st.session_state.ambient_temp = ambient_temp
         st.session_state.num_cables = num_cables
@@ -1553,6 +1542,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         st.session_state.depth = depth
         st.session_state.system_type = system_type
         
+        # Display Current Settings
         st.markdown("### 📊 Current Installation Settings")
         st.markdown(f"""
         <table class="param-table">
@@ -1568,8 +1558,19 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         </table>
         """, unsafe_allow_html=True)
         
+        # CALCULATE BUTTON - USE VALUES FROM SESSION STATE
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
+                # Get values from session state
+                cable_type = st.session_state.cable_type
+                ambient_temp = st.session_state.ambient_temp
+                num_cables = st.session_state.num_cables
+                grouping = st.session_state.grouping
+                laying = st.session_state.laying
+                soil_res = st.session_state.soil_res
+                depth = st.session_state.depth
+                system_type = st.session_state.system_type
+                
                 cable_calc = CableSizingCalculator()
                 cable_results = []
                 detailed_calcs = []
@@ -1748,7 +1749,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
             df = st.session_state.cable_results_df[['Load Name', 'Size (mm²)', 'Short Circuit (kA)']]
             st.dataframe(df, use_container_width=True, hide_index=True)
     
-    # TAB 5: CIRCUIT BREAKERS (NEW)
+    # TAB 5: CIRCUIT BREAKERS
     with cable_tabs[4]:
         st.markdown('<div class="report-header">CIRCUIT BREAKER SIZING</div>', unsafe_allow_html=True)
         
@@ -1834,7 +1835,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to see circuit breaker results")
     
-    # TAB 6: DOWNLOAD REPORT (with CB included)
+    # TAB 6: DOWNLOAD REPORT
     with cable_tabs[5]:
         st.markdown('<div class="report-header">DOWNLOAD REPORT</div>', unsafe_allow_html=True)
         
@@ -1934,4 +1935,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 52.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 53.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
