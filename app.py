@@ -1572,7 +1572,7 @@ with st.sidebar:
     
     calculators = [
         "⚡ Lightning Protection",
-        "🔌 Cable Sizing",
+        "🔌 Cable Sizing",  # Changed from ⚡ to 🔌
         "⚙️ Transformer Sizing",
         "⚡ Generator Sizing",
         "🌍 Earthing System Design"
@@ -1782,8 +1782,8 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR - WITH FIXED DISPLAY ==========
-elif st.session_state.selected_calculator == "🔌 Cable Sizing":
+# ========== CABLE SIZING CALCULATOR - WITH FIXED DISPLAY AND CABLE ICON ==========
+elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed from ⚡ to 🔌
     
     cable_tabs = st.tabs([
         "📥 Loads Input", 
@@ -1796,7 +1796,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 1: LOADS INPUT - FIXED DISPLAY
     with cable_tabs[0]:
-        st.markdown('<div class="report-header">CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
+        st.markdown('<div class="report-header">🔌 CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)  # Added cable icon
         
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -2114,7 +2114,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 3: CABLE SELECTION
     with cable_tabs[2]:
-        st.markdown('<div class="report-header">CABLE SELECTION RESULTS</div>', unsafe_allow_html=True)
+        st.markdown('<div class="report-header">🔌 CABLE SELECTION RESULTS</div>', unsafe_allow_html=True)  # Added cable icon
         st.markdown("### ⚡ Voltage Drop Limit: **2.5%** [IEC 60364-5-52]")
         
         if not st.session_state.cable_results_df.empty:
@@ -2181,7 +2181,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
     
     # TAB 5: CIRCUIT BREAKERS
     with cable_tabs[4]:
-        st.markdown('<div class="report-header">CIRCUIT BREAKER SIZING</div>', unsafe_allow_html=True)
+        st.markdown('<div class="report-header">⚡ CIRCUIT BREAKER SIZING</div>', unsafe_allow_html=True)
         
         st.markdown("""
         ### 🔍 Circuit Breaker Selection Criteria [IEC 60898 / IEC 60947-2]
@@ -2264,7 +2264,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
     
     # TAB 6: DOWNLOAD REPORT
     with cable_tabs[5]:
-        st.markdown('<div class="report-header">DOWNLOAD REPORT</div>', unsafe_allow_html=True)
+        st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
         
         if not st.session_state.cable_results_df.empty and st.session_state.cb_results:
             col1, col2 = st.columns(2)
@@ -2353,17 +2353,17 @@ Efficiency = **{calc['efficiency']:.1f}%**
 
 # ========== OTHER CALCULATORS ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
-    st.markdown('<div class="report-header">TRANSFORMER SIZING</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING</div>', unsafe_allow_html=True)
     st.info("⚙️ Coming soon!")
 
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
-    st.markdown('<div class="report-header">GENERATOR SIZING</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">⚡ GENERATOR SIZING</div>', unsafe_allow_html=True)
     st.info("⚡ Coming soon!")
 
 elif st.session_state.selected_calculator == "🌍 Earthing System Design":
-    st.markdown('<div class="report-header">EARTHING SYSTEM DESIGN</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">🌍 EARTHING SYSTEM DESIGN</div>', unsafe_allow_html=True)
     st.info("🌍 Coming soon!")
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 60.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 61.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
