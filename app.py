@@ -248,6 +248,22 @@ st.markdown("""
         border-radius: 5px;
         color: #856404 !important;
     }
+    .settings-container {
+        background-color: #F8F9FA;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #DEE2E6;
+        margin: 15px 0;
+    }
+    .settings-category {
+        color: #1E3A8A;
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #1E3A8A;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1766,7 +1782,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR ==========
+# ========== CABLE SIZING CALCULATOR - WITH FIXED DISPLAY ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1778,7 +1794,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT
+    # TAB 1: LOADS INPUT - FIXED DISPLAY
     with cable_tabs[0]:
         st.markdown('<div class="report-header">CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
         
@@ -1825,11 +1841,11 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("#### Cable Parameters")
+            st.markdown("#### 📦 Cable Parameters")
             cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
             ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp_input")
             
-            st.markdown("#### Arrangement & Spacing")
+            st.markdown("#### 📐 Arrangement & Spacing")
             arrangement = st.selectbox("Cable Arrangement", 
                                       ['touching', 'spaced', 'cleated'], 
                                       key="arrangement_select",
@@ -1846,7 +1862,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                     help="Flat = side by side, Trefoil = triangular")
         
         with col2:
-            st.markdown("#### Installation Environment")
+            st.markdown("#### 🏗️ Installation Environment")
             installation = st.selectbox("Installation Method", 
                                        ['air', 'surface', 'tray', 'ladder', 'trench', 'buried', 'duct', 'conduit'], 
                                        key="installation_select",
@@ -1856,7 +1872,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                         value=3, min_value=1, max_value=18, 
                                         key="num_cables_input")
             
-            st.markdown("#### Soil & Depth (for buried/duct)")
+            st.markdown("#### 🌍 Soil & Depth")
             soil_res = st.number_input("Soil Resistivity (K.m/W)", 
                                       value=1.5, step=0.5, min_value=0.5, max_value=3.0, 
                                       key="soil_res_input")
@@ -1881,33 +1897,72 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         st.session_state.depth = depth
         st.session_state.system_type = system_type
         
-        # Display Current Settings in a nice table
+        # FIXED: Display Current Settings using DataFrame
         st.markdown("### 📊 Current Installation Settings")
         
-        settings_html = f"""
-        <table class="param-table">
-            <tr><th colspan="2">Cable Parameters</th></tr>
-            <tr><td>Cable Type</td><td>{cable_type} copper</td></tr>
-            <tr><td>Ambient Temperature</td><td>{ambient_temp} °C</td></tr>
+        # Create a DataFrame for clean display
+        settings_data = {
+            'Category': [
+                'Cable Parameters', 'Cable Parameters',
+                'Arrangement & Spacing', 'Arrangement & Spacing', 'Arrangement & Spacing',
+                'Installation Environment', 'Installation Environment',
+                'Soil & Depth', 'Soil & Depth',
+                'Electrical System'
+            ],
+            'Parameter': [
+                'Cable Type', 'Ambient Temperature',
+                'Cable Arrangement', 'Spacing Between Cables', 'Cable Formation',
+                'Installation Method', 'Number of Cables in Group',
+                'Soil Resistivity', 'Burial Depth',
+                'System Type'
+            ],
+            'Value': [
+                f'{cable_type} copper', f'{ambient_temp} °C',
+                arrangement, f'{spacing_mm} mm', formation,
+                installation, str(num_cables),
+                f'{soil_res} K.m/W', f'{depth} m',
+                system_type
+            ]
+        }
+        
+        settings_df = pd.DataFrame(settings_data)
+        
+        # Display with category grouping
+        st.dataframe(
+            settings_df[['Category', 'Parameter', 'Value']],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Category": st.column_config.TextColumn("Category", width="small"),
+                "Parameter": st.column_config.TextColumn("Parameter", width="medium"),
+                "Value": st.column_config.TextColumn("Value", width="medium")
+            }
+        )
+        
+        # Alternative compact view using columns
+        with st.expander("📋 View Summary", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**📦 Cable Parameters**")
+                st.markdown(f"• **Type:** {cable_type} copper")
+                st.markdown(f"• **Temp:** {ambient_temp} °C")
+                
+                st.markdown("**📐 Arrangement**")
+                st.markdown(f"• **Arrangement:** {arrangement}")
+                st.markdown(f"• **Spacing:** {spacing_mm} mm")
+                st.markdown(f"• **Formation:** {formation}")
             
-            <tr><th colspan="2">Arrangement & Spacing</th></tr>
-            <tr><td>Cable Arrangement</td><td>{arrangement}</td></tr>
-            <tr><td>Spacing Between Cables</td><td>{spacing_mm} mm</td></tr>
-            <tr><td>Cable Formation</td><td>{formation}</td></tr>
-            
-            <tr><th colspan="2">Installation Environment</th></tr>
-            <tr><td>Installation Method</td><td>{installation}</td></tr>
-            <tr><td>Number of Cables in Group</td><td>{num_cables}</td></tr>
-            
-            <tr><th colspan="2">Soil & Depth (for buried/duct)</th></tr>
-            <tr><td>Soil Resistivity</td><td>{soil_res} K.m/W</td></tr>
-            <tr><td>Burial Depth</td><td>{depth} m</td></tr>
-            
-            <tr><th colspan="2">Electrical System</th></tr>
-            <tr><td>System Type</td><td>{system_type}</td></tr>
-        </table>
-        """
-        st.markdown(settings_html, unsafe_allow_html=True)
+            with col2:
+                st.markdown("**🏗️ Installation**")
+                st.markdown(f"• **Method:** {installation}")
+                st.markdown(f"• **Cables:** {num_cables}")
+                
+                st.markdown("**🌍 Soil & Depth**")
+                st.markdown(f"• **Resistivity:** {soil_res} K.m/W")
+                st.markdown(f"• **Depth:** {depth} m")
+                
+                st.markdown("**⚡ System**")
+                st.markdown(f"• **Type:** {system_type}")
         
         # CALCULATE Button
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
@@ -1937,7 +1992,6 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                     )
                     
                     # For each cable size, we need to get its diameter for spacing calculations
-                    # We'll try each size and find the first that works
                     found = False
                     for size, data in db.items():
                         if found:
@@ -2312,4 +2366,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 59.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 60.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
