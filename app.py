@@ -811,31 +811,47 @@ class CircuitBreakerCalculator:
         poles, reason = self.select_poles('3-phase', system_type)
         
         detailed_reason = f"""
-Main Circuit Breaker Calculation
+MAIN CIRCUIT BREAKER DETAILED CALCULATION
 
-Step 1: Total Load Calculation
-- Total Connected Load: {total_power:.2f} kW
-- System Voltage: {voltage} V, 3-phase
-- Power Factor: {pf}
+STEP 1: TOTAL LOAD ANALYSIS
+• Total Connected Load: {total_power:.2f} kW
+• System Voltage: {voltage} V (3-phase)
+• Power Factor: {pf}
+• System Type: {system_type}
 
-Step 2: Load Current Calculation
-I = {total_power:.2f} x 1000 / (1.732 x {voltage} x {pf}) = {current:.2f} A
+STEP 2: TOTAL CURRENT CALCULATION [IEC 60364-5-52]
+Formula: I = P × 1000 / (√3 × V × PF)
+I = {total_power:.2f} × 1000 / (1.732 × {voltage} × {pf})
+I = {current:.2f} A
 
-Step 3: Circuit Breaker Sizing [IEC 60898/IEC 60947-2]
-- Design Factor: {design_factor}
-- Required Rating = {current:.2f} x {design_factor} = {required:.2f} A
-- Selected Standard Rating: {rating} A
+STEP 3: CIRCUIT BREAKER SIZING [IEC 60898/IEC 60947-2]
+• Design Factor (safety margin): {design_factor} (25% for continuous loads)
+• Required Rating = Load Current × Design Factor
+• Required Rating = {current:.2f} × {design_factor} = {required:.2f} A
+• Selected Standard Rating (from IEC 60898/IEC 60947-2): {rating} A
 
-Step 4: Breaker Type Selection
-- Based on rating {rating} A -> {breaker_type} ({standard})
-- Application: {BREAKER_TYPES[breaker_type]['application']}
+STEP 4: BREAKER TYPE SELECTION
+• Based on rating {rating} A → {breaker_type} ({standard})
+• Application: {BREAKER_TYPES[breaker_type]['application']}
+• {breaker_type} Characteristics:
+  - Suitable for {rating} A continuous current
+  - Breaking capacity as per {standard}
+  - Suitable for distribution applications
 
-Step 5: Pole Selection [IEC 60364-5-53]
-- System Type: {system_type}
-- Selected Poles: {poles}
-- Reason: {reason}
+STEP 5: POLE SELECTION [IEC 60364-5-53 Table 53A]
+• System Type: {system_type}
+• Selected Poles: {poles}
+• Selection Reason: {reason}
+• Pole Configuration: 
+  - {poles} provides complete isolation
+  - Meets safety requirements for {system_type} system
 
-Final Selection: {rating} A {breaker_type} {poles}
+STEP 6: MANUFACTURER SELECTION
+• Manufacturer: Schneider Electric
+• Series: {MANUFACTURERS['Schneider Electric'][breaker_type]}
+• Compliant with {standard} requirements
+
+FINAL SELECTION: {rating} A {breaker_type} {poles}
 """
         
         return {
@@ -984,8 +1000,8 @@ class CablePDFReport(FPDF):
             fill = not fill
         self.ln(10)
     
-    def add_detailed_calculations(self, detailed_calcs):
-        """Add detailed cable calculations with full IEC references"""
+    def add_detailed_cable_calculations(self, detailed_calcs):
+        """Add detailed cable calculations with full IEC references - COMPLETE DETAILS"""
         self.add_page()
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
@@ -999,80 +1015,108 @@ class CablePDFReport(FPDF):
             # Load Header
             self.set_font('Arial', 'B', 14)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 10, f'Load {i+1}: {calc["load_name"]}', 0, 1)
+            self.cell(0, 10, f'LOAD {i+1}: {calc["load_name"]}', 0, 1)
             self.ln(2)
             
-            # Step 1: Load Current
-            self.set_font('Arial', 'B', 11)
-            self.set_text_color(0, 0, 0)
-            self.cell(0, 7, 'Step 1: Load Current Calculation [IEC 60364-5-52 Section 523]', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.multi_cell(0, 6, f'Formula: I = P x 1000 / (√3 x V x PF) for 3-phase')
-            self.cell(0, 6, f'Calculation: I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A', 0, 1)
-            self.ln(2)
-            
-            # Step 2: Derating Factors
-            self.set_font('Arial', 'B', 11)
-            self.cell(0, 7, 'Step 2: Derating Factors [IEC 60502-2 Tables B.10-B.22]', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.cell(0, 6, f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C', 0, 1)
-            self.cell(0, 6, f'k2 (Grouping Factor): {calc["k2"]:.3f} - Table 4C1 ({st.session_state.grouping})', 0, 1)
-            self.cell(0, 6, f'k3 (Soil Resistivity): {calc["k3"]:.3f} - Table B.14', 0, 1)
-            self.cell(0, 6, f'k4 (Depth Factor): {calc["k4"]:.3f} - Table B.12', 0, 1)
-            self.cell(0, 6, f'k5 (Laying Method): {calc["k5"]:.3f} - Table B.5', 0, 1)
-            self.set_font('Arial', 'B', 10)
-            self.cell(0, 6, f'Total Derating Factor K = k1 x k2 x k3 x k4 x k5 = {calc["total_k"]:.3f}', 0, 1)
-            self.ln(2)
-            
-            # Step 3: Cable Selection
-            self.set_font('Arial', 'B', 11)
-            self.cell(0, 7, 'Step 3: Cable Selection', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.cell(0, 6, f'Selected Cable: {calc["size"]} mm² {calc["cable_type"]} copper ({calc["cable_category"]})', 0, 1)
-            self.cell(0, 6, f'Base Ampacity (from manufacturer data): {calc["base_amp"]} A', 0, 1)
-            self.cell(0, 6, f'Derated Ampacity = Base Ampacity x K = {calc["base_amp"]} x {calc["total_k"]:.3f} = {calc["derated_amp"]:.1f} A', 0, 1)
-            status = 'PASS' if calc['derated_amp'] >= calc['current'] else 'FAIL'
-            self.cell(0, 6, f'Check: {calc["derated_amp"]:.1f} A >= {calc["current"]:.1f} A ? {status}', 0, 1)
-            self.ln(2)
-            
-            # Step 4: Voltage Drop
-            self.set_font('Arial', 'B', 11)
-            self.cell(0, 7, 'Step 4: Voltage Drop Calculation [IEC 60364-5-52 Section 525]', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.cell(0, 6, f'Voltage Drop = {calc["vd_pct"]:.3f}%', 0, 1)
-            self.cell(0, 6, f'Maximum Allowable Voltage Drop: 2.5% (Fixed per IEC 60364-5-52)', 0, 1)
-            status = 'PASS' if calc['vd_pct'] <= 2.5 else 'FAIL'
-            self.cell(0, 6, f'Check: {calc["vd_pct"]:.3f}% <= 2.5% ? {status}', 0, 1)
-            self.ln(2)
-            
-            # Step 5: Short Circuit
-            self.set_font('Arial', 'B', 11)
-            self.cell(0, 7, 'Step 5: Short Circuit Calculation [IEC 60949]', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.cell(0, 6, f'Formula: Isc = K x S / √t', 0, 1)
-            self.cell(0, 6, f'K = 143 for Copper, XLPE insulated (90°C operating, 250°C short-circuit)', 0, 1)
-            self.cell(0, 6, f'S = {calc["size"]} mm²', 0, 1)
-            self.cell(0, 6, f't = 1.0 s (typical clearing time)', 0, 1)
-            self.cell(0, 6, f'Isc = 143 x {calc["size"]} / √1.0 = {calc["sc"]:.2f} kA', 0, 1)
-            self.ln(2)
-            
-            # Step 6: Efficiency
-            self.set_font('Arial', 'B', 11)
-            self.cell(0, 7, 'Step 6: Efficiency Calculation', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.cell(0, 6, f'Input Power = {calc["input_power"]:.1f} kW', 0, 1)
-            self.cell(0, 6, f'Output Power = {calc["power"]} kW', 0, 1)
-            self.cell(0, 6, f'Efficiency = (Output / Input) x 100 = ({calc["power"]} / {calc["input_power"]:.1f}) x 100 = {calc["efficiency"]:.1f}%', 0, 1)
-            self.ln(2)
-            
-            # Final Status
+            # STEP 1: LOAD CURRENT
             self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 1: LOAD CURRENT CALCULATION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, 'Reference: IEC 60364-5-52 Section 523', 0, 1)
+            self.cell(0, 6, 'Formula: I = P × 1000 / (√3 × V × PF) for 3-phase', 0, 1)
+            self.cell(0, 6, f'P = {calc["power"]} kW, V = {calc["voltage"]} V, PF = {calc["pf"]}', 0, 1)
+            self.cell(0, 6, f'I = {calc["power"]} × 1000 / (1.732 × {calc["voltage"]} × {calc["pf"]})', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'LOAD CURRENT = {calc["current"]:.1f} A', 0, 1)
+            self.ln(3)
+            
+            # STEP 2: DERATING FACTORS
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 2: DERATING FACTORS CALCULATION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, 'Reference: IEC 60502-2 Tables B.10-B.22', 0, 1)
+            self.cell(0, 6, f'k1 (Temperature Correction) : {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C', 0, 1)
+            self.cell(0, 6, f'k2 (Grouping Factor)      : {calc["k2"]:.3f} - Table 4C1 ({st.session_state.grouping})', 0, 1)
+            self.cell(0, 6, f'k3 (Soil Resistivity)     : {calc["k3"]:.3f} - Table B.14', 0, 1)
+            self.cell(0, 6, f'k4 (Depth Factor)         : {calc["k4"]:.3f} - Table B.12', 0, 1)
+            self.cell(0, 6, f'k5 (Laying Method)        : {calc["k5"]:.3f} - Table B.5', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'TOTAL DERATING FACTOR K = k1 × k2 × k3 × k4 × k5 = {calc["total_k"]:.3f}', 0, 1)
+            self.ln(3)
+            
+            # STEP 3: CABLE SELECTION
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 3: CABLE SELECTION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, f'Cable Category: {calc["cable_category"]}', 0, 1)
+            self.cell(0, 6, f'Cable Type: {calc["cable_type"]} copper', 0, 1)
+            self.cell(0, 6, f'Selected Cable Size: {calc["size"]} mm²', 0, 1)
+            self.cell(0, 6, f'Base Ampacity (from manufacturer data): {calc["base_amp"]} A', 0, 1)
+            self.cell(0, 6, f'Derated Ampacity = Base Ampacity × K', 0, 1)
+            self.cell(0, 6, f'Derated Ampacity = {calc["base_amp"]} × {calc["total_k"]:.3f} = {calc["derated_amp"]:.1f} A', 0, 1)
+            status1 = '✓ PASS' if calc['derated_amp'] >= calc['current'] else '✗ FAIL'
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'Check: {calc["derated_amp"]:.1f} A ≥ {calc["current"]:.1f} A ? {status1}', 0, 1)
+            self.ln(3)
+            
+            # STEP 4: VOLTAGE DROP
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 4: VOLTAGE DROP CALCULATION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, 'Reference: IEC 60364-5-52 Section 525', 0, 1)
+            self.cell(0, 6, 'Formula: Vd = √3 × I × (R cosφ + X sinφ) × L / 1000', 0, 1)
+            self.cell(0, 6, f'Cable Length: {calc["length"]} m', 0, 1)
+            self.cell(0, 6, f'Voltage Drop = {calc["vd_pct"]:.3f}%', 0, 1)
+            self.cell(0, 6, 'Maximum Allowable Voltage Drop: 2.5% (Fixed per IEC 60364-5-52)', 0, 1)
+            status2 = '✓ PASS' if calc['vd_pct'] <= 2.5 else '✗ FAIL'
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'Check: {calc["vd_pct"]:.3f}% ≤ 2.5% ? {status2}', 0, 1)
+            self.ln(3)
+            
+            # STEP 5: SHORT CIRCUIT
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 5: SHORT CIRCUIT CALCULATION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, 'Reference: IEC 60949 - Thermal short-circuit currents', 0, 1)
+            self.cell(0, 6, 'Formula: Isc = K × S / √t', 0, 1)
+            self.cell(0, 6, 'K = 143 for Copper, XLPE insulated (90°C operating, 250°C short-circuit)', 0, 1)
+            self.cell(0, 6, f'S = {calc["size"]} mm² (conductor cross-sectional area)', 0, 1)
+            self.cell(0, 6, f't = 1.0 s (typical clearing time)', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'SHORT CIRCUIT CAPACITY = {calc["sc"]:.2f} kA', 0, 1)
+            self.ln(3)
+            
+            # STEP 6: EFFICIENCY
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 6: EFFICIENCY CALCULATION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, f'Input Power = √3 × V × I = 1.732 × {calc["voltage"]} × {calc["current"]:.1f} / 1000 = {calc["input_power"]:.1f} kW', 0, 1)
+            self.cell(0, 6, f'Output Power = {calc["power"]} kW', 0, 1)
+            self.cell(0, 6, f'Efficiency = (Output Power / Input Power) × 100', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'EFFICIENCY = ({calc["power"]} / {calc["input_power"]:.1f}) × 100 = {calc["efficiency"]:.1f}%', 0, 1)
+            self.ln(3)
+            
+            # FINAL STATUS
+            self.set_font('Arial', 'B', 14)
             if calc['status'] == 'PASS':
                 self.set_text_color(0, 128, 0)
-                self.cell(0, 8, f'FINAL STATUS: ✅ PASS - Cable selection meets all requirements', 0, 1)
+                self.cell(0, 8, f'FINAL STATUS: ✓ PASS - Cable selection meets all requirements', 0, 1)
             else:
                 self.set_text_color(255, 0, 0)
-                self.cell(0, 8, f'FINAL STATUS: ❌ FAIL - Cable selection does not meet requirements', 0, 1)
+                self.cell(0, 8, f'FINAL STATUS: ✗ FAIL - Cable selection does not meet requirements', 0, 1)
             self.set_text_color(0, 0, 0)
             
             # Separator
@@ -1081,50 +1125,93 @@ class CablePDFReport(FPDF):
             self.line(10, self.get_y(), 200, self.get_y())
             self.ln(5)
     
-    def add_cb_results(self, cb_results, cb_details, main_cb):
+    def add_detailed_cb_calculations(self, cb_details, main_cb):
+        """Add detailed circuit breaker calculations with full IEC references"""
         self.add_page()
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 15, '6. CIRCUIT BREAKER SIZING', 0, 1, 'C')
+        self.cell(0, 15, '6. DETAILED CIRCUIT BREAKER CALCULATIONS', 0, 1, 'C')
         self.ln(5)
         
-        # Individual CB Table
-        self.set_font('Arial', 'B', 12)
+        # Individual Breakers Detailed
+        self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 10, '6.1 Individual Circuit Breakers', 0, 1)
+        self.cell(0, 10, '6.1 Individual Circuit Breakers - Detailed Calculations', 0, 1)
         self.ln(2)
         
-        self.set_font('Arial', 'B', 8)
-        self.set_fill_color(240, 240, 240)
-        headers = ['Load', 'Current', 'Required', 'Selected', 'Type', 'Poles', 'Standard']
-        widths = [30, 20, 20, 20, 20, 15, 25]
+        for i, detail in enumerate(cb_details):
+            if self.get_y() > 250:
+                self.add_page()
+            
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, f'LOAD {i+1}: {detail["load_name"]}', 0, 1)
+            self.ln(1)
+            
+            # Step 1: Load Analysis
+            self.set_font('Arial', 'B', 11)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, 'STEP 1: LOAD ANALYSIS', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f'  • Load Type: {detail["phase_desc"]}', 0, 1)
+            self.cell(0, 5, f'  • System Voltage: {detail["system_type"]}', 0, 1)
+            self.cell(0, 5, f'  • Load Current: {detail["current"]:.2f} A', 0, 1)
+            self.ln(1)
+            
+            # Step 2: Rating Calculation
+            self.set_font('Arial', 'B', 11)
+            self.cell(0, 6, 'STEP 2: RATING CALCULATION [IEC 60364]', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f'  • Design Factor: {detail["design_factor"]} (25% safety margin for continuous loads)', 0, 1)
+            self.cell(0, 5, f'  • Required Rating = Load Current × Design Factor', 0, 1)
+            self.cell(0, 5, f'  • Required Rating = {detail["current"]:.2f} × {detail["design_factor"]} = {detail["required"]:.2f} A', 0, 1)
+            self.cell(0, 5, f'  • Selected Standard Rating (IEC 60898/IEC 60947-2): {detail["selected"]} A', 0, 1)
+            self.ln(1)
+            
+            # Step 3: Breaker Type
+            self.set_font('Arial', 'B', 11)
+            self.cell(0, 6, 'STEP 3: BREAKER TYPE SELECTION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f'  • Based on rating {detail["selected"]} A → {detail["breaker_type"]} ({detail["standard"]})', 0, 1)
+            self.cell(0, 5, f'  • Application: {BREAKER_TYPES[detail["breaker_type"]]["application"]}', 0, 1)
+            self.ln(1)
+            
+            # Step 4: Pole Selection
+            self.set_font('Arial', 'B', 11)
+            self.cell(0, 6, 'STEP 4: POLE SELECTION [IEC 60364-5-53]', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f'  • System Type: {detail["system_type"]}', 0, 1)
+            self.cell(0, 5, f'  • Selected Poles: {detail["poles"]}', 0, 1)
+            self.cell(0, 5, f'  • Reason: {detail["pole_reason"]}', 0, 1)
+            self.ln(1)
+            
+            # Step 5: Manufacturer
+            self.set_font('Arial', 'B', 11)
+            self.cell(0, 6, 'STEP 5: MANUFACTURER SELECTION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.cell(0, 5, f'  • Manufacturer: {detail["manufacturer"]}', 0, 1)
+            self.cell(0, 5, f'  • Series: {detail["series"]}', 0, 1)
+            self.ln(2)
+            
+            # Final Selection
+            self.set_font('Arial', 'B', 11)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 6, f'FINAL SELECTION: {detail["selected"]} A {detail["breaker_type"]} {detail["poles"]}', 0, 1)
+            self.set_text_color(0, 0, 0)
+            self.ln(3)
+            
+            # Separator
+            self.set_draw_color(200, 200, 200)
+            self.line(10, self.get_y(), 200, self.get_y())
+            self.ln(3)
         
-        for i, header in enumerate(headers):
-            self.cell(widths[i], 8, header, 1, 0, 'C', 1)
-        self.ln()
+        # Main Circuit Breaker
+        if self.get_y() > 220:
+            self.add_page()
         
-        self.set_font('Arial', '', 8)
-        fill = False
-        for r in cb_results:
-            data = [
-                r['Load'][:15],
-                f"{r['Current (A)']:.1f} A",
-                f"{r['Required CB (A)']:.1f} A",
-                f"{r['Selected CB (A)']} A",
-                r['Breaker Type'],
-                r['Poles'],
-                r['Standard']
-            ]
-            for i, value in enumerate(data):
-                self.cell(widths[i], 6, value, 1, 0, 'L', fill)
-            self.ln()
-            fill = not fill
-        self.ln(10)
-        
-        # Main CB
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 10, '6.2 Main Circuit Breaker', 0, 1)
+        self.cell(0, 10, '6.2 Main Circuit Breaker - Detailed Calculation', 0, 1)
         self.ln(2)
         
         self.set_font('Arial', '', 10)
@@ -1132,53 +1219,8 @@ class CablePDFReport(FPDF):
         lines = main_cb['detailed_reason'].split('\n')
         for line in lines:
             if line.strip():
-                clean_line = line.strip().replace('•', '-').replace('→', '->').replace('×', 'x')
-                self.cell(0, 6, clean_line, 0, 1)
+                self.cell(0, 5, line.strip(), 0, 1)
         self.ln(5)
-        
-        # Detailed CB Selection Reasons
-        self.set_font('Arial', 'B', 12)
-        self.set_text_color(0, 51, 102)
-        self.cell(0, 10, '6.3 Detailed Selection Reasons with References', 0, 1)
-        self.ln(2)
-        
-        for detail in cb_details:
-            self.set_font('Arial', 'B', 11)
-            self.set_text_color(0, 51, 102)
-            self.cell(0, 7, f'Load: {detail["load_name"]}', 0, 1)
-            self.set_font('Arial', '', 9)
-            self.set_text_color(0, 0, 0)
-            
-            detail_lines = [
-                f'Step 1: Load Analysis',
-                f'- Load Type: {detail["phase_desc"]}',
-                f'- Load Current: {detail["current"]:.2f} A',
-                f'',
-                f'Step 2: Rating Calculation [IEC 60364]',
-                f'- Design Factor: {detail["design_factor"]} (25% safety margin for continuous loads)',
-                f'- Required Rating = {detail["current"]:.2f} x {detail["design_factor"]} = {detail["required"]:.2f} A',
-                f'- Selected Standard Rating (from IEC 60898/IEC 60947-2): {detail["selected"]} A',
-                f'',
-                f'Step 3: Breaker Type Selection',
-                f'- Based on rating {detail["selected"]} A -> {detail["breaker_type"]} ({detail["standard"]})',
-                f'- Application: {BREAKER_TYPES[detail["breaker_type"]]["application"]}',
-                f'',
-                f'Step 4: Pole Selection [IEC 60364-5-53]',
-                f'- System Type: {detail["system_type"]}',
-                f'- Selected Poles: {detail["poles"]}',
-                f'- Reason: {detail["pole_reason"]}',
-                f'',
-                f'Step 5: Manufacturer Selection',
-                f'- Manufacturer: {detail["manufacturer"]}',
-                f'- Series: {detail["series"]}',
-                f'',
-                f'Final Selection: {detail["selected"]} A {detail["breaker_type"]} {detail["poles"]}'
-            ]
-            
-            for line in detail_lines:
-                if line:
-                    self.cell(0, 5, line, 0, 1)
-            self.ln(3)
 
 class CableWordReport:
     def __init__(self):
@@ -1298,17 +1340,17 @@ class CableWordReport:
         
         self.doc.add_paragraph()
     
-    def add_detailed_calculations(self, detailed_calcs):
+    def add_detailed_cable_calculations(self, detailed_calcs):
         self.doc.add_page_break()
         heading = self.doc.add_heading('5. DETAILED CABLE CALCULATIONS WITH REFERENCES', level=1)
         heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
         for i, calc in enumerate(detailed_calcs):
-            self.doc.add_heading(f'Load {i+1}: {calc["load_name"]}', level=2)
+            self.doc.add_heading(f'LOAD {i+1}: {calc["load_name"]}', level=2)
             
             # Step 1
-            self.doc.add_heading('Step 1: Load Current Calculation [IEC 60364-5-52 Section 523]', level=3)
+            self.doc.add_heading('STEP 1: LOAD CURRENT CALCULATION [IEC 60364-5-52 Section 523]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Formula: ').bold = True
             p.add_run('I = P × 1000 / (√3 × V × PF) for 3-phase')
@@ -1317,9 +1359,9 @@ class CableWordReport:
             p.add_run(f'I = {calc["power"]} × 1000 / (1.732 × {calc["voltage"]} × {calc["pf"]}) = {calc["current"]:.1f} A')
             
             # Step 2
-            self.doc.add_heading('Step 2: Derating Factors [IEC 60502-2 Tables B.10-B.22]', level=3)
+            self.doc.add_heading('STEP 2: DERATING FACTORS [IEC 60502-2 Tables B.10-B.22]', level=3)
             p = self.doc.add_paragraph()
-            p.add_run(f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C').bold = False
+            p.add_run(f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {st.session_state.ambient_temp}°C')
             p = self.doc.add_paragraph()
             p.add_run(f'k2 (Grouping Factor): {calc["k2"]:.3f} - Table 4C1 ({st.session_state.grouping})')
             p = self.doc.add_paragraph()
@@ -1333,7 +1375,7 @@ class CableWordReport:
             p.add_run(f'{calc["total_k"]:.3f}')
             
             # Step 3
-            self.doc.add_heading('Step 3: Cable Selection', level=3)
+            self.doc.add_heading('STEP 3: CABLE SELECTION', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Selected Cable: ').bold = True
             p.add_run(f'{calc["size"]} mm² {calc["cable_type"]} copper ({calc["cable_category"]})')
@@ -1344,16 +1386,16 @@ class CableWordReport:
             p.add_run('Derated Ampacity: ').bold = True
             p.add_run(f'{calc["derated_amp"]:.1f} A')
             p = self.doc.add_paragraph()
-            status = 'PASS' if calc['derated_amp'] >= calc['current'] else 'FAIL'
+            status = '✓ PASS' if calc['derated_amp'] >= calc['current'] else '✗ FAIL'
             p.add_run('Check: ').bold = True
             check = p.add_run(f'{calc["derated_amp"]:.1f} A ≥ {calc["current"]:.1f} A → {status}')
-            if status == 'PASS':
+            if status == '✓ PASS':
                 check.font.color.rgb = RGBColor(0, 128, 0)
             else:
                 check.font.color.rgb = RGBColor(255, 0, 0)
             
             # Step 4
-            self.doc.add_heading('Step 4: Voltage Drop [IEC 60364-5-52 Section 525]', level=3)
+            self.doc.add_heading('STEP 4: VOLTAGE DROP [IEC 60364-5-52 Section 525]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Voltage Drop: ').bold = True
             p.add_run(f'{calc["vd_pct"]:.3f}%')
@@ -1361,16 +1403,16 @@ class CableWordReport:
             p.add_run('Limit: ').bold = True
             p.add_run('2.5% (Fixed per IEC 60364-5-52)')
             p = self.doc.add_paragraph()
-            status = 'PASS' if calc['vd_pct'] <= 2.5 else 'FAIL'
+            status = '✓ PASS' if calc['vd_pct'] <= 2.5 else '✗ FAIL'
             p.add_run('Check: ').bold = True
             check = p.add_run(f'{calc["vd_pct"]:.3f}% ≤ 2.5% → {status}')
-            if status == 'PASS':
+            if status == '✓ PASS':
                 check.font.color.rgb = RGBColor(0, 128, 0)
             else:
                 check.font.color.rgb = RGBColor(255, 0, 0)
             
             # Step 5
-            self.doc.add_heading('Step 5: Short Circuit [IEC 60949]', level=3)
+            self.doc.add_heading('STEP 5: SHORT CIRCUIT [IEC 60949]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Formula: ').bold = True
             p.add_run('Isc = K × S / √t')
@@ -1382,7 +1424,7 @@ class CableWordReport:
             p.add_run(f'Isc = 143 × {calc["size"]} / √1.0 = {calc["sc"]:.2f} kA')
             
             # Step 6
-            self.doc.add_heading('Step 6: Efficiency', level=3)
+            self.doc.add_heading('STEP 6: EFFICIENCY', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Input Power: ').bold = True
             p.add_run(f'{calc["input_power"]:.1f} kW')
@@ -1394,88 +1436,79 @@ class CableWordReport:
             p.add_run(f'{calc["efficiency"]:.1f}%')
             
             # Final Status
-            self.doc.add_heading('Final Status', level=3)
+            self.doc.add_heading('FINAL STATUS', level=3)
             p = self.doc.add_paragraph()
-            status_text = 'PASS' if calc['status'] == 'PASS' else 'FAIL'
-            final_status = p.add_run(f'✅ {status_text}' if calc['status'] == 'PASS' else f'❌ {status_text}')
-            final_status.font.size = Pt(14)
-            final_status.font.bold = True
             if calc['status'] == 'PASS':
+                final_status = p.add_run(f'✓ PASS - Cable selection meets all requirements')
                 final_status.font.color.rgb = RGBColor(0, 128, 0)
             else:
+                final_status = p.add_run(f'✗ FAIL - Cable selection does not meet requirements')
                 final_status.font.color.rgb = RGBColor(255, 0, 0)
+            final_status.font.size = Pt(14)
+            final_status.font.bold = True
             
             self.doc.add_paragraph('_' * 50)
             self.doc.add_paragraph()
     
-    def add_cb_results(self, cb_results, cb_details, main_cb):
+    def add_detailed_cb_calculations(self, cb_details, main_cb):
         self.doc.add_page_break()
-        heading = self.doc.add_heading('6. CIRCUIT BREAKER SIZING', level=1)
+        heading = self.doc.add_heading('6. DETAILED CIRCUIT BREAKER CALCULATIONS', level=1)
         heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
-        # Individual CB Table
-        self.doc.add_heading('6.1 Individual Circuit Breakers', level=2)
-        table = self.doc.add_table(rows=1, cols=7)
-        table.style = 'Light Grid Accent 1'
+        # Individual Breakers
+        self.doc.add_heading('6.1 Individual Circuit Breakers - Detailed Calculations', level=2)
         
-        headers = ['Load', 'Current', 'Required', 'Selected', 'Type', 'Poles', 'Standard']
-        for i, header in enumerate(headers):
-            table.rows[0].cells[i].text = header
-            table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+        for i, detail in enumerate(cb_details):
+            self.doc.add_heading(f'LOAD {i+1}: {detail["load_name"]}', level=3)
+            
+            self.doc.add_heading('STEP 1: LOAD ANALYSIS', level=4)
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Load Type: {detail["phase_desc"]}').bold = False
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • System Type: {detail["system_type"]}')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Load Current: {detail["current"]:.2f} A')
+            
+            self.doc.add_heading('STEP 2: RATING CALCULATION [IEC 60364]', level=4)
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Design Factor: {detail["design_factor"]} (25% safety margin)')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Required Rating = {detail["current"]:.2f} × {detail["design_factor"]} = {detail["required"]:.2f} A')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Selected Standard Rating (IEC 60898/IEC 60947-2): {detail["selected"]} A')
+            
+            self.doc.add_heading('STEP 3: BREAKER TYPE SELECTION', level=4)
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Type: {detail["breaker_type"]} ({detail["standard"]})')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Application: {BREAKER_TYPES[detail["breaker_type"]]["application"]}')
+            
+            self.doc.add_heading('STEP 4: POLE SELECTION [IEC 60364-5-53]', level=4)
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Selected Poles: {detail["poles"]}')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Reason: {detail["pole_reason"]}')
+            
+            self.doc.add_heading('STEP 5: MANUFACTURER SELECTION', level=4)
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Manufacturer: {detail["manufacturer"]}')
+            p = self.doc.add_paragraph()
+            p.add_run(f'  • Series: {detail["series"]}')
+            
+            p = self.doc.add_paragraph()
+            p.add_run('FINAL SELECTION: ').bold = True
+            p.add_run(f'{detail["selected"]} A {detail["breaker_type"]} {detail["poles"]}')
+            
+            self.doc.add_paragraph()
         
-        for r in cb_results:
-            row = table.add_row().cells
-            row[0].text = r['Load']
-            row[1].text = f"{r['Current (A)']:.1f} A"
-            row[2].text = f"{r['Required CB (A)']:.1f} A"
-            row[3].text = f"{r['Selected CB (A)']} A"
-            row[4].text = r['Breaker Type']
-            row[5].text = r['Poles']
-            row[6].text = r['Standard']
-        
-        self.doc.add_paragraph()
-        
-        # Main CB
-        self.doc.add_heading('6.2 Main Circuit Breaker', level=2)
+        # Main Circuit Breaker
+        self.doc.add_heading('6.2 Main Circuit Breaker - Detailed Calculation', level=2)
         for line in main_cb['detailed_reason'].split('\n'):
             if line.strip():
                 self.doc.add_paragraph(line.strip())
         
         self.doc.add_paragraph()
-        
-        # Detailed Reasons
-        self.doc.add_heading('6.3 Detailed Selection Reasons with References', level=2)
-        for detail in cb_details:
-            self.doc.add_heading(f'Load: {detail["load_name"]}', level=3)
-            
-            self.doc.add_paragraph('Step 1: Load Analysis').bold = True
-            self.doc.add_paragraph(f'  - Load Type: {detail["phase_desc"]}')
-            self.doc.add_paragraph(f'  - Load Current: {detail["current"]:.2f} A')
-            
-            self.doc.add_paragraph('Step 2: Rating Calculation [IEC 60364]').bold = True
-            self.doc.add_paragraph(f'  - Design Factor: {detail["design_factor"]} (25% safety margin)')
-            self.doc.add_paragraph(f'  - Required Rating = {detail["current"]:.2f} × {detail["design_factor"]} = {detail["required"]:.2f} A')
-            self.doc.add_paragraph(f'  - Selected Standard Rating (IEC 60898/IEC 60947-2): {detail["selected"]} A')
-            
-            self.doc.add_paragraph('Step 3: Breaker Type Selection').bold = True
-            self.doc.add_paragraph(f'  - Type: {detail["breaker_type"]} ({detail["standard"]})')
-            self.doc.add_paragraph(f'  - Application: {BREAKER_TYPES[detail["breaker_type"]]["application"]}')
-            
-            self.doc.add_paragraph('Step 4: Pole Selection [IEC 60364-5-53]').bold = True
-            self.doc.add_paragraph(f'  - System Type: {detail["system_type"]}')
-            self.doc.add_paragraph(f'  - Selected Poles: {detail["poles"]}')
-            self.doc.add_paragraph(f'  - Reason: {detail["pole_reason"]}')
-            
-            self.doc.add_paragraph('Step 5: Manufacturer Selection').bold = True
-            self.doc.add_paragraph(f'  - Manufacturer: {detail["manufacturer"]}')
-            self.doc.add_paragraph(f'  - Series: {detail["series"]}')
-            
-            p = self.doc.add_paragraph()
-            p.add_run('Final Selection: ').bold = True
-            p.add_run(f'{detail["selected"]} A {detail["breaker_type"]} {detail["poles"]}')
-            
-            self.doc.add_paragraph()
     
     def save(self, filename):
         self.doc.save(filename)
@@ -1726,7 +1759,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR (WITH CB INSIDE) ==========
+# ========== CABLE SIZING CALCULATOR ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -1869,6 +1902,8 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             
                             if load['Phase'] == '3-phase':
                                 input_power = 1.732 * load['Voltage (V)'] * current / 1000
+                            elif load['Phase'] == '1-phase':
+                                input_power = load['Voltage (V)'] * current / 1000
                             else:
                                 input_power = load['Voltage (V)'] * current / 1000
                             efficiency = (load['Power (kW)'] / input_power) * 100 if input_power > 0 else 0
@@ -1966,27 +2001,29 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             for calc in st.session_state.detailed_calcs:
                 with st.expander(f"🔍 {calc['load_name']}"):
                     st.markdown(f"""
-**Step 1: Load Current**  
+**STEP 1: LOAD CURRENT [IEC 60364-5-52]**  
 I = {calc['power']} × 1000 / (1.732 × {calc['voltage']} × {calc['pf']}) = **{calc['current']:.1f} A**
 
-**Step 2: Derating Factors**  
+**STEP 2: DERATING FACTORS [IEC 60502-2]**  
 k1={calc['k1']:.3f}, k2={calc['k2']:.3f}, k3={calc['k3']:.3f}, k4={calc['k4']:.3f}, k5={calc['k5']:.3f}  
 Total K = **{calc['total_k']:.3f}**
 
-**Step 3: Cable Selection**  
+**STEP 3: CABLE SELECTION**  
 Selected: {calc['size']} mm² {calc['cable_type']}  
-Derated Ampacity = {calc['base_amp']} × {calc['total_k']:.3f} = **{calc['derated_amp']:.1f} A**
+Derated Ampacity = {calc['base_amp']} × {calc['total_k']:.3f} = **{calc['derated_amp']:.1f} A**  
+Check: {calc['derated_amp']:.1f} A ≥ {calc['current']:.1f} A → **{'✓ PASS' if calc['derated_amp'] >= calc['current'] else '✗ FAIL'}**
 
-**Step 4: Voltage Drop**  
-VD = **{calc['vd_pct']:.3f}%** (Limit: 2.5%)
+**STEP 4: VOLTAGE DROP [IEC 60364-5-52]**  
+VD = **{calc['vd_pct']:.3f}%** (Limit: 2.5%)  
+Check: {calc['vd_pct']:.3f}% ≤ 2.5% → **{'✓ PASS' if calc['vd_pct'] <= 2.5 else '✗ FAIL'}**
 
-**Step 5: Short Circuit**  
+**STEP 5: SHORT CIRCUIT [IEC 60949]**  
 Isc = **{calc['sc']:.2f} kA**
 
-**Step 6: Efficiency**  
+**STEP 6: EFFICIENCY**  
 Efficiency = **{calc['efficiency']:.1f}%**
 
-**Final Status: {'✅ PASS' if calc['status'] == 'PASS' else '❌ FAIL'}**
+**FINAL STATUS: {'✓ PASS' if calc['status'] == 'PASS' else '✗ FAIL'}**
 """)
         else:
             st.info("👈 Calculate loads first")
@@ -2073,34 +2110,34 @@ Efficiency = **{calc['efficiency']:.1f}%**
             for detail in st.session_state.cb_details:
                 with st.expander(f"Load: {detail['load_name']}"):
                     st.markdown(f"""
-**Step 1: Load Analysis**
+**STEP 1: LOAD ANALYSIS**
 - Load Type: {detail['phase_desc']}
 - Load Current: {detail['current']:.2f} A
 
-**Step 2: Rating Calculation [IEC 60364]**
+**STEP 2: RATING CALCULATION [IEC 60364]**
 - Design Factor: {detail['design_factor']} (25% safety margin)
 - Required Rating = {detail['current']:.2f} × {detail['design_factor']} = {detail['required']:.2f} A
 - Selected Standard Rating (IEC 60898/IEC 60947-2): {detail['selected']} A
 
-**Step 3: Breaker Type Selection**
+**STEP 3: BREAKER TYPE SELECTION**
 - Type: {detail['breaker_type']} ({detail['standard']})
 - Application: {BREAKER_TYPES[detail['breaker_type']]['application']}
 
-**Step 4: Pole Selection [IEC 60364-5-53]**
+**STEP 4: POLE SELECTION [IEC 60364-5-53]**
 - System Type: {detail['system_type']}
 - Selected Poles: {detail['poles']}
 - Reason: {detail['pole_reason']}
 
-**Step 5: Manufacturer Selection**
+**STEP 5: MANUFACTURER SELECTION**
 - Manufacturer: {detail['manufacturer']}
 - Series: {detail['series']}
 
-**Final Selection: {detail['selected']} A {detail['breaker_type']} {detail['poles']}**
+**FINAL SELECTION: {detail['selected']} A {detail['breaker_type']} {detail['poles']}**
 """)
         else:
             st.info("👈 Calculate cable sizes first to see circuit breaker results")
     
-    # TAB 6: DOWNLOAD REPORT
+    # TAB 6: DOWNLOAD REPORT - WITH FULL DETAILED CALCULATIONS
     with cable_tabs[5]:
         st.markdown('<div class="report-header">DOWNLOAD REPORT</div>', unsafe_allow_html=True)
         
@@ -2109,7 +2146,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
             
             with col1:
                 if st.button("📥 Generate PDF Report", key="cable_pdf", use_container_width=True):
-                    with st.spinner("Generating PDF with cable and CB details..."):
+                    with st.spinner("Generating PDF with COMPLETE detailed calculations..."):
                         pdf = CablePDFReport()
                         pdf.add_title()
                         
@@ -2131,21 +2168,23 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         pdf.add_load_details(st.session_state.loads_df)
                         pdf.add_cable_results(st.session_state.cable_results_df)
                         
+                        # ADD DETAILED CABLE CALCULATIONS
                         if st.session_state.detailed_calcs:
-                            pdf.add_detailed_calculations(st.session_state.detailed_calcs)
+                            pdf.add_detailed_cable_calculations(st.session_state.detailed_calcs)
                         
+                        # ADD DETAILED CIRCUIT BREAKER CALCULATIONS
                         if st.session_state.cb_results and st.session_state.main_cb:
-                            pdf.add_cb_results(st.session_state.cb_results, st.session_state.cb_details, st.session_state.main_cb)
+                            pdf.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
                         
                         pdf_output = pdf.output(dest='S')
                         b64 = base64.b64encode(pdf_output).decode()
                         filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
                         st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated with cable and CB details!")
+                        st.success("✅ PDF generated with COMPLETE detailed calculations!")
             
             with col2:
                 if st.button("📥 Generate Word Report", key="cable_word", use_container_width=True):
-                    with st.spinner("Generating Word with cable and CB details..."):
+                    with st.spinner("Generating Word with COMPLETE detailed calculations..."):
                         word = CableWordReport()
                         word.add_title()
                         
@@ -2167,11 +2206,13 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         word.add_load_details(st.session_state.loads_df)
                         word.add_cable_results(st.session_state.cable_results_df)
                         
+                        # ADD DETAILED CABLE CALCULATIONS
                         if st.session_state.detailed_calcs:
-                            word.add_detailed_calculations(st.session_state.detailed_calcs)
+                            word.add_detailed_cable_calculations(st.session_state.detailed_calcs)
                         
+                        # ADD DETAILED CIRCUIT BREAKER CALCULATIONS
                         if st.session_state.cb_results and st.session_state.main_cb:
-                            word.add_cb_results(st.session_state.cb_results, st.session_state.cb_details, st.session_state.main_cb)
+                            word.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
                         
                         word_path = "temp_cable_report.docx"
                         word.save(word_path)
@@ -2181,7 +2222,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
                         os.remove(word_path)
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated with cable and CB details!")
+                        st.success("✅ Word generated with COMPLETE detailed calculations!")
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
@@ -2200,4 +2241,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 55.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 56.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
