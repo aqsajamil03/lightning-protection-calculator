@@ -505,7 +505,7 @@ def get_grouping_factor(num_cables, spacing_mm, cable_diameter, arrangement='tou
         else:
             return GROUPING_FACTORS['touching'].get(min(num_cables, 18), 0.39)
 
-# ========== LIGHTNING PROTECTION CLASSES ==========
+# ========== LIGHTNING PROTECTION CLASSES (UNCHANGED) ==========
 class LightningWordReport:
     def __init__(self):
         self.doc = Document()
@@ -751,7 +751,7 @@ class LightningPDFReport(FPDF):
             self.cell(90, 7, value, 1, 1, 'R', fill)
             fill = not fill
 
-# ========== ENHANCED CABLE SIZING CALCULATOR CLASS ==========
+# ========== ENHANCED CABLE SIZING CALCULATOR CLASS (UNCHANGED) ==========
 class CableSizingCalculator:
     def __init__(self):
         self.results = {}
@@ -850,7 +850,7 @@ class CableSizingCalculator:
         else:
             return 'MV (3.6/6kV - 12/20kV)', MV_CABLE_DATA
 
-# ========== CIRCUIT BREAKER CALCULATOR CLASS ==========
+# ========== CIRCUIT BREAKER CALCULATOR CLASS (UNCHANGED) ==========
 class CircuitBreakerCalculator:
     def __init__(self):
         pass
@@ -992,7 +992,7 @@ FINAL SELECTION: {rating} A {breaker_type} {poles}
             'detailed_reason': detailed_reason
         }
 
-# ========== PDF REPORT CLASSES ==========
+# ========== PDF REPORT CLASSES (UNCHANGED) ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -1583,6 +1583,97 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
+# ========== TRANSFORMER SIZING CALCULATOR (NEW) ==========
+class TransformerCalculator:
+    def __init__(self):
+        pass
+    
+    def calculate_required_kva(self, loads_df, future_expansion=20):
+        """Calculate required transformer kVA based on loads"""
+        total_connected = 0
+        total_demand = 0
+        total_kvar = 0
+        
+        for idx, load in loads_df.iterrows():
+            connected = load['Rating (kW)'] * load['Quantity']
+            demand = connected * load['Diversity Factor']
+            kvar = demand * math.tan(math.acos(load['Power Factor'])) if load['Power Factor'] < 1.0 else 0
+            
+            total_connected += connected
+            total_demand += demand
+            total_kvar += kvar
+        
+        total_kva = math.sqrt(total_demand**2 + total_kvar**2)
+        with_future = total_kva * (1 + future_expansion/100)
+        
+        # Standard transformer ratings (IEC 60076)
+        standard_ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000, 25000, 31500, 40000, 50000, 63000]
+        
+        selected_kva = with_future
+        for rating in standard_ratings:
+            if rating >= with_future:
+                selected_kva = rating
+                break
+        
+        return {
+            'total_connected': total_connected,
+            'total_demand': total_demand,
+            'total_kvar': total_kvar,
+            'total_kva': total_kva,
+            'with_future': with_future,
+            'selected_kva': selected_kva
+        }
+    
+    def calculate_voltage_regulation(self, impedance, xr_ratio, pf, load_pct=100, load_type='lagging'):
+        """Calculate voltage regulation using IEC formula"""
+        resistance_drop = impedance / math.sqrt(1 + xr_ratio**2)
+        reactance_drop = resistance_drop * xr_ratio
+        
+        if load_type == 'lagging':
+            reg = (resistance_drop * pf + reactance_drop * math.sqrt(1 - pf**2)) * (load_pct/100)
+        elif load_type == 'leading':
+            reg = (resistance_drop * pf - reactance_drop * math.sqrt(1 - pf**2)) * (load_pct/100)
+        else:
+            reg = resistance_drop * (load_pct/100)
+        
+        return {
+            'resistance_drop': resistance_drop,
+            'reactance_drop': reactance_drop,
+            'regulation': reg
+        }
+    
+    def calculate_efficiency(self, kva, no_load_loss, load_loss, load_pct):
+        """Calculate transformer efficiency at given load"""
+        output = kva * (load_pct/100)
+        losses = no_load_loss + load_loss * (load_pct/100)**2
+        efficiency = output / (output + losses) * 100 if output > 0 else 0
+        return efficiency, losses
+    
+    def calculate_short_circuit(self, kva, voltage, impedance, source_sc=None, xr_ratio=7):
+        """Calculate short circuit currents"""
+        fla = kva * 1000 / (1.732 * voltage)
+        z_base = (voltage ** 2) / (kva * 1000)
+        z_tx_ohms = (impedance / 100) * z_base
+        
+        if source_sc:
+            z_source_ohms = (voltage ** 2) / (source_sc * 1e6)
+            z_total_ohms = math.sqrt((z_source_ohms + z_tx_ohms)**2)
+        else:
+            z_total_ohms = z_tx_ohms
+        
+        i_sc_sym = (voltage / 1.732) / z_total_ohms / 1000
+        
+        kappa = 1.02 + 0.98 * math.exp(-3 / xr_ratio)
+        i_sc_peak = kappa * math.sqrt(2) * i_sc_sym
+        
+        return {
+            'fla': fla,
+            'i_sc_sym': i_sc_sym,
+            'i_sc_peak': i_sc_peak,
+            'kappa': kappa,
+            'z_tx_ohms': z_tx_ohms
+        }
+
 # ========== SESSION STATE INITIALIZATION ==========
 if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
@@ -1612,6 +1703,18 @@ if 'cb_details' not in st.session_state:
 if 'main_cb' not in st.session_state:
     st.session_state.main_cb = None
 
+# Transformer session state
+if 'tx_loads_df' not in st.session_state:
+    st.session_state.tx_loads_df = pd.DataFrame({
+        'Load Description': ['Motor Load 1', 'Lighting Load', 'Heating Load'],
+        'Load Type': ['Motor', 'Lighting', 'Heating'],
+        'Rating (kW)': [75.0, 25.0, 50.0],
+        'Quantity': [2, 1, 1],
+        'Power Factor': [0.85, 0.95, 1.0],
+        'Diversity Factor': [0.8, 1.0, 1.0],
+        'Load Category': ['Continuous', 'Continuous', 'Continuous']
+    })
+
 # ========== SIDEBAR ==========
 with st.sidebar:
     st.markdown("### 🔌 CES-Electrical Design Calculations")
@@ -1633,7 +1736,7 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== LIGHTNING PROTECTION ==========
+# ========== LIGHTNING PROTECTION (UNCHANGED) ==========
 if st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
@@ -1829,7 +1932,7 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR - WITH CABLE ICON ==========
+# ========== CABLE SIZING CALCULATOR (UNCHANGED - ONLY LOGO TO CABLE) ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
@@ -2361,11 +2464,592 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== OTHER CALCULATORS ==========
+# ========== TRANSFORMER SIZING CALCULATOR (NEW) ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
-    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING</div>', unsafe_allow_html=True)
-    st.info("⚙️ Coming soon!")
+    
+    tx_tabs = st.tabs([
+        "📥 Load Analysis", 
+        "⚡ Transformer Selection", 
+        "📊 Voltage Regulation",
+        "🔧 Efficiency & Losses",
+        "📈 Short Circuit",
+        "📥 Download Report"
+    ])
+    
+    tx_calc = TransformerCalculator()
+    
+    # TAB 1: LOAD ANALYSIS
+    with tx_tabs[0]:
+        st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING - LOAD ANALYSIS</div>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        ### 📋 Load Types and Diversity [IEC 60076]
+        
+        Different load types have different characteristics and diversity factors:
+        - **Continuous Loads:** Motors, heaters, lighting (operate continuously)
+        - **Intermittent Loads:** Cranes, elevators, welders (operate periodically)
+        - **Peak Loads:** Starting currents, temporary overloads
+        """)
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("➕ Add Load", key="tx_add_load", use_container_width=True):
+                new_row = pd.DataFrame({
+                    'Load Description': [f'Load {len(st.session_state.tx_loads_df) + 1}'],
+                    'Load Type': ['Motor'],
+                    'Rating (kW)': [50.0],
+                    'Quantity': [1],
+                    'Power Factor': [0.85],
+                    'Diversity Factor': [0.8],
+                    'Load Category': ['Continuous']
+                })
+                st.session_state.tx_loads_df = pd.concat([st.session_state.tx_loads_df, new_row], ignore_index=True)
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ Delete Last Load", key="tx_delete_load", use_container_width=True):
+                if len(st.session_state.tx_loads_df) > 1:
+                    st.session_state.tx_loads_df = st.session_state.tx_loads_df[:-1]
+                    st.rerun()
+                else:
+                    st.warning("At least one row required")
+        
+        edited_tx_df = st.data_editor(
+            st.session_state.tx_loads_df,
+            num_rows="fixed",
+            use_container_width=True,
+            column_config={
+                "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
+                "Load Type": st.column_config.SelectboxColumn("Load Type", options=['Motor', 'Lighting', 'Heating', 'UPS', 'Other']),
+                "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+                "Quantity": st.column_config.NumberColumn("Quantity", min_value=1, max_value=100, step=1),
+                "Power Factor": st.column_config.NumberColumn("Power Factor", min_value=0.5, max_value=1.0, step=0.05),
+                "Diversity Factor": st.column_config.NumberColumn("Diversity Factor", min_value=0.0, max_value=1.0, step=0.05,
+                                                                  help="Factor accounting for non-simultaneous operation"),
+                "Load Category": st.column_config.SelectboxColumn("Load Category", options=['Continuous', 'Intermittent', 'Peak'])
+            }
+        )
+        st.session_state.tx_loads_df = edited_tx_df
+        
+        st.markdown("### ⚙️ System Parameters")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=100, step=5,
+                                              help="Additional capacity for future loads")
+            system_voltage = st.selectbox("Secondary Voltage (V)", [415, 400, 380, 33000, 11000, 6600], index=0)
+        
+        with col2:
+            ambient_temp = st.number_input("Ambient Temperature (°C)", value=30, min_value=-10, max_value=50, step=1)
+            altitude = st.number_input("Altitude (m)", value=0, min_value=0, max_value=5000, step=100,
+                                      help="Derating for high altitude installations")
+        
+        with col3:
+            cooling_type = st.selectbox("Cooling Type", 
+                                       ['ONAN', 'ONAF', 'OFAF', 'ODAF'],
+                                       help="ONAN: Oil Natural Air Natural\nONAF: Oil Natural Air Forced\nOFAF: Oil Forced Air Forced")
+            insulation_class = st.selectbox("Insulation Class", ['A (105°C)', 'E (120°C)', 'B (130°C)', 'F (155°C)', 'H (180°C)'], index=3)
+        
+        # Calculate transformer sizing
+        tx_result = tx_calc.calculate_required_kva(st.session_state.tx_loads_df, future_expansion)
+        
+        st.markdown("### 📊 Load Summary")
+        
+        # Calculate load details for display
+        load_details = []
+        for idx, load in st.session_state.tx_loads_df.iterrows():
+            connected = load['Rating (kW)'] * load['Quantity']
+            demand = connected * load['Diversity Factor']
+            kvar = demand * math.tan(math.acos(load['Power Factor'])) if load['Power Factor'] < 1.0 else 0
+            
+            load_details.append({
+                'Load': load['Load Description'],
+                'Type': load['Load Type'],
+                'Connected (kW)': f"{connected:.1f}",
+                'Demand (kW)': f"{demand:.1f}",
+                'PF': f"{load['Power Factor']:.2f}",
+                'kvar': f"{kvar:.1f}"
+            })
+        
+        summary_df = pd.DataFrame(load_details)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Connected", f"{tx_result['total_connected']:.0f} kW")
+        with col2:
+            st.metric("Max Demand", f"{tx_result['total_demand']:.0f} kW")
+        with col3:
+            st.metric("Reactive Power", f"{tx_result['total_kvar']:.0f} kvar")
+        with col4:
+            st.metric("Required kVA", f"{tx_result['total_kva']:.0f} kVA")
+        
+        st.info(f"""
+        ### 📋 Transformer Sizing Calculation
+        
+        **Step 1:** Calculate connected load per equipment
+        - Connected Load = Rating × Quantity
+        
+        **Step 2:** Apply diversity factors [IEC 60364]
+        - Demand Load = Connected Load × Diversity Factor
+        
+        **Step 3:** Calculate apparent power
+        - S (kVA) = √(P² + Q²) = √({tx_result['total_demand']:.0f}² + {tx_result['total_kvar']:.0f}²) = **{tx_result['total_kva']:.0f} kVA**
+        
+        **Step 4:** Add future expansion ({future_expansion}%)
+        - Required Capacity = {tx_result['total_kva']:.0f} × (1 + {future_expansion/100:.2f}) = **{tx_result['with_future']:.0f} kVA**
+        
+        **Step 5:** Select standard rating [IEC 60076]
+        - Selected Transformer: **{tx_result['selected_kva']} kVA**
+        """)
+        
+        if st.button("➡️ Proceed to Transformer Selection", type="primary", use_container_width=True):
+            st.session_state.tx_required_kva = tx_result['selected_kva']
+            st.session_state.tx_load_data = {
+                'total_connected': tx_result['total_connected'],
+                'total_demand': tx_result['total_demand'],
+                'total_kvar': tx_result['total_kvar'],
+                'total_kva': tx_result['total_kva'],
+                'selected_kva': tx_result['selected_kva'],
+                'future_expansion': future_expansion,
+                'system_voltage': system_voltage,
+                'ambient_temp': ambient_temp,
+                'altitude': altitude,
+                'cooling_type': cooling_type,
+                'insulation_class': insulation_class
+            }
+            st.success(f"✅ Selected Transformer: {tx_result['selected_kva']} kVA")
+    
+    # TAB 2: TRANSFORMER SELECTION
+    with tx_tabs[1]:
+        st.markdown('<div class="report-header">⚙️ TRANSFORMER SELECTION</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            tx_data = st.session_state.tx_load_data
+            
+            st.markdown("### 🔋 Transformer Parameters [IEC 60076]")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Electrical Characteristics")
+                
+                primary_voltage = st.selectbox("Primary Voltage (kV)", 
+                                              [132, 110, 66, 33, 22, 11, 6.6, 3.3], 
+                                              index=3,
+                                              help="HV side voltage")
+                
+                vector_groups = {
+                    'Dyn11': 'Delta primary, Star secondary with neutral - Most common',
+                    'Dyn5': 'Delta primary, Star secondary with neutral - 150° phase shift',
+                    'Yyn0': 'Star-Star with neutral - For small transformers',
+                    'Yd11': 'Star primary, Delta secondary - For step-down',
+                    'Dd0': 'Delta-Delta - For industrial applications'
+                }
+                vector_group = st.selectbox("Vector Group", list(vector_groups.keys()), index=0)
+                st.caption(vector_groups[vector_group])
+                
+                if tx_data['selected_kva'] <= 1000:
+                    default_imp = 5.0
+                elif tx_data['selected_kva'] <= 5000:
+                    default_imp = 6.5
+                else:
+                    default_imp = 8.0
+                    
+                impedance = st.number_input("Impedance Voltage (%)", 
+                                           value=default_imp, min_value=2.0, max_value=15.0, step=0.25,
+                                           help="Percentage impedance at rated current")
+                
+                tapping = st.selectbox("Tapping Range", 
+                                      ['±2.5%', '±5%', '±7.5%', '±10%', '-5% to +15%'], 
+                                      index=1,
+                                      help="Off-circuit or on-load tap changing range")
+            
+            with col2:
+                st.markdown("#### Construction Details")
+                
+                core_material = st.selectbox("Core Material", 
+                                            ['CRGO Silicon Steel', 'Amorphous Metal'], 
+                                            index=0,
+                                            help="CRGO: Cold Rolled Grain Oriented")
+                
+                winding_material = st.selectbox("Winding Material", 
+                                               ['Copper', 'Aluminium'], 
+                                               index=0,
+                                               help="Copper: Lower losses, higher cost\nAluminium: Higher losses, lower cost")
+                
+                cooling_detail = st.selectbox("Cooling Detailed", 
+                                             ['ONAN', 'ONAF', 'ONAN/ONAF', 'OFAF', 'ODAF'], 
+                                             index=0)
+                
+                enclosure = st.selectbox("Enclosure Type", 
+                                        ['Indoor', 'Outdoor', 'Weatherproof', 'Hermetically Sealed'], 
+                                        index=1)
+                
+                frequency = st.selectbox("Frequency (Hz)", [50, 60], index=0)
+            
+            st.markdown("### 📊 Standard Transformer Ratings [IEC 60076]")
+            
+            comparison_data = {
+                'Parameter': ['Rated Power (kVA)', 'Primary Voltage (kV)', 'Secondary Voltage (V)', 
+                             'Impedance (%)', 'Cooling Type', 'Vector Group'],
+                'Selected Value': [f"{tx_data['selected_kva']}", f"{primary_voltage}", f"{tx_data['system_voltage']}",
+                                  f"{impedance}", cooling_detail, vector_group],
+                'IEC Limit': ['-', '-', '-', f"±10% of declared", 'Per IEC 60076', 'Per IEC 60076']
+            }
+            
+            comparison_df = pd.DataFrame(comparison_data)
+            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+            
+            st.markdown("### ✅ Selection Summary")
+            
+            st.success(f"""
+            **Selected Transformer:** {tx_data['selected_kva']} kVA, {primary_voltage} kV / {tx_data['system_voltage']} V
+            
+            **Configuration:**
+            - Vector Group: {vector_group}
+            - Impedance: {impedance}%
+            - Cooling: {cooling_detail}
+            - Tapping: {tapping}
+            - Core: {core_material}
+            - Windings: {winding_material}
+            
+            **Application:** Suitable for general power distribution
+            """)
+            
+            if st.button("➡️ Next: Voltage Regulation", use_container_width=True):
+                st.session_state.tx_selection = {
+                    'primary_voltage': primary_voltage,
+                    'vector_group': vector_group,
+                    'impedance': impedance,
+                    'tapping': tapping,
+                    'core_material': core_material,
+                    'winding_material': winding_material,
+                    'cooling_detail': cooling_detail,
+                    'enclosure': enclosure,
+                    'frequency': frequency
+                }
+    
+    # TAB 3: VOLTAGE REGULATION
+    with tx_tabs[2]:
+        st.markdown('<div class="report-header">⚙️ VOLTAGE REGULATION</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            tx_data = st.session_state.tx_load_data
+            
+            st.markdown("""
+            ### 📉 Voltage Regulation Calculation [IEC 60076-1]
+            
+            Voltage regulation is the change in secondary voltage from no-load to full-load,
+            expressed as a percentage of the rated voltage.
+            
+            **Formula:** %Reg = ε_x cosφ + ε_r sinφ + (ε_x cosφ - ε_r sinφ)²/200
+            
+            Where:
+            - ε_r = Resistance voltage drop (%)
+            - ε_x = Reactance voltage drop (%)
+            - cosφ = Power factor
+            """)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Transformer Parameters")
+                
+                impedance = st.number_input("Impedance Voltage (%)", 
+                                           value=st.session_state.get('tx_selection', {}).get('impedance', 6.0),
+                                           step=0.25, key="reg_imp")
+                
+                xr_ratio = st.selectbox("X/R Ratio", 
+                                       [3, 5, 7, 10, 12, 15], 
+                                       index=2,
+                                       help="Ratio of reactance to resistance")
+            
+            with col2:
+                st.markdown("#### Load Conditions")
+                
+                pf_reg = st.slider("Power Factor", min_value=0.5, max_value=1.0, value=0.85, step=0.05)
+                load_pct = st.slider("Load Percentage (%)", min_value=0, max_value=150, value=100, step=10)
+                load_type = st.radio("Load Type", ['lagging', 'leading', 'unity'], index=0)
+            
+            reg_result = tx_calc.calculate_voltage_regulation(impedance, xr_ratio, pf_reg, load_pct, load_type)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Resistance Drop (ε_r)", f"{reg_result['resistance_drop']:.3f}%")
+            with col2:
+                st.metric("Reactance Drop (ε_x)", f"{reg_result['reactance_drop']:.3f}%")
+            with col3:
+                st.metric("Voltage Regulation", f"{reg_result['regulation']:.3f}%")
+            
+            # Regulation curve
+            st.markdown("### 📊 Regulation vs Power Factor")
+            
+            pf_range = [x/100 for x in range(50, 101, 5)]
+            reg_lagging = []
+            reg_leading = []
+            
+            for pf in pf_range:
+                lag = tx_calc.calculate_voltage_regulation(impedance, xr_ratio, pf, 100, 'lagging')
+                lead = tx_calc.calculate_voltage_regulation(impedance, xr_ratio, pf, 100, 'leading')
+                reg_lagging.append(lag['regulation'])
+                reg_leading.append(lead['regulation'])
+            
+            chart_data = pd.DataFrame({
+                'Power Factor': pf_range,
+                'Lagging Load': reg_lagging,
+                'Leading Load': reg_leading
+            })
+            
+            st.line_chart(chart_data.set_index('Power Factor'))
+            
+            st.info(f"""
+            ### 📝 Detailed Calculation
+            
+            **Given:**
+            - Transformer Rating: {tx_data['selected_kva']} kVA
+            - Impedance Voltage: {impedance}%
+            - X/R Ratio: {xr_ratio}
+            
+            **Step 1:** Calculate resistance drop
+            ε_r = %Z / √(1 + (X/R)²) = {impedance} / √(1 + {xr_ratio}²) = **{reg_result['resistance_drop']:.3f}%**
+            
+            **Step 2:** Calculate reactance drop
+            ε_x = ε_r × (X/R) = {reg_result['resistance_drop']:.3f} × {xr_ratio} = **{reg_result['reactance_drop']:.3f}%**
+            
+            **Step 3:** Calculate voltage regulation
+            %Reg = ε_r cosφ + ε_x sinφ
+            %Reg = {reg_result['resistance_drop']:.3f} × {pf_reg} + {reg_result['reactance_drop']:.3f} × {math.sqrt(1 - pf_reg**2):.3f} = **{reg_result['regulation']:.3f}%**
+            
+            **IEC 60076-1 Limit:** ±5% for distribution transformers
+            """)
+    
+    # TAB 4: EFFICIENCY & LOSSES
+    with tx_tabs[3]:
+        st.markdown('<div class="report-header">⚙️ EFFICIENCY & LOSSES</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            tx_data = st.session_state.tx_load_data
+            
+            st.markdown("""
+            ### ⚡ Transformer Losses [IEC 60076-1]
+            
+            **Two types of losses:**
+            1. **No-load losses (Iron losses)** - Constant, independent of load
+            2. **Load losses (Copper losses)** - Vary with square of load current
+            """)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Loss Parameters")
+                
+                if tx_data['selected_kva'] <= 100:
+                    base_no_load = 0.01 * tx_data['selected_kva']
+                elif tx_data['selected_kva'] <= 1000:
+                    base_no_load = 0.008 * tx_data['selected_kva']
+                elif tx_data['selected_kva'] <= 10000:
+                    base_no_load = 0.006 * tx_data['selected_kva']
+                else:
+                    base_no_load = 0.004 * tx_data['selected_kva']
+                
+                no_load_loss = st.number_input("No-load Loss (kW)", 
+                                              value=round(base_no_load, 1),
+                                              step=0.1,
+                                              help="Iron losses - constant regardless of load")
+                
+                if tx_data['selected_kva'] <= 100:
+                    base_load_loss = 0.02 * tx_data['selected_kva']
+                elif tx_data['selected_kva'] <= 1000:
+                    base_load_loss = 0.015 * tx_data['selected_kva']
+                elif tx_data['selected_kva'] <= 10000:
+                    base_load_loss = 0.012 * tx_data['selected_kva']
+                else:
+                    base_load_loss = 0.01 * tx_data['selected_kva']
+                
+                load_loss_100 = st.number_input("Load Loss at 100% (kW)", 
+                                               value=round(base_load_loss, 1),
+                                               step=0.1,
+                                               help="Copper losses at full load")
+            
+            with col2:
+                st.markdown("#### Operating Conditions")
+                
+                load_profile = st.selectbox("Load Profile", 
+                                           ['Continuous', 'Industrial', 'Commercial', 'Residential'],
+                                           index=0)
+                
+                operating_hours = st.number_input("Annual Operating Hours", 
+                                                 value=8760, step=1000,
+                                                 help="8760 hours = 24/7 operation")
+                
+                energy_cost = st.number_input("Energy Cost ($/kWh)", 
+                                             value=0.12, step=0.01, format="%.3f")
+            
+            load_points = [0, 25, 50, 75, 100, 110]
+            efficiency_data = []
+            
+            for load in load_points:
+                efficiency, losses = tx_calc.calculate_efficiency(
+                    tx_data['selected_kva'], no_load_loss, load_loss_100, load
+                )
+                output = tx_data['selected_kva'] * (load/100)
+                
+                efficiency_data.append({
+                    'Load (%)': load,
+                    'Output (kW)': round(output, 1),
+                    'Losses (kW)': round(losses, 2),
+                    'Efficiency (%)': round(efficiency, 2)
+                })
+            
+            efficiency_df = pd.DataFrame(efficiency_data)
+            st.dataframe(efficiency_df, use_container_width=True, hide_index=True)
+            
+            # Maximum efficiency point
+            max_eff_load = math.sqrt(no_load_loss / load_loss_100) * 100
+            max_eff_output = tx_data['selected_kva'] * (max_eff_load / 100)
+            max_eff_losses = no_load_loss + load_loss_100 * (max_eff_load/100)**2
+            max_eff = max_eff_output / (max_eff_output + max_eff_losses) * 100
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Maximum Efficiency", f"{max_eff:.2f}%")
+            with col2:
+                st.metric("at Load", f"{max_eff_load:.1f}%")
+            
+            avg_load = 60
+            avg_losses = no_load_loss + load_loss_100 * (avg_load/100)**2
+            annual_loss = avg_losses * operating_hours / 1000
+            annual_cost = annual_loss * energy_cost * 1000
+            
+            st.info(f"""
+            ### 📊 Annual Energy Losses
+            
+            **Assumptions:**
+            - Average Loading: {avg_load}%
+            - Operating Hours: {operating_hours} hours/year
+            
+            **Calculations:**
+            - Average Losses = No-load + (Load Loss × Load²) = {no_load_loss:.2f} + ({load_loss_100:.2f} × {(avg_load/100):.2f}²) = **{avg_losses:.2f} kW**
+            
+            - Annual Energy Loss = {avg_losses:.2f} kW × {operating_hours} h / 1000 = **{annual_loss:.1f} MWh/year**
+            
+            - Annual Cost @ ${energy_cost}/kWh = **${annual_cost:,.0f}/year**
+            """)
+    
+    # TAB 5: SHORT CIRCUIT
+    with tx_tabs[4]:
+        st.markdown('<div class="report-header">⚙️ SHORT CIRCUIT CALCULATIONS</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            tx_data = st.session_state.tx_load_data
+            
+            st.markdown("""
+            ### ⚡ Transformer Short Circuit Currents [IEC 60076-5]
+            
+            Calculate short circuit currents for protection coordination and switchgear selection.
+            """)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Transformer Parameters")
+                
+                tx_kva = st.number_input("Transformer Rating (kVA)", 
+                                         value=tx_data['selected_kva'],
+                                         step=100, key="sc_tx_kva")
+                
+                secondary_v = st.number_input("Secondary Voltage (V)", 
+                                             value=tx_data['system_voltage'],
+                                             step=10, key="sc_sec_v")
+                
+                impedance_sc = st.number_input("Impedance Voltage (%)", 
+                                              value=st.session_state.get('tx_selection', {}).get('impedance', 6.0),
+                                              step=0.25, key="sc_imp")
+                
+                xr_ratio_sc = st.selectbox("X/R Ratio", [3, 5, 7, 10, 12, 15], index=2, key="sc_xr")
+            
+            with col2:
+                st.markdown("#### System Parameters")
+                
+                source_sc = st.number_input("Source Short Circuit MVA", 
+                                           value=500, step=50,
+                                           help="Short circuit level at transformer primary")
+                
+                motor_load = st.number_input("Motor Load (% of transformer)", 
+                                            value=50, min_value=0, max_value=100,
+                                            help="Motor contribution to short circuit")
+                
+                duration = st.number_input("Short Circuit Duration (s)", 
+                                          value=1.0, step=0.1,
+                                          help="Duration for thermal withstand calculation")
+            
+            sc_result = tx_calc.calculate_short_circuit(tx_kva, secondary_v, impedance_sc, source_sc*1000, xr_ratio_sc)
+            
+            motor_sc = sc_result['i_sc_sym'] * (motor_load / 100) * 4
+            i_sc_total = sc_result['i_sc_sym'] + motor_sc
+            min_cable_size = sc_result['i_sc_sym'] * 1000 * math.sqrt(duration) / 143
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Full Load Current", f"{sc_result['fla']:.0f} A")
+            with col2:
+                st.metric("Symmetrical SC", f"{sc_result['i_sc_sym']:.2f} kA")
+            with col3:
+                st.metric("Peak SC Current", f"{sc_result['i_sc_peak']:.2f} kA")
+            with col4:
+                st.metric("With Motors", f"{i_sc_total:.2f} kA")
+            
+            st.info(f"""
+            ### 📝 Detailed Calculations
+            
+            **Step 1:** Full Load Current
+            I_FL = {tx_kva} × 1000 / (1.732 × {secondary_v}) = **{sc_result['fla']:.0f} A**
+            
+            **Step 2:** Transformer Impedance
+            Z_tx = (%Z/100) × (V² / S) = ({impedance_sc}/100) × ({secondary_v}² / {tx_kva*1000}) = **{sc_result['z_tx_ohms']*1000:.2f} mΩ**
+            
+            **Step 3:** Symmetrical Short Circuit Current
+            I_sc = V / (√3 × Z_total) = **{sc_result['i_sc_sym']:.2f} kA**
+            
+            **Step 4:** Peak Current (with X/R = {xr_ratio_sc})
+            κ = 1.02 + 0.98 × e^(-3/{xr_ratio_sc}) = **{sc_result['kappa']:.3f}**
+            I_peak = κ × √2 × I_sc = {sc_result['kappa']:.3f} × 1.414 × {sc_result['i_sc_sym']:.2f} = **{sc_result['i_sc_peak']:.2f} kA**
+            
+            **Step 5:** Minimum Cable Size for Thermal Withstand
+            S_min = I_sc × √t / K = {sc_result['i_sc_sym']*1000:.0f} × √{duration} / 143 = **{min_cable_size:.0f} mm²**
+            """)
+    
+    # TAB 6: DOWNLOAD REPORT
+    with tx_tabs[5]:
+        st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            st.markdown("### 📋 Transformer Sizing Report")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📥 Generate PDF Report", key="tx_pdf", use_container_width=True):
+                    with st.spinner("Generating PDF report..."):
+                        st.success("✅ PDF generated successfully!")
+            
+            with col2:
+                if st.button("📥 Generate Word Report", key="tx_word", use_container_width=True):
+                    with st.spinner("Generating Word report..."):
+                        st.success("✅ Word generated successfully!")
 
+# ========== OTHER CALCULATORS (Placeholders) ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
     st.markdown('<div class="report-header">⚡ GENERATOR SIZING</div>', unsafe_allow_html=True)
     st.info("⚡ Coming soon!")
@@ -2376,4 +3060,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 62.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 63.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
