@@ -18,9 +18,9 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-st.set_page_config(page_title="Professional Engineering Tools", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - FIXED SYMMETRICAL TABLES ==========
 st.markdown("""
 <style>
     .report-header {
@@ -83,11 +83,14 @@ st.markdown("""
     .word-btn {
         background-color: #1e3a8a;
     }
+    
+    /* ===== SYMMETRICAL TABLE STYLES ===== */
     .parameter-table {
         width: 100%;
         border-collapse: collapse;
         margin: 20px 0;
         border: 2px solid #1E3A8A;
+        table-layout: fixed;
     }
     .parameter-table th {
         background-color: #1E3A8A;
@@ -97,6 +100,7 @@ st.markdown("""
         font-weight: bold;
         font-size: 14px;
         border: 1px solid #0D1B4A;
+        width: 33.33%;
     }
     .parameter-table td {
         border: 1px solid #A0AEC0;
@@ -104,6 +108,7 @@ st.markdown("""
         text-align: left;
         color: #000000 !important;
         font-size: 13px;
+        width: 33.33%;
     }
     .parameter-table tr:nth-child(even) {
         background-color: #F0F4FA !important;
@@ -119,22 +124,28 @@ st.markdown("""
         color: #000000 !important;
         background-color: #FFFFFF;
     }
+    
+    /* STREAMLIT DATAFRAME FIXES - SYMMETRICAL */
     .stDataFrame {
         color: #000000 !important;
     }
     .stDataFrame table {
         color: #000000 !important;
         border: 2px solid #1E3A8A;
+        table-layout: fixed;
+        width: 100%;
     }
     .stDataFrame th {
         color: WHITE !important;
         background-color: #1E3A8A !important;
         font-weight: bold;
         padding: 10px !important;
+        text-align: center !important;
     }
     .stDataFrame td {
         color: #000000 !important;
         padding: 8px !important;
+        text-align: left !important;
     }
     .stDataFrame tr:nth-child(even) td {
         background-color: #F0F4FA !important;
@@ -144,18 +155,21 @@ st.markdown("""
         background-color: #FFFFFF !important;
         color: #000000 !important;
     }
+    
+    /* PARAMETER TABLE - SYMMETRICAL */
     .param-table {
         width: 100%;
         border-collapse: collapse;
         margin: 15px 0;
         font-family: Arial, sans-serif;
         border: 2px solid #1E3A8A;
+        table-layout: fixed;
     }
     .param-table th {
         background-color: #1E3A8A;
         color: WHITE !important;
         padding: 12px;
-        text-align: left;
+        text-align: center;
         font-size: 15px;
         border: 1px solid #0D1B4A;
     }
@@ -164,6 +178,7 @@ st.markdown("""
         border: 1px solid #A0AEC0;
         color: #000000 !important;
         font-size: 14px;
+        text-align: left;
     }
     .param-table tr:nth-child(even) {
         background-color: #F0F4FA !important;
@@ -171,6 +186,38 @@ st.markdown("""
     .param-table tr:nth-child(odd) {
         background-color: #FFFFFF !important;
     }
+    
+    /* RESULTS TABLE - SYMMETRICAL */
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        border: 2px solid #1E3A8A;
+        table-layout: fixed;
+    }
+    .results-table th {
+        background-color: #1E3A8A;
+        color: WHITE !important;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 13px;
+        border: 1px solid #0D1B4A;
+    }
+    .results-table td {
+        border: 1px solid #A0AEC0;
+        padding: 8px;
+        text-align: left;
+        color: #000000 !important;
+        font-size: 12px;
+    }
+    .results-table tr:nth-child(even) {
+        background-color: #F0F4FA !important;
+    }
+    .results-table tr:nth-child(odd) {
+        background-color: #FFFFFF !important;
+    }
+    
     .stTabs [data-baseweb="tab-list"] {
         gap: 20px;
         background-color: #F8F9FA;
@@ -1567,12 +1614,12 @@ if 'main_cb' not in st.session_state:
 
 # ========== SIDEBAR ==========
 with st.sidebar:
-    st.markdown("### ⚡ CES-Electrical Design Calculations")
+    st.markdown("### 🔌 CES-Electrical Design Calculations")
     st.markdown("---")
     
     calculators = [
         "⚡ Lightning Protection",
-        "🔌 Cable Sizing",  # Changed from ⚡ to 🔌
+        "🔌 Cable Sizing",  # Cable icon without switch
         "⚙️ Transformer Sizing",
         "⚡ Generator Sizing",
         "🌍 Earthing System Design"
@@ -1584,7 +1631,7 @@ with st.sidebar:
             st.rerun()
 
 # ========== MAIN CONTENT ==========
-st.title(f"⚡ {st.session_state.selected_calculator} Calculator")
+st.title(f"{st.session_state.selected_calculator} Calculator")
 
 # ========== LIGHTNING PROTECTION ==========
 if st.session_state.selected_calculator == "⚡ Lightning Protection":
@@ -1782,21 +1829,21 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR - WITH FIXED DISPLAY AND CABLE ICON ==========
-elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed from ⚡ to 🔌
+# ========== CABLE SIZING CALCULATOR - WITH CABLE ICON ==========
+elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     cable_tabs = st.tabs([
         "📥 Loads Input", 
         "📊 Derating Factors", 
-        "⚡ Cable Selection",
+        "🔌 Cable Selection",
         "🔧 Short Circuit",
         "⚡ Circuit Breakers",
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT - FIXED DISPLAY
+    # TAB 1: LOADS INPUT
     with cable_tabs[0]:
-        st.markdown('<div class="report-header">🔌 CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)  # Added cable icon
+        st.markdown('<div class="report-header">🔌 CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
         
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -1837,9 +1884,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
         
         st.markdown("### ⚙️ Installation Parameters")
         
-        # ENHANCED INSTALLATION PARAMETERS
         col1, col2 = st.columns(2)
-        
         with col1:
             st.markdown("#### 📦 Cable Parameters")
             cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
@@ -1885,7 +1930,6 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
                                       ['TN-S', 'TN-C', 'TN-C-S', 'TT'], 
                                       key="system_type_select")
         
-        # Store in session state
         st.session_state.cable_type = cable_type
         st.session_state.ambient_temp = ambient_temp
         st.session_state.num_cables = num_cables
@@ -1897,10 +1941,8 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
         st.session_state.depth = depth
         st.session_state.system_type = system_type
         
-        # FIXED: Display Current Settings using DataFrame
         st.markdown("### 📊 Current Installation Settings")
         
-        # Create a DataFrame for clean display
         settings_data = {
             'Category': [
                 'Cable Parameters', 'Cable Parameters',
@@ -1927,7 +1969,6 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
         
         settings_df = pd.DataFrame(settings_data)
         
-        # Display with category grouping
         st.dataframe(
             settings_df[['Category', 'Parameter', 'Value']],
             use_container_width=True,
@@ -1939,35 +1980,8 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
             }
         )
         
-        # Alternative compact view using columns
-        with st.expander("📋 View Summary", expanded=False):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**📦 Cable Parameters**")
-                st.markdown(f"• **Type:** {cable_type} copper")
-                st.markdown(f"• **Temp:** {ambient_temp} °C")
-                
-                st.markdown("**📐 Arrangement**")
-                st.markdown(f"• **Arrangement:** {arrangement}")
-                st.markdown(f"• **Spacing:** {spacing_mm} mm")
-                st.markdown(f"• **Formation:** {formation}")
-            
-            with col2:
-                st.markdown("**🏗️ Installation**")
-                st.markdown(f"• **Method:** {installation}")
-                st.markdown(f"• **Cables:** {num_cables}")
-                
-                st.markdown("**🌍 Soil & Depth**")
-                st.markdown(f"• **Resistivity:** {soil_res} K.m/W")
-                st.markdown(f"• **Depth:** {depth} m")
-                
-                st.markdown("**⚡ System**")
-                st.markdown(f"• **Type:** {system_type}")
-        
-        # CALCULATE Button
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
-                # Get values from session state
                 cable_type = st.session_state.cable_type
                 ambient_temp = st.session_state.ambient_temp
                 num_cables = st.session_state.num_cables
@@ -1991,16 +2005,13 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
                         load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
                     )
                     
-                    # For each cable size, we need to get its diameter for spacing calculations
                     found = False
                     for size, data in db.items():
                         if found:
                             break
                         
-                        # Get cable diameter for spacing calculations
                         cable_diameter = data['diameter']
                         
-                        # Calculate derating factors with all parameters
                         total_k, factors = cable_calc.get_all_derating_factors(
                             ambient_temp, 90, num_cables, arrangement, spacing_mm, cable_diameter,
                             formation, installation, soil_res, depth
@@ -2084,7 +2095,6 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
                 st.session_state.cable_results_df = pd.DataFrame(cable_results)
                 st.session_state.detailed_calcs = detailed_calcs
                 
-                # Calculate Circuit Breakers
                 cb_calc = CircuitBreakerCalculator()
                 manufacturer = 'Schneider Electric'
                 cb_results, cb_details = cb_calc.calculate_cb_size(
@@ -2114,7 +2124,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":  # Changed fro
     
     # TAB 3: CABLE SELECTION
     with cable_tabs[2]:
-        st.markdown('<div class="report-header">🔌 CABLE SELECTION RESULTS</div>', unsafe_allow_html=True)  # Added cable icon
+        st.markdown('<div class="report-header">🔌 CABLE SELECTION RESULTS</div>', unsafe_allow_html=True)
         st.markdown("### ⚡ Voltage Drop Limit: **2.5%** [IEC 60364-5-52]")
         
         if not st.session_state.cable_results_df.empty:
@@ -2366,4 +2376,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>⚡ CES-Electrical | Version 61.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 62.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
