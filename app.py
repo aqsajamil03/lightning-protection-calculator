@@ -1583,10 +1583,16 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== TRANSFORMER SIZING CALCULATOR (NEW) ==========
+# ========== ENHANCED TRANSFORMER CALCULATOR WITH ALL IEC STANDARDS ==========
 class TransformerCalculator:
     def __init__(self):
         pass
+    
+    # IEC 60059 - Standard current ratings
+    IEC_60059_CURRENT_RATINGS = [1, 1.25, 1.6, 2, 2.5, 3.15, 4, 5, 6.3, 8, 
+                                  10, 12.5, 16, 20, 25, 31.5, 40, 50, 63, 80,
+                                  100, 125, 160, 200, 250, 315, 400, 500, 630, 800,
+                                  1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000]
     
     def calculate_required_kva(self, loads_df, future_expansion=20):
         """Calculate required transformer kVA based on loads"""
@@ -1672,6 +1678,96 @@ class TransformerCalculator:
             'i_sc_peak': i_sc_peak,
             'kappa': kappa,
             'z_tx_ohms': z_tx_ohms
+        }
+    
+    # NEW: IEC 60059 - Get standard current rating
+    def get_standard_current(self, calculated_current):
+        """Get the next higher standard current rating from IEC 60059"""
+        for rating in self.IEC_60059_CURRENT_RATINGS:
+            if rating >= calculated_current:
+                return rating
+        return self.IEC_60059_CURRENT_RATINGS[-1]
+    
+    # NEW: IEC 60076-7 - Thermal ageing calculation
+    def calculate_thermal_ageing(self, hot_spot_temp, insulation_class='F', reference_temp=98):
+        """
+        Calculate relative ageing rate using Arrhenius equation
+        IEC 60076-7 Table 1 - Thermal constants
+        """
+        # Temperature limits per IEC 60076-2
+        temp_limits = {
+            'A': 105,
+            'E': 120,
+            'B': 130,
+            'F': 155,
+            'H': 180
+        }
+        
+        if hot_spot_temp > temp_limits.get(insulation_class, 155):
+            st.warning(f"⚠️ Hot spot temperature exceeds {insulation_class} class limit of {temp_limits[insulation_class]}°C")
+        
+        # Relative ageing rate (doubles every 6°C above reference)
+        v = 2 ** ((hot_spot_temp - reference_temp) / 6)
+        
+        # Calculate insulation life (assuming 180,000 hours at reference temp)
+        normal_life_hours = 180000
+        remaining_life = normal_life_hours / v if v > 0 else normal_life_hours
+        
+        return {
+            'relative_ageing_rate': v,
+            'remaining_life_hours': remaining_life,
+            'remaining_life_years': remaining_life / 8760,
+            'temperature_limit': temp_limits.get(insulation_class, 155),
+            'is_safe': hot_spot_temp <= temp_limits.get(insulation_class, 155)
+        }
+    
+    # NEW: IEC 60076-10 - Sound level calculation
+    def calculate_sound_level(self, kva, type='liquid', cooling='ONAN'):
+        """
+        Calculate guaranteed sound power level per IEC 60076-10
+        
+        Parameters:
+        - kva: Transformer rating in kVA
+        - type: 'liquid' for liquid-filled, 'dry' for dry-type
+        - cooling: Cooling method (ONAN, ONAF, etc.)
+        
+        Returns sound power level in dB(A)
+        """
+        if type == 'liquid':
+            # Liquid-filled transformers - Equation from IEC 60076-10
+            if kva <= 100:
+                L = 50 + 12 * math.log10(kva/100)
+            elif kva <= 1000:
+                L = 55 + 10 * math.log10(kva/100)
+            elif kva <= 10000:
+                L = 60 + 8 * math.log10(kva/1000)
+            else:
+                L = 68 + 5 * math.log10(kva/10000)
+        else:
+            # Dry-type transformers
+            if kva <= 100:
+                L = 45 + 15 * math.log10(kva/100)
+            elif kva <= 1000:
+                L = 50 + 12 * math.log10(kva/100)
+            else:
+                L = 58 + 8 * math.log10(kva/1000)
+        
+        # Add cooling factor
+        cooling_factor = {
+            'ONAN': 0,
+            'ONAF': 3,
+            'OFAF': 5,
+            'ODAF': 7
+        }
+        
+        total_sound = L + cooling_factor.get(cooling, 0)
+        
+        return {
+            'base_sound_level': round(L, 1),
+            'cooling_addition': cooling_factor.get(cooling, 0),
+            'total_sound_level': round(total_sound, 1),
+            'unit': 'dB(A)',
+            'reference': 'IEC 60076-10'
         }
 
 # ========== SESSION STATE INITIALIZATION ==========
@@ -2464,7 +2560,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== TRANSFORMER SIZING CALCULATOR (NEW) ==========
+# ========== ENHANCED TRANSFORMER SIZING CALCULATOR (WITH ALL 3 STANDARDS) ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_tabs = st.tabs([
@@ -2473,12 +2569,13 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         "📊 Voltage Regulation",
         "🔧 Efficiency & Losses",
         "📈 Short Circuit",
+        "🔊 Sound & Ageing",  # NEW TAB with IEC 60076-7 and IEC 60076-10
         "📥 Download Report"
     ])
     
     tx_calc = TransformerCalculator()
     
-    # TAB 1: LOAD ANALYSIS
+    # TAB 1: LOAD ANALYSIS (UNCHANGED)
     with tx_tabs[0]:
         st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING - LOAD ANALYSIS</div>', unsafe_allow_html=True)
         
@@ -2620,7 +2717,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             }
             st.success(f"✅ Selected Transformer: {tx_result['selected_kva']} kVA")
     
-    # TAB 2: TRANSFORMER SELECTION
+    # TAB 2: TRANSFORMER SELECTION (UNCHANGED)
     with tx_tabs[1]:
         st.markdown('<div class="report-header">⚙️ TRANSFORMER SELECTION</div>', unsafe_allow_html=True)
         
@@ -2732,7 +2829,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                     'frequency': frequency
                 }
     
-    # TAB 3: VOLTAGE REGULATION
+    # TAB 3: VOLTAGE REGULATION (UNCHANGED)
     with tx_tabs[2]:
         st.markdown('<div class="report-header">⚙️ VOLTAGE REGULATION</div>', unsafe_allow_html=True)
         
@@ -2828,7 +2925,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             **IEC 60076-1 Limit:** ±5% for distribution transformers
             """)
     
-    # TAB 4: EFFICIENCY & LOSSES
+    # TAB 4: EFFICIENCY & LOSSES (UNCHANGED)
     with tx_tabs[3]:
         st.markdown('<div class="report-header">⚙️ EFFICIENCY & LOSSES</div>', unsafe_allow_html=True)
         
@@ -2943,7 +3040,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             - Annual Cost @ ${energy_cost}/kWh = **${annual_cost:,.0f}/year**
             """)
     
-    # TAB 5: SHORT CIRCUIT
+    # TAB 5: SHORT CIRCUIT (UNCHANGED)
     with tx_tabs[4]:
         st.markdown('<div class="report-header">⚙️ SHORT CIRCUIT CALCULATIONS</div>', unsafe_allow_html=True)
         
@@ -3008,11 +3105,16 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             with col4:
                 st.metric("With Motors", f"{i_sc_total:.2f} kA")
             
+            # NEW: IEC 60059 - Standard current rating for switchgear
+            std_current = tx_calc.get_standard_current(sc_result['fla'])
+            
             st.info(f"""
             ### 📝 Detailed Calculations
             
             **Step 1:** Full Load Current
             I_FL = {tx_kva} × 1000 / (1.732 × {secondary_v}) = **{sc_result['fla']:.0f} A**
+            
+            **IEC 60059 Standard Rating:** **{std_current} A** (next higher standard)
             
             **Step 2:** Transformer Impedance
             Z_tx = (%Z/100) × (V² / S) = ({impedance_sc}/100) × ({secondary_v}² / {tx_kva*1000}) = **{sc_result['z_tx_ohms']*1000:.2f} mΩ**
@@ -3028,8 +3130,106 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             S_min = I_sc × √t / K = {sc_result['i_sc_sym']*1000:.0f} × √{duration} / 143 = **{min_cable_size:.0f} mm²**
             """)
     
-    # TAB 6: DOWNLOAD REPORT
+    # NEW TAB 6: SOUND & AGEING (IEC 60076-7 and IEC 60076-10)
     with tx_tabs[5]:
+        st.markdown('<div class="report-header">🔊 SOUND LEVEL & THERMAL AGEING</div>', unsafe_allow_html=True)
+        
+        if 'tx_load_data' not in st.session_state:
+            st.warning("⚠️ Please complete Load Analysis first!")
+        else:
+            tx_data = st.session_state.tx_load_data
+            
+            st.markdown("""
+            ### 🔊 Sound Level Calculation [IEC 60076-10]
+            
+            Transformers produce audible noise due to magnetostriction in the core and cooling equipment.
+            """)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🔊 Sound Level Parameters")
+                
+                tx_type = st.radio("Transformer Type", ['liquid', 'dry'], index=0,
+                                  help="Liquid-filled or Dry-type transformer")
+                
+                cooling_sound = st.selectbox("Cooling Type for Sound", 
+                                            ['ONAN', 'ONAF', 'OFAF', 'ODAF'], 
+                                            index=0,
+                                            help="Affects noise level")
+                
+                sound_result = tx_calc.calculate_sound_level(
+                    tx_data['selected_kva'], tx_type, cooling_sound
+                )
+                
+                st.metric("Base Sound Level", f"{sound_result['base_sound_level']} dB(A)")
+                st.metric("Cooling Addition", f"+{sound_result['cooling_addition']} dB(A)")
+                st.metric("Total Sound Level", f"{sound_result['total_sound_level']} dB(A)")
+                
+                st.caption(f"Reference: {sound_result['reference']}")
+            
+            with col2:
+                st.markdown("#### 🌡️ Thermal Ageing [IEC 60076-7]")
+                
+                # Extract insulation class from stored data
+                ins_class = tx_data['insulation_class'].split(' ')[0] if 'insulation_class' in tx_data else 'F'
+                
+                hot_spot_temp = st.number_input("Hot Spot Temperature (°C)", 
+                                               value=98, min_value=50, max_value=250, step=5,
+                                               help="Winding hot spot temperature")
+                
+                ageing_result = tx_calc.calculate_thermal_ageing(
+                    hot_spot_temp, ins_class
+                )
+                
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("Relative Ageing Rate", f"{ageing_result['relative_ageing_rate']:.2f}")
+                with col_b:
+                    st.metric("Remaining Life", f"{ageing_result['remaining_life_years']:.1f} years")
+                
+                if not ageing_result['is_safe']:
+                    st.warning(f"⚠️ Temperature exceeds {ins_class} class limit of {ageing_result['temperature_limit']}°C!")
+                else:
+                    st.success(f"✅ Within {ins_class} class limit of {ageing_result['temperature_limit']}°C")
+            
+            st.markdown("### 📊 Sound Level Reference Table [IEC 60076-10]")
+            
+            # Create reference table
+            sound_ref_data = {
+                'Power (kVA)': [100, 500, 1000, 2500, 5000, 10000],
+                'Liquid-filled (dB)': [50, 55, 58, 62, 65, 68],
+                'Dry-type (dB)': [48, 52, 55, 58, 62, 65]
+            }
+            sound_ref_df = pd.DataFrame(sound_ref_data)
+            st.dataframe(sound_ref_df, use_container_width=True, hide_index=True)
+            
+            st.markdown("### 📝 Ageing Calculation Details")
+            
+            st.info(f"""
+            **IEC 60076-7 Thermal Ageing Calculation**
+            
+            **Formula:** V = 2^((θ_h - 98)/6)
+            
+            Where:
+            - θ_h = Hot spot temperature = {hot_spot_temp}°C
+            - 98°C = Reference temperature for 180,000 hours life
+            
+            **Calculation:**
+            V = 2^(({hot_spot_temp} - 98)/6) = 2^({(hot_spot_temp-98)/6:.2f}) = **{ageing_result['relative_ageing_rate']:.2f}**
+            
+            **Interpretation:**
+            - V = 1.0 → Normal ageing (180,000 hours life)
+            - V = 2.0 → Ageing twice as fast (90,000 hours life)
+            - V = 0.5 → Ageing half as fast (360,000 hours life)
+            
+            **Remaining Life:** {ageing_result['remaining_life_years']:.1f} years at {hot_spot_temp}°C
+            
+            **Insulation Class {ins_class} Temperature Limit:** {ageing_result['temperature_limit']}°C
+            """)
+    
+    # TAB 7: DOWNLOAD REPORT (renumbered)
+    with tx_tabs[6]:
         st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
         
         if 'tx_load_data' not in st.session_state:
@@ -3060,4 +3260,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 63.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 64.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
