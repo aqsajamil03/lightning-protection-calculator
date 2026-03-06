@@ -61,6 +61,42 @@ st.markdown("""
         margin: 10px 0;
         border: 1px solid #B8DAFF;
     }
+    .pq-calculation {
+        background-color: #F0F9FF;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #1E3A8A;
+        margin: 20px 0;
+    }
+    .pq-step {
+        background-color: #FFFFFF;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #FFA500;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .formula-highlight {
+        background-color: #E8F5E9;
+        padding: 10px;
+        border-radius: 5px;
+        font-family: 'Courier New', monospace;
+        font-size: 16px;
+        border: 1px solid #4CAF50;
+    }
+    .power-triangle {
+        background-color: #FFFFFF;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #1E3A8A;
+        text-align: center;
+        margin: 20px 0;
+    }
+    .triangle-text {
+        font-family: 'Courier New', monospace;
+        font-size: 18px;
+        color: #1E3A8A;
+    }
     .download-btn {
         display: inline-block;
         padding: 12px 24px;
@@ -184,37 +220,6 @@ st.markdown("""
         background-color: #F0F4FA !important;
     }
     .param-table tr:nth-child(odd) {
-        background-color: #FFFFFF !important;
-    }
-    
-    /* RESULTS TABLE - SYMMETRICAL */
-    .results-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-        border: 2px solid #1E3A8A;
-        table-layout: fixed;
-    }
-    .results-table th {
-        background-color: #1E3A8A;
-        color: WHITE !important;
-        padding: 10px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 13px;
-        border: 1px solid #0D1B4A;
-    }
-    .results-table td {
-        border: 1px solid #A0AEC0;
-        padding: 8px;
-        text-align: left;
-        color: #000000 !important;
-        font-size: 12px;
-    }
-    .results-table tr:nth-child(even) {
-        background-color: #F0F4FA !important;
-    }
-    .results-table tr:nth-child(odd) {
         background-color: #FFFFFF !important;
     }
     
@@ -1583,7 +1588,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== ENHANCED TRANSFORMER CALCULATOR WITH ALL IEC STANDARDS ==========
+# ========== ENHANCED TRANSFORMER CALCULATOR WITH P & Q CALCULATION STEPS ==========
 class TransformerCalculator:
     def __init__(self):
         pass
@@ -1594,23 +1599,55 @@ class TransformerCalculator:
                                   100, 125, 160, 200, 250, 315, 400, 500, 630, 800,
                                   1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000]
     
-    def calculate_required_kva(self, loads_df, future_expansion=20):
-        """Calculate required transformer kVA based on loads"""
-        total_connected = 0
-        total_demand = 0
-        total_kvar = 0
+    def calculate_p_and_q(self, loads_df):
+        """
+        Calculate P (Real Power) and Q (Reactive Power) for each load
+        Returns detailed calculations and totals
+        """
+        load_details = []
+        P_total = 0
+        Q_total = 0
         
         for idx, load in loads_df.iterrows():
-            connected = load['Rating (kW)'] * load['Quantity']
-            demand = connected * load['Diversity Factor']
-            kvar = demand * math.tan(math.acos(load['Power Factor'])) if load['Power Factor'] < 1.0 else 0
+            # Step 1: Calculate connected power
+            P_connected = load['Rating (kW)'] * load['Quantity']
             
-            total_connected += connected
-            total_demand += demand
-            total_kvar += kvar
+            # Step 2: Apply diversity factor to get demand power
+            P_demand = P_connected * load['Diversity Factor']
+            
+            # Step 3: Calculate angle φ from power factor
+            phi = math.acos(load['Power Factor'])
+            
+            # Step 4: Calculate Q (Reactive Power)
+            Q_demand = P_demand * math.tan(phi)
+            
+            load_details.append({
+                'description': load['Load Description'],
+                'type': load['Load Type'],
+                'rating_kw': load['Rating (kW)'],
+                'quantity': load['Quantity'],
+                'pf': load['Power Factor'],
+                'diversity': load['Diversity Factor'],
+                'p_connected': P_connected,
+                'p_demand': P_demand,
+                'phi_deg': math.degrees(phi),
+                'q_demand': Q_demand,
+                'calculation': f"Q = {P_demand:.1f} × tan(acos({load['Power Factor']})) = {P_demand:.1f} × {math.tan(phi):.3f} = {Q_demand:.1f} kVAR"
+            })
+            
+            P_total += P_demand
+            Q_total += Q_demand
         
-        total_kva = math.sqrt(total_demand**2 + total_kvar**2)
-        with_future = total_kva * (1 + future_expansion/100)
+        return load_details, P_total, Q_total
+    
+    def calculate_required_kva(self, loads_df, future_expansion=20):
+        """Calculate required transformer kVA based on loads"""
+        # First calculate P and Q
+        load_details, P_total, Q_total = self.calculate_p_and_q(loads_df)
+        
+        # Calculate apparent power using power triangle
+        S_total = math.sqrt(P_total**2 + Q_total**2)
+        with_future = S_total * (1 + future_expansion/100)
         
         # Standard transformer ratings (IEC 60076)
         standard_ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000, 25000, 31500, 40000, 50000, 63000]
@@ -1622,12 +1659,18 @@ class TransformerCalculator:
                 break
         
         return {
-            'total_connected': total_connected,
-            'total_demand': total_demand,
-            'total_kvar': total_kvar,
-            'total_kva': total_kva,
+            'load_details': load_details,
+            'P_total': P_total,
+            'Q_total': Q_total,
+            'S_total': S_total,
             'with_future': with_future,
-            'selected_kva': selected_kva
+            'selected_kva': selected_kva,
+            'calculation_steps': {
+                'p_total': P_total,
+                'q_total': Q_total,
+                's_total': S_total,
+                'formula': f"S = √(P² + Q²) = √({P_total:.0f}² + {Q_total:.0f}²) = {S_total:.0f} kVA"
+            }
         }
     
     def calculate_voltage_regulation(self, impedance, xr_ratio, pf, load_pct=100, load_type='lagging'):
@@ -1703,9 +1746,6 @@ class TransformerCalculator:
             'H': 180
         }
         
-        if hot_spot_temp > temp_limits.get(insulation_class, 155):
-            st.warning(f"⚠️ Hot spot temperature exceeds {insulation_class} class limit of {temp_limits[insulation_class]}°C")
-        
         # Relative ageing rate (doubles every 6°C above reference)
         v = 2 ** ((hot_spot_temp - reference_temp) / 6)
         
@@ -1725,13 +1765,6 @@ class TransformerCalculator:
     def calculate_sound_level(self, kva, type='liquid', cooling='ONAN'):
         """
         Calculate guaranteed sound power level per IEC 60076-10
-        
-        Parameters:
-        - kva: Transformer rating in kVA
-        - type: 'liquid' for liquid-filled, 'dry' for dry-type
-        - cooling: Cooling method (ONAN, ONAF, etc.)
-        
-        Returns sound power level in dB(A)
         """
         if type == 'liquid':
             # Liquid-filled transformers - Equation from IEC 60076-10
@@ -2560,7 +2593,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== ENHANCED TRANSFORMER SIZING CALCULATOR (WITH ALL 3 STANDARDS) ==========
+# ========== ENHANCED TRANSFORMER SIZING CALCULATOR (WITH P & Q STEPS) ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_tabs = st.tabs([
@@ -2569,13 +2602,13 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         "📊 Voltage Regulation",
         "🔧 Efficiency & Losses",
         "📈 Short Circuit",
-        "🔊 Sound & Ageing",  # NEW TAB with IEC 60076-7 and IEC 60076-10
+        "🔊 Sound & Ageing",
         "📥 Download Report"
     ])
     
     tx_calc = TransformerCalculator()
     
-    # TAB 1: LOAD ANALYSIS (UNCHANGED)
+    # TAB 1: LOAD ANALYSIS - WITH ENHANCED P & Q CALCULATION STEPS
     with tx_tabs[0]:
         st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING - LOAD ANALYSIS</div>', unsafe_allow_html=True)
         
@@ -2647,66 +2680,103 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                                        help="ONAN: Oil Natural Air Natural\nONAF: Oil Natural Air Forced\nOFAF: Oil Forced Air Forced")
             insulation_class = st.selectbox("Insulation Class", ['A (105°C)', 'E (120°C)', 'B (130°C)', 'F (155°C)', 'H (180°C)'], index=3)
         
-        # Calculate transformer sizing
+        # Calculate transformer sizing with P & Q steps
         tx_result = tx_calc.calculate_required_kva(st.session_state.tx_loads_df, future_expansion)
         
-        st.markdown("### 📊 Load Summary")
+        st.markdown("### 📊 Load Summary with P & Q Calculation")
         
-        # Calculate load details for display
-        load_details = []
-        for idx, load in st.session_state.tx_loads_df.iterrows():
-            connected = load['Rating (kW)'] * load['Quantity']
-            demand = connected * load['Diversity Factor']
-            kvar = demand * math.tan(math.acos(load['Power Factor'])) if load['Power Factor'] < 1.0 else 0
-            
-            load_details.append({
-                'Load': load['Load Description'],
-                'Type': load['Load Type'],
-                'Connected (kW)': f"{connected:.1f}",
-                'Demand (kW)': f"{demand:.1f}",
-                'PF': f"{load['Power Factor']:.2f}",
-                'kvar': f"{kvar:.1f}"
+        # Display detailed P & Q calculation table
+        pq_data = []
+        for load in tx_result['load_details']:
+            pq_data.append({
+                'Load': load['description'],
+                'Type': load['type'],
+                'Rating (kW)': load['rating_kw'],
+                'Qty': load['quantity'],
+                'P Connected (kW)': f"{load['p_connected']:.1f}",
+                'Diversity': f"{load['diversity']:.2f}",
+                'P Demand (kW)': f"{load['p_demand']:.1f}",
+                'PF': f"{load['pf']:.2f}",
+                'φ (deg)': f"{load['phi_deg']:.1f}",
+                'Q Demand (kVAR)': f"{load['q_demand']:.1f}",
             })
         
-        summary_df = pd.DataFrame(load_details)
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        pq_df = pd.DataFrame(pq_data)
+        st.dataframe(pq_df, use_container_width=True, hide_index=True)
+        
+        # Show P & Q calculation steps
+        with st.expander("🔍 View Detailed P & Q Calculation Steps", expanded=True):
+            st.markdown("""
+            <div class="pq-calculation">
+                <h4>Step-by-Step P & Q Calculation</h4>
+            """, unsafe_allow_html=True)
+            
+            for i, load in enumerate(tx_result['load_details']):
+                st.markdown(f"""
+                <div class="pq-step">
+                    <h5>Load {i+1}: {load['description']} ({load['type']})</h5>
+                    <p><b>Step 1:</b> Connected Power = Rating × Quantity = {load['rating_kw']} kW × {load['quantity']} = <b>{load['p_connected']:.1f} kW</b></p>
+                    <p><b>Step 2:</b> Demand Power (P) = Connected × Diversity = {load['p_connected']:.1f} × {load['diversity']} = <b>{load['p_demand']:.1f} kW</b></p>
+                    <p><b>Step 3:</b> Angle φ = acos(PF) = acos({load['pf']}) = <b>{load['phi_deg']:.1f}°</b></p>
+                    <p><b>Step 4:</b> Reactive Power (Q) = P × tan(φ) = {load['p_demand']:.1f} × {math.tan(math.acos(load['pf'])):.3f} = <b>{load['q_demand']:.1f} kVAR</b></p>
+                    <p class="formula-highlight">Q = P × tan(acos(PF)) = {load['p_demand']:.1f} × tan(acos({load['pf']})) = {load['q_demand']:.1f} kVAR</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("""
+            <div class="power-triangle">
+                <h4>📐 Power Triangle</h4>
+                <p class="triangle-text">
+                    S = √(P² + Q²)<br>
+                    P = S × cosφ (Real Power - kW)<br>
+                    Q = S × sinφ (Reactive Power - kVAR)<br>
+                    cosφ = Power Factor
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Connected", f"{tx_result['total_connected']:.0f} kW")
+            st.metric("Total P (Real Power)", f"{tx_result['P_total']:.0f} kW")
         with col2:
-            st.metric("Max Demand", f"{tx_result['total_demand']:.0f} kW")
+            st.metric("Total Q (Reactive Power)", f"{tx_result['Q_total']:.0f} kVAR")
         with col3:
-            st.metric("Reactive Power", f"{tx_result['total_kvar']:.0f} kvar")
+            st.metric("Apparent Power S", f"{tx_result['S_total']:.0f} kVA")
         with col4:
-            st.metric("Required kVA", f"{tx_result['total_kva']:.0f} kVA")
+            st.metric("With {future_expansion}% Future", f"{tx_result['with_future']:.0f} kVA")
         
         st.info(f"""
         ### 📋 Transformer Sizing Calculation
         
-        **Step 1:** Calculate connected load per equipment
-        - Connected Load = Rating × Quantity
+        **Step 1:** Calculate Connected Power per equipment
+        - Connected Power = Rating × Quantity
         
         **Step 2:** Apply diversity factors [IEC 60364]
-        - Demand Load = Connected Load × Diversity Factor
+        - Demand Power (P) = Connected Power × Diversity Factor
         
-        **Step 3:** Calculate apparent power
-        - S (kVA) = √(P² + Q²) = √({tx_result['total_demand']:.0f}² + {tx_result['total_kvar']:.0f}²) = **{tx_result['total_kva']:.0f} kVA**
+        **Step 3:** Calculate Reactive Power (Q) for each load
+        - Q = P × tan(acos(PF))
         
-        **Step 4:** Add future expansion ({future_expansion}%)
-        - Required Capacity = {tx_result['total_kva']:.0f} × (1 + {future_expansion/100:.2f}) = **{tx_result['with_future']:.0f} kVA**
+        **Step 4:** Sum all P and Q
+        - Total P = ΣP = **{tx_result['P_total']:.0f} kW**
+        - Total Q = ΣQ = **{tx_result['Q_total']:.0f} kVAR**
         
-        **Step 5:** Select standard rating [IEC 60076]
+        **Step 5:** Calculate apparent power using Power Triangle
+        - S (kVA) = √(P² + Q²) = √({tx_result['P_total']:.0f}² + {tx_result['Q_total']:.0f}²) = **{tx_result['S_total']:.0f} kVA**
+        
+        **Step 6:** Add future expansion ({future_expansion}%)
+        - Required Capacity = {tx_result['S_total']:.0f} × (1 + {future_expansion/100:.2f}) = **{tx_result['with_future']:.0f} kVA**
+        
+        **Step 7:** Select standard rating [IEC 60076]
         - Selected Transformer: **{tx_result['selected_kva']} kVA**
         """)
         
         if st.button("➡️ Proceed to Transformer Selection", type="primary", use_container_width=True):
             st.session_state.tx_required_kva = tx_result['selected_kva']
             st.session_state.tx_load_data = {
-                'total_connected': tx_result['total_connected'],
-                'total_demand': tx_result['total_demand'],
-                'total_kvar': tx_result['total_kvar'],
-                'total_kva': tx_result['total_kva'],
+                'P_total': tx_result['P_total'],
+                'Q_total': tx_result['Q_total'],
+                'S_total': tx_result['S_total'],
                 'selected_kva': tx_result['selected_kva'],
                 'future_expansion': future_expansion,
                 'system_voltage': system_voltage,
@@ -3105,7 +3175,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             with col4:
                 st.metric("With Motors", f"{i_sc_total:.2f} kA")
             
-            # NEW: IEC 60059 - Standard current rating for switchgear
+            # IEC 60059 - Standard current rating for switchgear
             std_current = tx_calc.get_standard_current(sc_result['fla'])
             
             st.info(f"""
@@ -3130,7 +3200,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             S_min = I_sc × √t / K = {sc_result['i_sc_sym']*1000:.0f} × √{duration} / 143 = **{min_cable_size:.0f} mm²**
             """)
     
-    # NEW TAB 6: SOUND & AGEING (IEC 60076-7 and IEC 60076-10)
+    # TAB 6: SOUND & AGEING (UNCHANGED)
     with tx_tabs[5]:
         st.markdown('<div class="report-header">🔊 SOUND LEVEL & THERMAL AGEING</div>', unsafe_allow_html=True)
         
@@ -3228,7 +3298,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             **Insulation Class {ins_class} Temperature Limit:** {ageing_result['temperature_limit']}°C
             """)
     
-    # TAB 7: DOWNLOAD REPORT (renumbered)
+    # TAB 7: DOWNLOAD REPORT
     with tx_tabs[6]:
         st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
         
@@ -3260,4 +3330,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 64.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 65.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
