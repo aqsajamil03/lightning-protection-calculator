@@ -20,72 +20,283 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - IMPROVED COLOR THEME ==========
 st.markdown("""
 <style>
+    /* Main Theme Colors */
+    :root {
+        --primary: #1E3A8A;
+        --primary-light: #3B5BA6;
+        --primary-dark: #0D1B4A;
+        --secondary: #FFA500;
+        --success: #28A745;
+        --danger: #DC3545;
+        --warning: #FFC107;
+        --info: #17A2B8;
+        --light: #F8F9FA;
+        --dark: #343A40;
+        --white: #FFFFFF;
+        --gray-100: #F8F9FA;
+        --gray-200: #E9ECEF;
+        --gray-300: #DEE2E6;
+        --gray-400: #CED4DA;
+        --gray-500: #ADB5BD;
+        --gray-600: #6C757D;
+    }
+    
+    /* Report Header */
     .report-header {
-        background-color: #1E3A8A;
-        color: white;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: var(--white);
+        padding: 25px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 25px;
+        font-size: 28px;
+        font-weight: bold;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-bottom: 4px solid var(--secondary);
+    }
+    
+    /* Section Headers */
+    .section-header {
+        color: var(--primary);
+        font-size: 22px;
+        font-weight: 600;
+        margin: 20px 0 15px 0;
+        padding-bottom: 10px;
+        border-bottom: 3px solid var(--secondary);
+    }
+    
+    /* Card Style */
+    .card {
+        background-color: var(--white);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid var(--gray-300);
+        margin-bottom: 20px;
+    }
+    
+    /* Formula Box */
+    .formula-box {
+        background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid var(--secondary);
+        margin: 15px 0;
+        font-family: 'Courier New', monospace;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    /* Reference Box */
+    .reference-box {
+        background-color: #E7F3FF;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 6px solid var(--primary);
+        margin: 15px 0;
+        border: 1px solid #B8DAFF;
+    }
+    
+    /* Standard Reference Table */
+    .standard-ref {
+        background-color: var(--white);
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid var(--primary);
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .standard-ref table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .standard-ref th {
+        background-color: var(--primary);
+        color: var(--white);
+        padding: 12px;
+        font-size: 16px;
+    }
+    .standard-ref td {
+        padding: 10px;
+        border: 1px solid var(--gray-300);
+    }
+    .standard-ref tr:nth-child(even) {
+        background-color: var(--gray-100);
+    }
+    
+    /* Calculation Step */
+    .calc-step {
+        background-color: var(--white);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid var(--secondary);
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .calc-step h5 {
+        color: var(--primary);
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    /* Result Card */
+    .result-card {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: var(--white);
+        padding: 25px;
+        border-radius: 12px;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .result-card h3 {
+        margin-top: 0;
+        color: var(--white);
+        border-bottom: 2px solid var(--secondary);
+        padding-bottom: 10px;
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background-color: var(--white);
         padding: 20px;
         border-radius: 10px;
         text-align: center;
-        margin-bottom: 20px;
-        font-size: 28px;
-        font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid var(--gray-300);
     }
-    .formula-box {
-        background-color: #F8F9FA;
+    .metric-card .value {
+        font-size: 32px;
+        font-weight: bold;
+        color: var(--primary);
+    }
+    .metric-card .label {
+        font-size: 14px;
+        color: var(--gray-600);
+        margin-top: 5px;
+    }
+    
+    /* Success Box */
+    .success-box {
+        background: linear-gradient(135deg, #D4EDDA 0%, #C3E6CB 100%);
+        color: #155724;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid var(--success);
+        margin: 20px 0;
+        border: 1px solid #C3E6CB;
+    }
+    
+    /* Info Box */
+    .info-box {
+        background: linear-gradient(135deg, #E7F3FF 0%, #D4E6FF 100%);
+        color: #004085;
         padding: 15px;
         border-radius: 8px;
-        border-left: 5px solid #1E3A8A;
+        border-left: 5px solid var(--primary);
         margin: 10px 0;
-        font-family: 'Courier New', monospace;
-        color: #000000 !important;
-        border: 1px solid #DEE2E6;
     }
-    .reference-box {
-        background-color: #E8F5E9;
-        padding: 10px;
-        border-radius: 5px;
-        border-left: 3px solid #4CAF50;
-        margin: 5px 0;
-        font-size: 0.9em;
+    
+    /* Warning Box */
+    .warning-box {
+        background: linear-gradient(135deg, #FFF3CD 0%, #FFE9B2 100%);
+        color: #856404;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid var(--warning);
+        margin: 10px 0;
     }
+    
+    /* Table Styles */
     .stDataFrame {
         color: #000000 !important;
     }
     .stDataFrame th {
-        color: WHITE !important;
-        background-color: #1E3A8A !important;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+        color: var(--white) !important;
+        font-weight: 600 !important;
+        padding: 12px !important;
     }
+    .stDataFrame td {
+        padding: 10px !important;
+    }
+    .stDataFrame tr:nth-child(even) {
+        background-color: var(--gray-100) !important;
+    }
+    
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background-color: var(--gray-100);
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 12px 25px !important;
+        background-color: var(--white) !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: var(--primary) !important;
+        border: 1px solid var(--gray-300) !important;
+        transition: all 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+        color: var(--white) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+        color: var(--white) !important;
+        font-weight: 700 !important;
+        border-color: var(--primary-dark) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    /* Download Buttons */
     .download-btn {
         display: inline-block;
-        padding: 12px 24px;
+        padding: 14px 28px;
         margin: 10px;
-        color: white !important;
+        color: var(--white) !important;
         text-decoration: none;
-        border-radius: 5px;
+        border-radius: 8px;
         font-size: 16px;
         font-weight: bold;
         transition: all 0.3s;
         text-align: center;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .download-btn:hover {
-        transform: scale(1.05);
-        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        color: var(--white) !important;
     }
     .pdf-btn {
-        background-color: #dc3545;
+        background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);
     }
     .word-btn {
-        background-color: #1e3a8a;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
     }
-    .standard-ref {
-        background-color: #E7F3FF;
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 5px solid #1E3A8A;
-        margin: 20px 0;
+    
+    /* Input Fields */
+    .stSelectbox, .stNumberInput {
+        margin-bottom: 15px;
+    }
+    
+    /* Divider */
+    .custom-divider {
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%);
+        margin: 25px 0;
+        border-radius: 3px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1296,7 +1507,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== SIMPLIFIED TRANSFORMER CALCULATOR (Exactly Like Your Document) ==========
+# ========== SIMPLIFIED TRANSFORMER CALCULATOR WITH TABS ==========
 class SimpleTransformerCalculator:
     def __init__(self):
         # IEC 60076 Standard Ratings
@@ -1356,7 +1567,7 @@ if 'cb_details' not in st.session_state:
 if 'main_cb' not in st.session_state:
     st.session_state.main_cb = None
 
-# Transformer session state - SIMPLE like your document
+# Transformer session state - SIMPLE with separate tabs
 if 'tx_simple_loads' not in st.session_state:
     st.session_state.tx_simple_loads = pd.DataFrame({
         'Load Description': ['Motor 1', 'Lighting', 'Heater'],
@@ -1365,6 +1576,27 @@ if 'tx_simple_loads' not in st.session_state:
         'Power Factor': [0.85, 0.95, 1.0],
         'Diversity Factor': [0.8, 1.0, 1.0]
     })
+
+# Site conditions session state
+if 'site_conditions' not in st.session_state:
+    st.session_state.site_conditions = {
+        'location': 'Indoor',
+        'ambient_temp': 30,
+        'altitude': 0,
+        'cooling_type': 'ONAN',
+        'installation': 'Standard'
+    }
+
+# Transformer parameters session state
+if 'tx_params' not in st.session_state:
+    st.session_state.tx_params = {
+        'primary_voltage': 11,
+        'secondary_voltage': 415,
+        'vector_group': 'Dyn11',
+        'impedance': 6.0,
+        'frequency': 50,
+        'enclosure': 'Indoor'
+    }
 
 # ========== SIDEBAR ==========
 with st.sidebar:
@@ -2115,159 +2347,371 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== SIMPLIFIED TRANSFORMER SIZING (EXACTLY LIKE YOUR DOCUMENT) ==========
+# ========== SIMPLIFIED TRANSFORMER SIZING WITH TABS ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
-    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING (IEC 60076)</div>', unsafe_allow_html=True)
+    tx_tabs = st.tabs([
+        "📍 Site Conditions",
+        "📋 Load Sheet",
+        "⚙️ Transformer Parameters",
+        "📊 Calculations",
+        "📥 Download Report"
+    ])
     
-    # Reference Standards Box
-    st.markdown("""
-    <div class="standard-ref">
-        <h4>📚 Reference Standards</h4>
-        <table style="width:100%; border-collapse: collapse;">
-            <tr style="background-color: #1E3A8A; color: white;">
-                <th style="padding: 8px; border: 1px solid #0D1B4A;">Code</th>
-                <th style="padding: 8px; border: 1px solid #0D1B4A;">Description</th>
-            </tr>
-            <tr style="background-color: #F0F4FA;">
-                <td style="padding: 8px; border: 1px solid #A0AEC0;"><b>IEC 60059</b></td>
-                <td style="padding: 8px; border: 1px solid #A0AEC0;">IEC Standard current ratings</td>
-            </tr>
-            <tr style="background-color: white;">
-                <td style="padding: 8px; border: 1px solid #A0AEC0;"><b>IEC 60076-1 to 10</b></td>
-                <td style="padding: 8px; border: 1px solid #A0AEC0;">Power transformers - General</td>
-            </tr>
-        </table>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("### 📋 Load Details")
-    
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("➕ Add Load", key="tx_add_load", use_container_width=True):
-            new_row = pd.DataFrame({
-                'Load Description': [f'Load {len(st.session_state.tx_simple_loads) + 1}'],
-                'Quantity': [1],
-                'Rating (kW)': [50.0],
-                'Power Factor': [0.85],
-                'Diversity Factor': [0.8]
-            })
-            st.session_state.tx_simple_loads = pd.concat([st.session_state.tx_simple_loads, new_row], ignore_index=True)
-            st.rerun()
-    
-    with col2:
-        if st.button("🗑️ Delete Last Load", key="tx_delete_load", use_container_width=True):
-            if len(st.session_state.tx_simple_loads) > 1:
-                st.session_state.tx_simple_loads = st.session_state.tx_simple_loads[:-1]
-                st.rerun()
-            else:
-                st.warning("At least one row required")
-    
-    edited_tx_df = st.data_editor(
-        st.session_state.tx_simple_loads,
-        num_rows="fixed",
-        use_container_width=True,
-        column_config={
-            "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
-            "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
-            "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
-            "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
-            "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05,
-                                                              help="Factor accounting for non-simultaneous operation")
-        }
-    )
-    st.session_state.tx_simple_loads = edited_tx_df
-    
-    st.markdown("### ⚙️ System Parameters")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=100, step=5,
-                                          help="Additional capacity for future loads (as per your document)")
-    with col2:
-        system_voltage = st.selectbox("Secondary Voltage (V)", [415, 400, 380, 33000, 11000, 6600], index=0)
-    
-    # Calculate P, Q, S for each load
     tx_calc = SimpleTransformerCalculator()
     
-    results_data = []
-    total_p = 0
-    total_q = 0
-    
-    for idx, load in st.session_state.tx_simple_loads.iterrows():
-        p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
-        q = tx_calc.calculate_q(p, load['Power Factor'])
-        s = tx_calc.calculate_s(p, q)
+    # TAB 1: SITE CONDITIONS
+    with tx_tabs[0]:
+        st.markdown('<div class="report-header">📍 SITE CONDITIONS</div>', unsafe_allow_html=True)
         
-        results_data.append({
-            'Load': load['Load Description'],
-            'Qty': load['Quantity'],
-            'Rating (kW)': load['Rating (kW)'],
-            'PF': f"{load['Power Factor']:.2f}",
-            'Diversity': f"{load['Diversity Factor']:.2f}",
-            'P (kW)': f"{p:.1f}",
-            'Q (kVAR)': f"{q:.1f}",
-            'S (kVA)': f"{s:.1f}"
-        })
+        st.markdown("""
+        <div class="info-box">
+            <h4>📌 Site Conditions affect transformer performance and selection</h4>
+        </div>
+        """, unsafe_allow_html=True)
         
-        total_p += p
-        total_q += q
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown("#### 📍 Location")
+            location = st.selectbox(
+                "Installation Location",
+                ["Indoor", "Outdoor", "Weather Protected", "Underground Vault"],
+                index=0
+            )
+            
+            ambient_temp = st.number_input(
+                "Ambient Temperature (°C)",
+                value=30,
+                min_value=-20,
+                max_value=60,
+                step=1,
+                help="Maximum ambient temperature at installation site"
+            )
+            
+            altitude = st.number_input(
+                "Altitude (m)",
+                value=0,
+                min_value=0,
+                max_value=5000,
+                step=100,
+                help="Elevation above sea level"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown("#### 🔧 Cooling & Environment")
+            cooling_type = st.selectbox(
+                "Cooling Type",
+                ["ONAN", "ONAF", "OFAF", "ODAF"],
+                index=0,
+                help="ONAN: Oil Natural Air Natural\nONAF: Oil Natural Air Forced"
+            )
+            
+            installation_type = st.selectbox(
+                "Installation Environment",
+                ["Standard", "Coastal", "Desert", "Industrial", "Substation"],
+                index=0
+            )
+            
+            seismic_zone = st.selectbox(
+                "Seismic Zone",
+                ["Zone 0 (None)", "Zone 1 (Minor)", "Zone 2 (Moderate)", "Zone 3 (Severe)", "Zone 4 (Very Severe)"],
+                index=0
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Save to session state
+        st.session_state.site_conditions = {
+            'location': location,
+            'ambient_temp': ambient_temp,
+            'altitude': altitude,
+            'cooling_type': cooling_type,
+            'installation': installation_type,
+            'seismic_zone': seismic_zone
+        }
+        
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+        
+        st.success("✅ Site conditions saved successfully!")
     
-    total_s = math.sqrt(total_p**2 + total_q**2)
-    with_future = total_s * (1 + future_expansion/100)
-    selected_kva = tx_calc.get_standard_rating(with_future)
+    # TAB 2: LOAD SHEET
+    with tx_tabs[1]:
+        st.markdown('<div class="report-header">📋 LOAD SHEET</div>', unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="reference-box">
+            <h4>📚 Reference Standards</h4>
+            <table style="width:100%; border-collapse: collapse;">
+                <tr style="background-color: #1E3A8A; color: white;">
+                    <th style="padding: 8px; border: 1px solid #0D1B4A;">Code</th>
+                    <th style="padding: 8px; border: 1px solid #0D1B4A;">Description</th>
+                </tr>
+                <tr style="background-color: #F0F4FA;">
+                    <td style="padding: 8px; border: 1px solid #A0AEC0;"><b>IEC 60059</b></td>
+                    <td style="padding: 8px; border: 1px solid #A0AEC0;">IEC Standard current ratings</td>
+                </tr>
+                <tr style="background-color: white;">
+                    <td style="padding: 8px; border: 1px solid #A0AEC0;"><b>IEC 60076-1 to 10</b></td>
+                    <td style="padding: 8px; border: 1px solid #A0AEC0;">Power transformers - General</td>
+                </tr>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("➕ Add Load", key="tx_add_load", use_container_width=True):
+                new_row = pd.DataFrame({
+                    'Load Description': [f'Load {len(st.session_state.tx_simple_loads) + 1}'],
+                    'Quantity': [1],
+                    'Rating (kW)': [50.0],
+                    'Power Factor': [0.85],
+                    'Diversity Factor': [0.8]
+                })
+                st.session_state.tx_simple_loads = pd.concat([st.session_state.tx_simple_loads, new_row], ignore_index=True)
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ Delete Last Load", key="tx_delete_load", use_container_width=True):
+                if len(st.session_state.tx_simple_loads) > 1:
+                    st.session_state.tx_simple_loads = st.session_state.tx_simple_loads[:-1]
+                    st.rerun()
+                else:
+                    st.warning("At least one row required")
+        
+        edited_tx_df = st.data_editor(
+            st.session_state.tx_simple_loads,
+            num_rows="fixed",
+            use_container_width=True,
+            column_config={
+                "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
+                "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
+                "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+                "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05,
+                                                                  help="Factor accounting for non-simultaneous operation")
+            }
+        )
+        st.session_state.tx_simple_loads = edited_tx_df
+        
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+        
+        # Show summary of loads
+        total_connected = (st.session_state.tx_simple_loads['Rating (kW)'] * st.session_state.tx_simple_loads['Quantity']).sum()
+        st.info(f"📊 **Total Connected Load:** {total_connected:.0f} kW")
     
-    # Display results table
-    st.markdown("### 📊 Calculated Values")
-    results_df = pd.DataFrame(results_data)
-    st.dataframe(results_df, use_container_width=True, hide_index=True)
+    # TAB 3: TRANSFORMER PARAMETERS
+    with tx_tabs[2]:
+        st.markdown('<div class="report-header">⚙️ TRANSFORMER PARAMETERS</div>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown("#### ⚡ Electrical Parameters")
+            
+            primary_voltage = st.selectbox(
+                "Primary Voltage (kV)",
+                [132, 110, 66, 33, 22, 11, 6.6, 3.3],
+                index=4,
+                help="High voltage side voltage"
+            )
+            
+            secondary_voltage = st.selectbox(
+                "Secondary Voltage (V)",
+                [415, 400, 380, 33000, 11000, 6600],
+                index=0,
+                help="Low voltage side voltage"
+            )
+            
+            vector_groups = {
+                'Dyn11': 'Delta primary, Star secondary with neutral - Most common',
+                'Dyn5': 'Delta primary, Star secondary with neutral - 150° phase shift',
+                'Yyn0': 'Star-Star with neutral - For small transformers',
+                'Yd11': 'Star primary, Delta secondary - For step-down',
+                'Dd0': 'Delta-Delta - For industrial applications'
+            }
+            
+            vector_group = st.selectbox(
+                "Vector Group",
+                list(vector_groups.keys()),
+                index=0,
+                help=vector_groups['Dyn11']
+            )
+            st.caption(vector_groups[vector_group])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown("#### 🔧 Construction Parameters")
+            
+            impedance = st.number_input(
+                "Impedance Voltage (%)",
+                value=6.0,
+                min_value=2.0,
+                max_value=15.0,
+                step=0.25,
+                help="Percentage impedance at rated current"
+            )
+            
+            frequency = st.selectbox(
+                "Frequency (Hz)",
+                [50, 60],
+                index=0
+            )
+            
+            enclosure = st.selectbox(
+                "Enclosure Type",
+                ["Indoor", "Outdoor", "Weatherproof", "Hermetically Sealed"],
+                index=0
+            )
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Save to session state
+        st.session_state.tx_params = {
+            'primary_voltage': primary_voltage,
+            'secondary_voltage': secondary_voltage,
+            'vector_group': vector_group,
+            'impedance': impedance,
+            'frequency': frequency,
+            'enclosure': enclosure
+        }
+        
+        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
+        
+        st.success("✅ Transformer parameters saved successfully!")
     
-    # Display formulas
-    st.markdown("""
-    <div class="formula-box">
-        <h4>📐 Formulas Used:</h4>
-        <p><b>Q = P × tan(acos(PF))</b>  (Reactive Power)</p>
-        <p><b>S = √(P² + Q²)</b>  (Apparent Power)</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # TAB 4: CALCULATIONS
+    with tx_tabs[3]:
+        st.markdown('<div class="report-header">📊 CALCULATIONS</div>', unsafe_allow_html=True)
+        
+        # Calculate P, Q, S for each load
+        results_data = []
+        detailed_steps = []
+        total_p = 0
+        total_q = 0
+        
+        for idx, load in st.session_state.tx_simple_loads.iterrows():
+            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+            q = tx_calc.calculate_q(p, load['Power Factor'])
+            s = tx_calc.calculate_s(p, q)
+            
+            results_data.append({
+                'Load': load['Load Description'],
+                'Qty': load['Quantity'],
+                'Rating (kW)': load['Rating (kW)'],
+                'PF': f"{load['Power Factor']:.2f}",
+                'Diversity': f"{load['Diversity Factor']:.2f}",
+                'P (kW)': f"{p:.1f}",
+                'Q (kVAR)': f"{q:.1f}",
+                'S (kVA)': f"{s:.1f}"
+            })
+            
+            # Detailed calculation step
+            step = f"""
+            <div class="calc-step">
+                <h5>📌 Load {idx+1}: {load['Load Description']}</h5>
+                <p><b>Step 1:</b> P = Rating × Quantity × Diversity = {load['Rating (kW)']} × {load['Quantity']} × {load['Diversity Factor']} = <b>{p:.1f} kW</b></p>
+                <p><b>Step 2:</b> Q = P × tan(acos(PF)) = {p:.1f} × tan(acos({load['Power Factor']})) = <b>{q:.1f} kVAR</b></p>
+                <p><b>Step 3:</b> S = √(P² + Q²) = √({p:.1f}² + {q:.1f}²) = <b>{s:.1f} kVA</b></p>
+            </div>
+            """
+            detailed_steps.append(step)
+            
+            total_p += p
+            total_q += q
+        
+        total_s = math.sqrt(total_p**2 + total_q**2)
+        with_future = total_s * 1.2  # 20% future expansion as per document
+        selected_kva = tx_calc.get_standard_rating(with_future)
+        
+        # Display results table
+        st.markdown("### 📊 Load Summary")
+        results_df = pd.DataFrame(results_data)
+        st.dataframe(results_df, use_container_width=True, hide_index=True)
+        
+        # Display formulas
+        st.markdown("""
+        <div class="formula-box">
+            <h4>📐 Formulas Used:</h4>
+            <p><b>Q = P × tan(acos(PF))</b>  (Reactive Power)</p>
+            <p><b>S = √(P² + Q²)</b>  (Apparent Power)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Display detailed calculations
+        with st.expander("🔍 View Detailed Calculation Steps", expanded=True):
+            for step in detailed_steps:
+                st.markdown(step, unsafe_allow_html=True)
+        
+        # Display totals in metric cards
+        st.markdown("### 📈 Totals")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="value">{total_p:.0f}</div>
+                <div class="label">Total P (kW)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="value">{total_q:.0f}</div>
+                <div class="label">Total Q (kVAR)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="value">{total_s:.0f}</div>
+                <div class="label">Total S (kVA)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col4:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="value">{with_future:.0f}</div>
+                <div class="label">With 20% Future</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Final selection
+        st.markdown(f"""
+        <div class="result-card">
+            <h3>✅ Selected Transformer Size</h3>
+            <p style="font-size: 24px; margin: 10px 0;"><b>{selected_kva} kVA</b></p>
+            <p><b>Calculation Summary:</b></p>
+            <p>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</p>
+            <p>With 20% future expansion = {total_s:.0f} × 1.2 = {with_future:.0f} kVA</p>
+            <p>Nearest standard IEC 60076 rating = {selected_kva} kVA</p>
+        </div>
+        """, unsafe_allow_html=True)
     
-    # Display totals
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total P (kW)", f"{total_p:.0f}")
-    with col2:
-        st.metric("Total Q (kVAR)", f"{total_q:.0f}")
-    with col3:
-        st.metric("Total S (kVA)", f"{total_s:.0f}")
-    with col4:
-        st.metric(f"With {future_expansion}% Future", f"{with_future:.0f}")
-    
-    # Final selection
-    st.success(f"""
-    ### ✅ Selected Transformer Size
-    
-    **Required kVA:** {with_future:.0f} kVA (with {future_expansion}% future expansion)
-    
-    **Selected Standard Rating [IEC 60076]:** **{selected_kva} kVA**
-    
-    **Calculation Summary:**
-    - S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA
-    - With {future_expansion}% future = {total_s:.0f} × 1.{future_expansion:.0f} = {with_future:.0f} kVA
-    - Nearest standard IEC rating = {selected_kva} kVA
-    """)
-    
-    # Download Report buttons
-    st.markdown("### 📥 Download Report")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📥 Generate PDF Report", key="tx_pdf", use_container_width=True):
-            with st.spinner("Generating PDF report..."):
-                st.success("✅ PDF generated successfully!")
-    with col2:
-        if st.button("📥 Generate Word Report", key="tx_word", use_container_width=True):
-            with st.spinner("Generating Word report..."):
-                st.success("✅ Word generated successfully!")
+    # TAB 5: DOWNLOAD REPORT
+    with tx_tabs[4]:
+        st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📥 Generate PDF Report", key="tx_pdf", use_container_width=True):
+                with st.spinner("Generating PDF report..."):
+                    st.success("✅ PDF generated successfully!")
+        
+        with col2:
+            if st.button("📥 Generate Word Report", key="tx_word", use_container_width=True):
+                with st.spinner("Generating Word report..."):
+                    st.success("✅ Word generated successfully!")
 
 # ========== OTHER CALCULATORS (Placeholders) ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
@@ -2280,4 +2724,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 67.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 68.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
