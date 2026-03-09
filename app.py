@@ -20,11 +20,33 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - FIXED COLORS ==========
 st.markdown("""
 <style>
+    /* Main Theme Colors */
+    :root {
+        --primary: #1E3A8A;
+        --primary-light: #3B5BA6;
+        --primary-dark: #0D1B4A;
+        --secondary: #FFA500;
+        --success: #28A745;
+        --danger: #DC3545;
+        --warning: #FFC107;
+        --info: #17A2B8;
+        --light: #F8F9FA;
+        --dark: #343A40;
+        --white: #FFFFFF;
+        --gray-100: #F8F9FA;
+        --gray-200: #E9ECEF;
+        --gray-300: #DEE2E6;
+        --gray-400: #CED4DA;
+        --gray-500: #ADB5BD;
+        --gray-600: #6C757D;
+    }
+    
+    /* Report Header */
     .report-header {
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
         color: white;
         padding: 25px;
         border-radius: 12px;
@@ -33,30 +55,125 @@ st.markdown("""
         font-size: 28px;
         font-weight: bold;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-bottom: 4px solid #FFA500;
+        border-bottom: 4px solid var(--secondary);
     }
-    .formula-box {
-        background: linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 100%);
+    
+    /* Section Headers */
+    .section-header {
+        color: var(--primary);
+        font-size: 22px;
+        font-weight: 600;
+        margin: 20px 0 15px 0;
+        padding-bottom: 10px;
+        border-bottom: 3px solid var(--secondary);
+    }
+    
+    /* Card Style */
+    .card {
+        background-color: var(--white);
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid #FFA500;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid var(--gray-300);
+        margin-bottom: 20px;
+    }
+    
+    /* Formula Box */
+    .formula-box {
+        background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid var(--secondary);
         margin: 15px 0;
         font-family: 'Courier New', monospace;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: #000000 !important;
     }
+    .formula-box * {
+        color: #000000 !important;
+    }
+    
+    /* Reference Box */
+    .reference-box {
+        background-color: #E7F3FF;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 6px solid var(--primary);
+        margin: 15px 0;
+        border: 1px solid #B8DAFF;
+        color: #000000 !important;
+    }
+    .reference-box * {
+        color: #000000 !important;
+    }
+    
+    /* Info Box */
+    .info-box {
+        background: linear-gradient(135deg, #E7F3FF 0%, #D4E6FF 100%);
+        color: #004085 !important;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid var(--primary);
+        margin: 10px 0;
+    }
+    .info-box * {
+        color: #004085 !important;
+    }
+    
+    /* Success Box */
+    .success-box {
+        background: linear-gradient(135deg, #D4EDDA 0%, #C3E6CB 100%);
+        color: #155724 !important;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid var(--success);
+        margin: 20px 0;
+        border: 1px solid #C3E6CB;
+    }
+    .success-box * {
+        color: #155724 !important;
+    }
+    
+    /* Warning Box */
+    .warning-box {
+        background: linear-gradient(135deg, #FFF3CD 0%, #FFE9B2 100%);
+        color: #856404 !important;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid var(--warning);
+        margin: 10px 0;
+    }
+    .warning-box * {
+        color: #856404 !important;
+    }
+    
+    /* Calculation Step - FIXED COLORS */
     .calc-step {
-        background-color: white;
+        background-color: #FFFFFF;
         padding: 15px;
         border-radius: 8px;
         border-left: 5px solid #FFA500;
         margin: 10px 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #DEE2E6;
+        color: #000000 !important;
     }
     .calc-step h4 {
-        color: #1E3A8A;
+        color: #1E3A8A !important;
         margin-top: 0;
         margin-bottom: 10px;
+        font-size: 18px;
     }
+    .calc-step p {
+        color: #000000 !important;
+        margin: 5px 0;
+        font-size: 14px;
+    }
+    .calc-step b {
+        color: #1E3A8A !important;
+    }
+    
+    /* Metric Cards */
     .metric-card {
         background-color: white;
         padding: 20px;
@@ -68,21 +185,33 @@ st.markdown("""
     .metric-card .value {
         font-size: 32px;
         font-weight: bold;
-        color: #1E3A8A;
+        color: #1E3A8A !important;
     }
     .metric-card .label {
         font-size: 14px;
-        color: #6C757D;
+        color: #6C757D !important;
         margin-top: 5px;
     }
+    
+    /* Result Card */
     .result-card {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
-        color: white;
+        color: white !important;
         padding: 25px;
         border-radius: 12px;
         margin: 20px 0;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
+    .result-card * {
+        color: white !important;
+    }
+    .result-card h3 {
+        color: white !important;
+        border-bottom: 2px solid #FFA500;
+        padding-bottom: 10px;
+    }
+    
+    /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
         background-color: #F8F9FA;
@@ -110,13 +239,50 @@ st.markdown("""
         color: white !important;
         font-weight: 700 !important;
     }
+    
+    /* DataFrame Styling - FIXED COLORS */
     .stDataFrame {
         color: #000000 !important;
+    }
+    .stDataFrame table {
+        color: #000000 !important;
+        border: 2px solid #1E3A8A !important;
     }
     .stDataFrame th {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%) !important;
         color: white !important;
+        font-weight: 600 !important;
+        padding: 12px !important;
     }
+    .stDataFrame td {
+        color: #000000 !important;
+        padding: 10px !important;
+        background-color: white !important;
+    }
+    .stDataFrame tr:nth-child(even) td {
+        background-color: #F8F9FA !important;
+        color: #000000 !important;
+    }
+    .stDataFrame tr:nth-child(odd) td {
+        background-color: white !important;
+        color: #000000 !important;
+    }
+    
+    /* Sidebar Navigation */
+    .sidebar-nav {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .sidebar-nav h2 {
+        color: white !important;
+        margin: 0;
+    }
+    
+    /* Download Buttons */
     .download-btn {
         display: inline-block;
         padding: 14px 28px;
@@ -142,13 +308,15 @@ st.markdown("""
     .word-btn {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
     }
-    .sidebar-nav {
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        text-align: center;
+    
+    /* Load Name Styling */
+    .load-name {
+        color: #1E3A8A !important;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    .load-detail {
+        color: #000000 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1399,11 +1567,11 @@ class SimpleTransformerCalculator:
 # ========== UNIVERSAL LOAD SHEET ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
-        'Load Description': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC', 'Pumps'],
-        'Quantity': [2, 1, 1, 2, 3],
-        'Rating (kW)': [75, 50, 25, 40, 30],
-        'Power Factor': [0.85, 0.85, 0.95, 0.80, 0.85],
-        'Diversity Factor': [0.8, 0.8, 1.0, 0.7, 0.8]
+        'Load Description': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
+        'Quantity': [2, 1, 1, 2],
+        'Rating (kW)': [75, 50, 25, 40],
+        'Power Factor': [0.85, 0.85, 0.95, 0.80],
+        'Diversity Factor': [0.8, 0.8, 1.0, 0.7]
     })
 
 # Cable sizing loads
@@ -1503,6 +1671,17 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
                 st.rerun()
             else:
                 st.warning("At least one row required")
+    
+    # Display loads with proper colors
+    st.markdown("### 📋 Current Loads")
+    
+    for idx, load in st.session_state.universal_loads.iterrows():
+        st.markdown(f"""
+        <div class="calc-step">
+            <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
+            <p><b>Quantity:</b> {load['Quantity']} | <b>Rating:</b> {load['Rating (kW)']} kW | <b>PF:</b> {load['Power Factor']} | <b>Diversity:</b> {load['Diversity Factor']}</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     edited_loads = st.data_editor(
         st.session_state.universal_loads,
@@ -1748,7 +1927,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
     
-    st.markdown("""
+    st.markdown(f"""
     <div class="info-box">
         <h4>📌 Using loads from Universal Load Sheet</h4>
         <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import.</p>
@@ -2305,12 +2484,12 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
     
-    st.markdown("""
+    st.markdown(f"""
     <div class="info-box">
         <h4>📌 Using loads from Universal Load Sheet</h4>
-        <p>Total {} loads available. Calculations below use these loads.</p>
+        <p>Total {len(st.session_state.universal_loads)} loads available. Calculations below use these loads.</p>
     </div>
-    """.format(len(st.session_state.universal_loads)), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
     
     tx_tabs = st.tabs([
         "📊 P, Q, S Calculations",
@@ -2343,7 +2522,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             
             st.markdown(f"""
             <div class="calc-step">
-                <h4>📌 Load {idx+1}: {load['Load Description']}</h4>
+                <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
                 <p><b>Step 1:</b> P = {load['Rating (kW)']:.0f} kW × {load['Quantity']:.0f} × {load['Diversity Factor']:.1f} = <b>{p:.1f} kW</b></p>
                 <p><b>Step 2:</b> tan(acos({load['Power Factor']:.2f})) = <b>{tan_phi:.3f}</b></p>
                 <p><b>Step 3:</b> Q = {p:.1f} × {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
@@ -2454,4 +2633,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 71.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 72.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
