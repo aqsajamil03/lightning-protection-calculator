@@ -20,7 +20,7 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - CHANGED YELLOW TO EMERALD GREEN ==========
 st.markdown("""
 <style>
     /* Main Theme Colors */
@@ -28,7 +28,7 @@ st.markdown("""
         --primary: #1E3A8A;
         --primary-light: #3B5BA6;
         --primary-dark: #0D1B4A;
-        --secondary: #FFA500;
+        --secondary: #00A86B;  /* Changed from #FFA500 to Emerald Green */
         --success: #28A745;
         --danger: #DC3545;
         --warning: #FFC107;
@@ -55,7 +55,7 @@ st.markdown("""
         font-size: 28px;
         font-weight: bold;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-bottom: 4px solid var(--secondary);
+        border-bottom: 4px solid var(--secondary);  /* Changed to green */
     }
     
     /* Section Headers */
@@ -65,7 +65,7 @@ st.markdown("""
         font-weight: 600;
         margin: 20px 0 15px 0;
         padding-bottom: 10px;
-        border-bottom: 3px solid var(--secondary);
+        border-bottom: 3px solid var(--secondary);  /* Changed to green */
     }
     
     /* Card Style */
@@ -83,7 +83,7 @@ st.markdown("""
         background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 100%);
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid var(--secondary);
+        border-left: 6px solid var(--secondary);  /* Changed to green */
         margin: 15px 0;
         font-family: 'Courier New', monospace;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -152,7 +152,7 @@ st.markdown("""
         background-color: #FFFFFF;
         padding: 15px;
         border-radius: 8px;
-        border-left: 5px solid #FFA500;
+        border-left: 5px solid #00A86B;  /* Changed from #FFA500 to Emerald Green */
         margin: 10px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid #DEE2E6;
@@ -175,21 +175,21 @@ st.markdown("""
     
     /* Largest Equipment Highlight */
     .largest-equipment {
-        background: linear-gradient(135deg, #FFE5B4 0%, #FFD700 100%);
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);  /* Light green gradient */
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid #FF8C00;
+        border-left: 6px solid #00A86B;  /* Changed to green */
         margin: 15px 0;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .largest-equipment h3 {
-        color: #8B4513 !important;
+        color: #006B3C !important;  /* Dark green */
         margin-top: 0;
     }
     .largest-equipment .value {
         font-size: 24px;
         font-weight: bold;
-        color: #8B4513;
+        color: #006B3C;  /* Dark green */
     }
     
     /* Metric Cards */
@@ -226,7 +226,7 @@ st.markdown("""
     }
     .result-card h3 {
         color: white !important;
-        border-bottom: 2px solid #FFA500;
+        border-bottom: 2px solid #00A86B;  /* Changed to green */
         padding-bottom: 10px;
     }
     
@@ -1546,7 +1546,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== NEW: TRANSFORMER PDF REPORT CLASS ==========
+# ========== TRANSFORMER PDF REPORT CLASS ==========
 class TransformerPDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -1576,7 +1576,7 @@ class TransformerPDFReport(FPDF):
         self.cell(0, 6, f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
         self.ln(10)
     
-    def add_load_analysis(self, loads_df, calc_data):
+    def add_load_analysis(self, loads_df, tx_calc):
         self.set_font('Arial', 'B', 14)
         self.set_text_color(0, 51, 102)
         self.cell(0, 10, '1. LOAD ANALYSIS', 0, 1)
@@ -2384,7 +2384,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== TAB 3: CABLE SIZING (REMOVED ADD/DELETE) ==========
+# ========== TAB 3: CABLE SIZING ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2421,7 +2421,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT (NO ADD/DELETE)
+    # TAB 1: LOADS INPUT
     with cable_tabs[0]:
         st.markdown("### 📋 Load Details (Imported from Load Sheet)")
         st.markdown("""
@@ -3241,9 +3241,9 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                     with st.spinner("Generating Word report..."):
                         word = TransformerWordReport()
                         word.add_title()
-                        word.add_load_analysis(st.session_state.universal_loads)
+                        total_p_calc = word.add_load_analysis(st.session_state.universal_loads)
                         
-                        total_p, total_q = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
+                        total_p_step, total_q_step = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
                         
                         if 'tx_largest_data' in st.session_state:
                             word.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
@@ -3273,4 +3273,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 74.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 75.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
