@@ -20,7 +20,7 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS - FIXED COLORS ==========
+# ========== CUSTOM CSS ==========
 st.markdown("""
 <style>
     /* Main Theme Colors */
@@ -259,13 +259,7 @@ st.markdown("""
         font-weight: 700 !important;
     }
     
-    /* Sub-tabs Styling */
-    .stTabs [data-baseweb="tab-list"] .stTabs [data-baseweb="tab"] {
-        padding: 8px 16px !important;
-        font-size: 14px !important;
-    }
-    
-    /* DataFrame Styling - FIXED COLORS */
+    /* DataFrame Styling */
     .stDataFrame {
         color: #000000 !important;
     }
@@ -342,14 +336,6 @@ st.markdown("""
     }
     .load-detail {
         color: #000000 !important;
-    }
-    
-    /* Contribution Bar */
-    .contribution-bar {
-        height: 20px;
-        background: linear-gradient(90deg, #1E3A8A 0%, #3B5BA6 100%);
-        border-radius: 10px;
-        margin: 5px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1560,6 +1546,433 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
+# ========== NEW: TRANSFORMER PDF REPORT CLASS ==========
+class TransformerPDFReport(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.set_auto_page_break(auto=True, margin=25)
+    
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, 'TRANSFORMER SIZING REPORT', 0, 1, 'C')
+        self.line(10, 25, 200, 25)
+        self.ln(10)
+    
+    def footer(self):
+        self.set_y(-20)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 10, f'Page {self.page_no()} | Generated on {datetime.now().strftime("%Y-%m-%d")}', 0, 0, 'C')
+    
+    def add_title(self):
+        self.add_page()
+        self.set_font('Arial', 'B', 20)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 20, 'TRANSFORMER SIZING CALCULATIONS', 0, 1, 'C')
+        self.ln(5)
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 6, f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
+        self.ln(10)
+    
+    def add_load_analysis(self, loads_df, calc_data):
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '1. LOAD ANALYSIS', 0, 1)
+        self.ln(2)
+        
+        # Load details table
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(240, 240, 240)
+        self.cell(50, 8, 'Load Description', 1, 0, 'C', 1)
+        self.cell(20, 8, 'Qty', 1, 0, 'C', 1)
+        self.cell(25, 8, 'Rating (kW)', 1, 0, 'C', 1)
+        self.cell(25, 8, 'Connected', 1, 0, 'C', 1)
+        self.cell(25, 8, 'Diversity', 1, 0, 'C', 1)
+        self.cell(25, 8, 'P (kW)', 1, 1, 'C', 1)
+        
+        self.set_font('Arial', '', 9)
+        fill = False
+        total_p = 0
+        
+        for idx, load in loads_df.iterrows():
+            connected = load['Rating (kW)'] * load['Quantity']
+            p = load['Rating (kW)'] * load['Quantity'] * load['Diversity Factor']
+            total_p += p
+            
+            self.cell(50, 6, load['Load Description'][:20], 1, 0, 'L', fill)
+            self.cell(20, 6, str(load['Quantity']), 1, 0, 'C', fill)
+            self.cell(25, 6, f"{load['Rating (kW)']:.0f}", 1, 0, 'R', fill)
+            self.cell(25, 6, f"{connected:.0f} kW", 1, 0, 'R', fill)
+            self.cell(25, 6, f"{load['Diversity Factor']:.1f}", 1, 0, 'C', fill)
+            self.cell(25, 6, f"{p:.1f}", 1, 1, 'R', fill)
+            fill = not fill
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(0, 51, 102)
+        self.set_text_color(255, 255, 255)
+        self.cell(145, 8, 'TOTAL REAL POWER (P)', 1, 0, 'R', 1)
+        self.cell(25, 8, f"{total_p:.1f} kW", 1, 1, 'R', 1)
+        self.set_text_color(0, 0, 0)
+        self.ln(10)
+    
+    def add_step_by_step(self, loads_df, tx_calc):
+        self.add_page()
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '2. STEP-BY-STEP P, Q, S CALCULATIONS', 0, 1)
+        self.ln(2)
+        
+        total_p = 0
+        total_q = 0
+        
+        for idx, load in loads_df.iterrows():
+            if self.get_y() > 250:
+                self.add_page()
+            
+            connected = load['Rating (kW)'] * load['Quantity']
+            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+            phi = math.acos(load['Power Factor'])
+            tan_phi = math.tan(phi)
+            q = tx_calc.calculate_q(p, load['Power Factor'])
+            s = tx_calc.calculate_s(p, q)
+            
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, f'Load {idx+1}: {load["Load Description"]}', 0, 1)
+            self.ln(1)
+            
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 5, f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW × {load["Quantity"]} = {connected:.0f} kW', 0, 1)
+            self.cell(0, 5, f'Step 2 - Demand Power (P): {connected:.0f} kW × {load["Diversity Factor"]} = {p:.1f} kW', 0, 1)
+            self.cell(0, 5, f'Step 3 - Angle φ: acos({load["Power Factor"]}) = {math.degrees(phi):.1f}°', 0, 1)
+            self.cell(0, 5, f'Step 4 - tan(φ): tan({math.degrees(phi):.1f}°) = {tan_phi:.3f}', 0, 1)
+            self.cell(0, 5, f'Step 5 - Reactive Power (Q): {p:.1f} kW × {tan_phi:.3f} = {q:.1f} kVAR', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 5, f'Step 6 - Apparent Power (S): √({p:.1f}² + {q:.1f}²) = {s:.1f} kVA', 0, 1)
+            self.ln(3)
+            
+            total_p += p
+            total_q += q
+            
+            self.set_draw_color(200, 200, 200)
+            self.line(10, self.get_y(), 200, self.get_y())
+            self.ln(3)
+        
+        st.session_state.total_p = total_p
+        st.session_state.total_q = total_q
+    
+    def add_largest_equipment(self, loads_df, tx_calc, total_p, total_s):
+        self.add_page()
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '3. LARGEST EQUIPMENT ANALYSIS', 0, 1)
+        self.ln(2)
+        
+        # Find largest equipment
+        max_p = 0
+        max_load = None
+        max_idx = -1
+        
+        for idx, load in loads_df.iterrows():
+            p_connected = load['Rating (kW)'] * load['Quantity']
+            if p_connected > max_p:
+                max_p = p_connected
+                max_load = load
+                max_idx = idx
+        
+        if max_load is not None:
+            p_largest = tx_calc.calculate_p(max_load['Rating (kW)'], max_load['Quantity'], max_load['Diversity Factor'])
+            q_largest = tx_calc.calculate_q(p_largest, max_load['Power Factor'])
+            s_largest = tx_calc.calculate_s(p_largest, q_largest)
+            
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, f'Largest Equipment: {max_load["Load Description"]}', 0, 1)
+            self.ln(2)
+            
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW × {max_load["Quantity"]})', 0, 1)
+            self.cell(0, 6, f'Demand Power (P): {p_largest:.1f} kW (after diversity factor {max_load["Diversity Factor"]})', 0, 1)
+            self.cell(0, 6, f'Reactive Power (Q): {q_largest:.1f} kVAR (PF = {max_load["Power Factor"]})', 0, 1)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, f'Apparent Power (S): {s_largest:.1f} kVA', 0, 1)
+            self.ln(5)
+            
+            # Impact analysis
+            self.set_font('Arial', 'B', 11)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 7, 'Impact on Total System:', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            
+            p_pct = (p_largest / total_p) * 100 if total_p > 0 else 0
+            s_pct = (s_largest / total_s) * 100 if total_s > 0 else 0
+            
+            self.cell(0, 6, f'• Contributes {p_pct:.1f}% of total real power (P)', 0, 1)
+            self.cell(0, 6, f'• Contributes {s_pct:.1f}% of total apparent power (S)', 0, 1)
+            self.cell(0, 6, f'• Starting this motor would cause approx. {s_pct:.1f}% voltage dip', 0, 1)
+            self.ln(5)
+            
+            # Contribution table
+            self.set_font('Arial', 'B', 10)
+            self.set_fill_color(240, 240, 240)
+            self.cell(60, 7, 'Load', 1, 0, 'C', 1)
+            self.cell(30, 7, 'P (kW)', 1, 0, 'C', 1)
+            self.cell(30, 7, '% of P', 1, 0, 'C', 1)
+            self.cell(30, 7, 'S (kVA)', 1, 0, 'C', 1)
+            self.cell(30, 7, '% of S', 1, 1, 'C', 1)
+            
+            self.set_font('Arial', '', 9)
+            fill = False
+            for idx, load in loads_df.iterrows():
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                q = tx_calc.calculate_q(p, load['Power Factor'])
+                s = tx_calc.calculate_s(p, q)
+                
+                p_pct = (p / total_p) * 100 if total_p > 0 else 0
+                s_pct = (s / total_s) * 100 if total_s > 0 else 0
+                
+                self.cell(60, 6, load['Load Description'][:15], 1, 0, 'L', fill)
+                self.cell(30, 6, f"{p:.1f}", 1, 0, 'R', fill)
+                self.cell(30, 6, f"{p_pct:.1f}%", 1, 0, 'R', fill)
+                self.cell(30, 6, f"{s:.1f}", 1, 0, 'R', fill)
+                self.cell(30, 6, f"{s_pct:.1f}%", 1, 1, 'R', fill)
+                fill = not fill
+    
+    def add_transformer_selection(self, total_p, total_q, future_expansion, selected_kva, with_future, total_s):
+        self.add_page()
+        self.set_font('Arial', 'B', 14)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 10, '4. TRANSFORMER SELECTION [IEC 60076]', 0, 1)
+        self.ln(2)
+        
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 7, f'Total Real Power (P) = {total_p:.1f} kW', 0, 1)
+        self.cell(0, 7, f'Total Reactive Power (Q) = {total_q:.1f} kVAR', 0, 1)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 7, f'Total Apparent Power (S) = √({total_p:.1f}² + {total_q:.1f}²) = {total_s:.1f} kVA', 0, 1)
+        self.ln(3)
+        
+        self.set_font('Arial', '', 10)
+        self.cell(0, 7, f'Future Expansion: +{future_expansion}%', 0, 1)
+        self.cell(0, 7, f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA', 0, 1)
+        self.ln(3)
+        
+        self.set_font('Arial', 'B', 12)
+        self.set_text_color(0, 51, 102)
+        self.cell(0, 8, 'Standard Ratings [IEC 60076]:', 0, 1)
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        
+        ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150]
+        ratings_str = ', '.join(str(r) for r in ratings[:10]) + '...'
+        self.multi_cell(0, 5, ratings_str)
+        self.ln(3)
+        
+        self.set_fill_color(0, 51, 102)
+        self.set_text_color(255, 255, 255)
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 12, f'SELECTED TRANSFORMER: {selected_kva} kVA', 0, 1, 'C', 1)
+
+class TransformerWordReport:
+    def __init__(self):
+        self.doc = Document()
+        style = self.doc.styles['Normal']
+        style.font.name = 'Arial'
+        style.font.size = Pt(11)
+        
+        sections = self.doc.sections
+        for section in sections:
+            section.top_margin = Cm(2.5)
+            section.bottom_margin = Cm(2.5)
+            section.left_margin = Cm(2.5)
+            section.right_margin = Cm(2.5)
+    
+    def add_title(self):
+        title = self.doc.add_heading('TRANSFORMER SIZING REPORT', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title.runs[0].font.size = Pt(20)
+        title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        p = self.doc.add_paragraph()
+        p.add_run(f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M")}').italic = True
+        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        self.doc.add_paragraph()
+    
+    def add_load_analysis(self, loads_df):
+        heading = self.doc.add_heading('1. LOAD ANALYSIS', level=1)
+        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        table = self.doc.add_table(rows=1, cols=6)
+        table.style = 'Light Grid Accent 1'
+        
+        headers = ['Load Description', 'Qty', 'Rating (kW)', 'Connected (kW)', 'Diversity', 'P (kW)']
+        for i, header in enumerate(headers):
+            table.rows[0].cells[i].text = header
+            table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+        
+        total_p = 0
+        for idx, load in loads_df.iterrows():
+            connected = load['Rating (kW)'] * load['Quantity']
+            p = connected * load['Diversity Factor']
+            total_p += p
+            
+            row = table.add_row().cells
+            row[0].text = load['Load Description']
+            row[1].text = str(load['Quantity'])
+            row[2].text = f"{load['Rating (kW)']:.0f}"
+            row[3].text = f"{connected:.0f}"
+            row[4].text = f"{load['Diversity Factor']:.1f}"
+            row[5].text = f"{p:.1f}"
+        
+        p_row = table.add_row().cells
+        p_row[0].text = 'TOTAL REAL POWER (P)'
+        p_row[0].paragraphs[0].runs[0].bold = True
+        p_row[1].text = ''
+        p_row[2].text = ''
+        p_row[3].text = ''
+        p_row[4].text = ''
+        p_row[5].text = f"{total_p:.1f} kW"
+        p_row[5].paragraphs[0].runs[0].bold = True
+        
+        self.doc.add_paragraph()
+        return total_p
+    
+    def add_step_by_step(self, loads_df, tx_calc):
+        self.doc.add_page_break()
+        heading = self.doc.add_heading('2. STEP-BY-STEP P, Q, S CALCULATIONS', level=1)
+        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        total_p = 0
+        total_q = 0
+        
+        for idx, load in loads_df.iterrows():
+            self.doc.add_heading(f'Load {idx+1}: {load["Load Description"]}', level=2)
+            
+            connected = load['Rating (kW)'] * load['Quantity']
+            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+            phi = math.acos(load['Power Factor'])
+            tan_phi = math.tan(phi)
+            q = tx_calc.calculate_q(p, load['Power Factor'])
+            s = tx_calc.calculate_s(p, q)
+            
+            self.doc.add_paragraph(f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW × {load["Quantity"]} = {connected:.0f} kW')
+            self.doc.add_paragraph(f'Step 2 - Demand Power (P): {connected:.0f} kW × {load["Diversity Factor"]} = {p:.1f} kW')
+            self.doc.add_paragraph(f'Step 3 - Angle φ: acos({load["Power Factor"]}) = {math.degrees(phi):.1f}°')
+            self.doc.add_paragraph(f'Step 4 - tan(φ): tan({math.degrees(phi):.1f}°) = {tan_phi:.3f}')
+            self.doc.add_paragraph(f'Step 5 - Reactive Power (Q): {p:.1f} kW × {tan_phi:.3f} = {q:.1f} kVAR')
+            p_step = self.doc.add_paragraph()
+            p_step.add_run('Step 6 - Apparent Power (S): ').bold = True
+            p_step.add_run(f'√({p:.1f}² + {q:.1f}²) = {s:.1f} kVA')
+            
+            total_p += p
+            total_q += q
+            
+            self.doc.add_paragraph('_' * 50)
+        
+        return total_p, total_q
+    
+    def add_largest_equipment(self, loads_df, tx_calc, total_p, total_s):
+        self.doc.add_page_break()
+        heading = self.doc.add_heading('3. LARGEST EQUIPMENT ANALYSIS', level=1)
+        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        # Find largest equipment
+        max_p = 0
+        max_load = None
+        max_idx = -1
+        
+        for idx, load in loads_df.iterrows():
+            p_connected = load['Rating (kW)'] * load['Quantity']
+            if p_connected > max_p:
+                max_p = p_connected
+                max_load = load
+                max_idx = idx
+        
+        if max_load is not None:
+            p_largest = tx_calc.calculate_p(max_load['Rating (kW)'], max_load['Quantity'], max_load['Diversity Factor'])
+            q_largest = tx_calc.calculate_q(p_largest, max_load['Power Factor'])
+            s_largest = tx_calc.calculate_s(p_largest, q_largest)
+            
+            self.doc.add_heading(f'Largest Equipment: {max_load["Load Description"]}', level=2)
+            
+            self.doc.add_paragraph(f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW × {max_load["Quantity"]})')
+            self.doc.add_paragraph(f'Demand Power (P): {p_largest:.1f} kW (after diversity factor {max_load["Diversity Factor"]})')
+            self.doc.add_paragraph(f'Reactive Power (Q): {q_largest:.1f} kVAR (PF = {max_load["Power Factor"]})')
+            p = self.doc.add_paragraph()
+            p.add_run('Apparent Power (S): ').bold = True
+            p.add_run(f'{s_largest:.1f} kVA')
+            
+            self.doc.add_heading('Impact on Total System:', level=3)
+            p_pct = (p_largest / total_p) * 100 if total_p > 0 else 0
+            s_pct = (s_largest / total_s) * 100 if total_s > 0 else 0
+            
+            self.doc.add_paragraph(f'• Contributes {p_pct:.1f}% of total real power (P)')
+            self.doc.add_paragraph(f'• Contributes {s_pct:.1f}% of total apparent power (S)')
+            self.doc.add_paragraph(f'• Starting this motor would cause approx. {s_pct:.1f}% voltage dip')
+            self.doc.add_paragraph()
+            
+            # Contribution table
+            self.doc.add_heading('Load Contribution Analysis:', level=3)
+            table = self.doc.add_table(rows=1, cols=5)
+            table.style = 'Light Grid Accent 1'
+            
+            headers = ['Load', 'P (kW)', '% of P', 'S (kVA)', '% of S']
+            for i, header in enumerate(headers):
+                table.rows[0].cells[i].text = header
+                table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+            
+            for idx, load in loads_df.iterrows():
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                q = tx_calc.calculate_q(p, load['Power Factor'])
+                s = tx_calc.calculate_s(p, q)
+                
+                p_pct = (p / total_p) * 100 if total_p > 0 else 0
+                s_pct = (s / total_s) * 100 if total_s > 0 else 0
+                
+                row = table.add_row().cells
+                row[0].text = load['Load Description']
+                row[1].text = f"{p:.1f}"
+                row[2].text = f"{p_pct:.1f}%"
+                row[3].text = f"{s:.1f}"
+                row[4].text = f"{s_pct:.1f}%"
+    
+    def add_transformer_selection(self, total_p, total_q, future_expansion, selected_kva, with_future, total_s):
+        self.doc.add_page_break()
+        heading = self.doc.add_heading('4. TRANSFORMER SELECTION [IEC 60076]', level=1)
+        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+        
+        self.doc.add_paragraph(f'Total Real Power (P) = {total_p:.1f} kW')
+        self.doc.add_paragraph(f'Total Reactive Power (Q) = {total_q:.1f} kVAR')
+        p = self.doc.add_paragraph()
+        p.add_run('Total Apparent Power (S) = ').bold = True
+        p.add_run(f'√({total_p:.1f}² + {total_q:.1f}²) = {total_s:.1f} kVA')
+        
+        self.doc.add_paragraph()
+        self.doc.add_paragraph(f'Future Expansion: +{future_expansion}%')
+        self.doc.add_paragraph(f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA')
+        self.doc.add_paragraph()
+        
+        self.doc.add_heading('Standard Ratings [IEC 60076]:', level=3)
+        ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150]
+        ratings_str = ', '.join(str(r) for r in ratings)
+        self.doc.add_paragraph(ratings_str)
+        
+        final_heading = self.doc.add_heading('', level=2)
+        final_heading.add_run(f'SELECTED TRANSFORMER: {selected_kva} kVA').bold = True
+        final_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    def save(self, filename):
+        self.doc.save(filename)
+
 # ========== SIMPLIFIED TRANSFORMER CALCULATOR ==========
 class SimpleTransformerCalculator:
     def __init__(self):
@@ -1674,7 +2087,7 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: UNIVERSAL LOAD SHEET (FIXED ADD/DELETE) ==========
+# ========== TAB 1: UNIVERSAL LOAD SHEET ==========
 if st.session_state.selected_calculator == "📋 LOAD SHEET":
     
     st.markdown('<div class="report-header">📋 UNIVERSAL LOAD SHEET</div>', unsafe_allow_html=True)
@@ -1699,7 +2112,7 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
         st.dataframe(tan_df, use_container_width=True, hide_index=True)
         st.caption("Formula: Q = P × tan(acos(PF)) as per document")
     
-    # FIXED: Add and Delete buttons now work properly
+    # Add and Delete buttons
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("➕ Add Load", key="add_load_main", use_container_width=True):
@@ -1971,7 +2384,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== TAB 3: CABLE SIZING (REMOVED ADD/DELETE OPTIONS) ==========
+# ========== TAB 3: CABLE SIZING (REMOVED ADD/DELETE) ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2008,7 +2421,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT (NO ADD/DELETE BUTTONS)
+    # TAB 1: LOADS INPUT (NO ADD/DELETE)
     with cable_tabs[0]:
         st.markdown("### 📋 Load Details (Imported from Load Sheet)")
         st.markdown("""
@@ -2511,7 +2924,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== TAB 4: ENHANCED TRANSFORMER SIZING WITH SUB-TABS AND LARGEST EQUIPMENT ANALYSIS ==========
+# ========== TAB 4: TRANSFORMER SIZING WITH DOWNLOADABLE REPORTS ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2735,8 +3148,17 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 <p>• Starting this largest motor would cause a voltage dip of approximately <b>{p_largest/total_s*100:.1f}%</b> of transformer capacity.</p>
             </div>
             """, unsafe_allow_html=True)
+            
+            # Store for report
+            st.session_state.tx_largest_data = {
+                'load': largest_load,
+                'connected': largest_connected,
+                'p': p_largest,
+                'q': q_largest,
+                's': s_largest
+            }
     
-    # TAB 3: DOWNLOAD REPORT
+    # TAB 3: DOWNLOAD REPORT (Now with working downloads)
     with tx_main_tabs[2]:
         st.markdown("### ⚙️ Future Expansion")
         future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
@@ -2793,15 +3215,49 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             </div>
             """, unsafe_allow_html=True)
             
-            # Download buttons
+            # Download buttons - NOW WORKING
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
                     with st.spinner("Generating PDF report..."):
+                        pdf = TransformerPDFReport()
+                        pdf.add_title()
+                        pdf.add_load_analysis(st.session_state.universal_loads, tx_calc)
+                        pdf.add_step_by_step(st.session_state.universal_loads, tx_calc)
+                        
+                        if 'tx_largest_data' in st.session_state:
+                            pdf.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
+                        
+                        pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                        
+                        pdf_output = pdf.output(dest='S')
+                        b64 = base64.b64encode(pdf_output).decode()
+                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
                         st.success("✅ PDF generated successfully!")
+            
             with col2:
                 if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
                     with st.spinner("Generating Word report..."):
+                        word = TransformerWordReport()
+                        word.add_title()
+                        word.add_load_analysis(st.session_state.universal_loads)
+                        
+                        total_p, total_q = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
+                        
+                        if 'tx_largest_data' in st.session_state:
+                            word.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
+                        
+                        word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                        
+                        word_path = "temp_transformer_report.docx"
+                        word.save(word_path)
+                        with open(word_path, "rb") as f:
+                            word_bytes = f.read()
+                        b64 = base64.b64encode(word_bytes).decode()
+                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                        os.remove(word_path)
+                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated successfully!")
         else:
             st.warning("⚠️ Please go to Load Analysis tab first to calculate totals.")
@@ -2817,4 +3273,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 73.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 74.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
