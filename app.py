@@ -142,6 +142,14 @@ st.markdown("""
     .word-btn {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
     }
+    .sidebar-nav {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1362,7 +1370,6 @@ class SimpleTransformerCalculator:
     
     def calculate_p(self, rating_kw, quantity, diversity):
         """Calculate Real Power P (kW)"""
-        # Handle NaN values
         if pd.isna(rating_kw) or pd.isna(quantity) or pd.isna(diversity):
             return 0
         return rating_kw * quantity * diversity
@@ -1389,13 +1396,17 @@ class SimpleTransformerCalculator:
                 return rating
         return self.standard_ratings[-1]
 
-# ========== SESSION STATE INITIALIZATION ==========
-if 'calc_results' not in st.session_state:
-    st.session_state.calc_results = {}
-if 'calc_done' not in st.session_state:
-    st.session_state.calc_done = False
-if 'selected_calculator' not in st.session_state:
-    st.session_state.selected_calculator = "⚡ Lightning Protection"
+# ========== UNIVERSAL LOAD SHEET ==========
+if 'universal_loads' not in st.session_state:
+    st.session_state.universal_loads = pd.DataFrame({
+        'Load Description': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC', 'Pumps'],
+        'Quantity': [2, 1, 1, 2, 3],
+        'Rating (kW)': [75, 50, 25, 40, 30],
+        'Power Factor': [0.85, 0.85, 0.95, 0.80, 0.85],
+        'Diversity Factor': [0.8, 0.8, 1.0, 0.7, 0.8]
+    })
+
+# Cable sizing loads
 if 'loads_df' not in st.session_state:
     st.session_state.loads_df = pd.DataFrame({
         'Load Name': ['Load 1'],
@@ -1405,6 +1416,7 @@ if 'loads_df' not in st.session_state:
         'Power Factor': [0.85],
         'Length (m)': [50]
     })
+
 if 'cable_results_df' not in st.session_state:
     st.session_state.cable_results_df = pd.DataFrame()
 if 'detailed_calcs' not in st.session_state:
@@ -1417,24 +1429,20 @@ if 'cb_details' not in st.session_state:
     st.session_state.cb_details = []
 if 'main_cb' not in st.session_state:
     st.session_state.main_cb = None
+if 'calc_results' not in st.session_state:
+    st.session_state.calc_results = {}
+if 'calc_done' not in st.session_state:
+    st.session_state.calc_done = False
 
-# Transformer loads - initialized with sample data from document
-if 'tx_loads' not in st.session_state:
-    st.session_state.tx_loads = pd.DataFrame({
-        'Load Description': ['Reboiler Pumps', 'Condensate Pumps', 'Cooling Water Pumps', 
-                             'Product Pumps', 'Lighting', 'HVAC', 'Instruments'],
-        'Quantity': [2, 2, 2, 2, 1, 2, 1],
-        'Rating (kW)': [90, 45, 110, 75, 25, 40, 15],
-        'Power Factor': [0.85, 0.85, 0.85, 0.85, 0.95, 0.80, 0.90],
-        'Diversity Factor': [0.8, 0.8, 0.8, 0.8, 1.0, 0.7, 0.6]
-    })
-
-# ========== SIDEBAR ==========
+# ========== SIDEBAR NAVIGATION ==========
 with st.sidebar:
-    st.markdown("### 🔌 CES-Electrical Design Calculations")
-    st.markdown("---")
+    st.markdown('<div class="sidebar-nav"><h2>⚡ CES-Electrical</h2></div>', unsafe_allow_html=True)
+    
+    if 'selected_calculator' not in st.session_state:
+        st.session_state.selected_calculator = "📋 LOAD SHEET"
     
     calculators = [
+        "📋 LOAD SHEET",
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
         "⚙️ Transformer Sizing",
@@ -1450,8 +1458,97 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== LIGHTNING PROTECTION (UNCHANGED) ==========
-if st.session_state.selected_calculator == "⚡ Lightning Protection":
+# ========== TAB 1: UNIVERSAL LOAD SHEET ==========
+if st.session_state.selected_calculator == "📋 LOAD SHEET":
+    
+    st.markdown('<div class="report-header">📋 UNIVERSAL LOAD SHEET</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <h4>📌 This load sheet is used by all calculators</h4>
+        <p>Any changes made here will reflect in Lightning Protection, Cable Sizing, and Transformer Sizing calculators.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # tan(acos(PF)) Reference Table
+    with st.expander("📊 tan(acos(PF)) Reference Table", expanded=False):
+        tan_data = {
+            'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
+            'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
+            'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
+                       'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
+                       'PF=0.70 → Q=1.02×P']
+        }
+        tan_df = pd.DataFrame(tan_data)
+        st.dataframe(tan_df, use_container_width=True, hide_index=True)
+        st.caption("Formula: Q = P × tan(acos(PF)) as per document")
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("➕ Add Load", use_container_width=True):
+            new_row = pd.DataFrame({
+                'Load Description': [f'Load {len(st.session_state.universal_loads) + 1}'],
+                'Quantity': [1],
+                'Rating (kW)': [50.0],
+                'Power Factor': [0.85],
+                'Diversity Factor': [0.8]
+            })
+            st.session_state.universal_loads = pd.concat([st.session_state.universal_loads, new_row], ignore_index=True)
+            st.rerun()
+    
+    with col2:
+        if st.button("🗑️ Delete Last Load", use_container_width=True):
+            if len(st.session_state.universal_loads) > 1:
+                st.session_state.universal_loads = st.session_state.universal_loads[:-1]
+                st.rerun()
+            else:
+                st.warning("At least one row required")
+    
+    edited_loads = st.data_editor(
+        st.session_state.universal_loads,
+        num_rows="fixed",
+        use_container_width=True,
+        column_config={
+            "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
+            "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
+            "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+            "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+            "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
+        }
+    )
+    st.session_state.universal_loads = edited_loads
+    
+    # Quick summary
+    total_connected = 0
+    total_p = 0
+    
+    st.markdown("### 📊 Load Summary")
+    
+    summary_data = []
+    for idx, load in st.session_state.universal_loads.iterrows():
+        connected = load['Rating (kW)'] * load['Quantity']
+        p = connected * load['Diversity Factor']
+        total_connected += connected
+        total_p += p
+        
+        summary_data.append({
+            'Load': load['Load Description'],
+            'Connected (kW)': f"{connected:.0f}",
+            'Demand (kW)': f"{p:.0f}",
+            'PF': f"{load['Power Factor']:.2f}"
+        })
+    
+    summary_df = pd.DataFrame(summary_data)
+    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Connected Load", f"{total_connected:.0f} kW")
+    with col2:
+        st.metric("Total Demand (with diversity)", f"{total_p:.0f} kW")
+
+# ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
+elif st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
     
@@ -1646,8 +1743,33 @@ if st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== CABLE SIZING CALCULATOR (UNCHANGED) ==========
+# ========== TAB 3: CABLE SIZING ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
+    
+    st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <h4>📌 Using loads from Universal Load Sheet</h4>
+        <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("📥 Import Loads from Load Sheet", use_container_width=True):
+        # Convert universal loads to cable sizing format
+        new_loads = []
+        for idx, load in st.session_state.universal_loads.iterrows():
+            new_loads.append({
+                'Load Name': load['Load Description'],
+                'Power (kW)': load['Rating (kW)'] * load['Quantity'] * load['Diversity Factor'],
+                'Voltage (V)': 400,
+                'Phase': '3-phase',
+                'Power Factor': load['Power Factor'],
+                'Length (m)': 50
+            })
+        st.session_state.loads_df = pd.DataFrame(new_loads)
+        st.success("✅ Loads imported successfully!")
+        st.rerun()
     
     cable_tabs = st.tabs([
         "📥 Loads Input", 
@@ -1660,11 +1782,11 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 1: LOADS INPUT
     with cable_tabs[0]:
-        st.markdown('<div class="report-header">🔌 CABLE SIZING - LOADS INPUT</div>', unsafe_allow_html=True)
+        st.markdown("### 📋 Load Details")
         
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("➕ Add Load", use_container_width=True):
+            if st.button("➕ Add Load", key="cable_add", use_container_width=True):
                 new_row = pd.DataFrame({
                     'Load Name': [f'Load {len(st.session_state.loads_df) + 1}'],
                     'Power (kW)': [10.0],
@@ -1677,7 +1799,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.rerun()
         
         with col2:
-            if st.button("🗑️ Delete Last Load", use_container_width=True):
+            if st.button("🗑️ Delete Last Load", key="cable_delete", use_container_width=True):
                 if len(st.session_state.loads_df) > 1:
                     st.session_state.loads_df = st.session_state.loads_df[:-1]
                     st.rerun()
@@ -2178,11 +2300,19 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== SIMPLIFIED TRANSFORMER SIZING - WITH SEPARATE TABS AND LOAD LIST ==========
+# ========== TAB 4: TRANSFORMER SIZING ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
+    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <h4>📌 Using loads from Universal Load Sheet</h4>
+        <p>Total {} loads available. Calculations below use these loads.</p>
+    </div>
+    """.format(len(st.session_state.universal_loads)), unsafe_allow_html=True)
+    
     tx_tabs = st.tabs([
-        "📋 Load List",
         "📊 P, Q, S Calculations",
         "📈 Totals & Selection",
         "📥 Download Report"
@@ -2190,75 +2320,14 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_calc = SimpleTransformerCalculator()
     
-    # TAB 1: LOAD LIST (MAIN TAB)
+    # TAB 1: P, Q, S CALCULATIONS
     with tx_tabs[0]:
-        st.markdown('<div class="report-header">📋 LOAD LIST</div>', unsafe_allow_html=True)
-        
-        # tan(acos(PF)) Reference Table
-        with st.expander("📊 tan(acos(PF)) Reference Table", expanded=False):
-            tan_data = {
-                'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-                'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
-                'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
-                           'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
-                           'PF=0.70 → Q=1.02×P']
-            }
-            tan_df = pd.DataFrame(tan_data)
-            st.dataframe(tan_df, use_container_width=True, hide_index=True)
-            st.caption("Formula: Q = P × tan(acos(PF)) as per document")
-        
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            if st.button("➕ Add Load", use_container_width=True):
-                new_row = pd.DataFrame({
-                    'Load Description': [f'Load {len(st.session_state.tx_loads) + 1}'],
-                    'Quantity': [1],
-                    'Rating (kW)': [50.0],
-                    'Power Factor': [0.85],
-                    'Diversity Factor': [0.8]
-                })
-                st.session_state.tx_loads = pd.concat([st.session_state.tx_loads, new_row], ignore_index=True)
-                st.rerun()
-        
-        with col2:
-            if st.button("🗑️ Delete Last Load", use_container_width=True):
-                if len(st.session_state.tx_loads) > 1:
-                    st.session_state.tx_loads = st.session_state.tx_loads[:-1]
-                    st.rerun()
-                else:
-                    st.warning("At least one row required")
-        
-        edited_loads = st.data_editor(
-            st.session_state.tx_loads,
-            num_rows="fixed",
-            use_container_width=True,
-            column_config={
-                "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
-                "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
-                "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
-                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
-                "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
-            }
-        )
-        st.session_state.tx_loads = edited_loads
-        
-        # Quick summary of loads
-        total_connected = 0
-        for idx, load in st.session_state.tx_loads.iterrows():
-            total_connected += load['Rating (kW)'] * load['Quantity']
-        
-        st.info(f"📊 **Total Connected Load:** {total_connected:.0f} kW")
-    
-    # TAB 2: P, Q, S CALCULATIONS
-    with tx_tabs[1]:
-        st.markdown('<div class="report-header">📊 P, Q, S CALCULATIONS</div>', unsafe_allow_html=True)
-        
         st.markdown("### 📋 Step-by-Step Calculations")
         
         total_p = 0
         total_q = 0
         
-        for idx, load in st.session_state.tx_loads.iterrows():
+        for idx, load in st.session_state.universal_loads.iterrows():
             # Step 1: Calculate P (Real Power)
             p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
             
@@ -2288,19 +2357,16 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         st.session_state.total_p = total_p
         st.session_state.total_q = total_q
     
-    # TAB 3: TOTALS & SELECTION
-    with tx_tabs[2]:
-        st.markdown('<div class="report-header">📈 TOTALS & SELECTION</div>', unsafe_allow_html=True)
+    # TAB 2: TOTALS & SELECTION
+    with tx_tabs[1]:
+        st.markdown("### ⚙️ Future Expansion")
+        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
         
         if 'total_p' in st.session_state and 'total_q' in st.session_state:
             total_p = st.session_state.total_p
             total_q = st.session_state.total_q
             
             total_s = math.sqrt(total_p**2 + total_q**2)
-            
-            st.markdown("### ⚙️ Future Expansion")
-            future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
-            
             with_future = total_s * (1 + future_expansion/100)
             selected_kva = tx_calc.get_standard_rating(with_future)
             
@@ -2360,9 +2426,9 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         else:
             st.warning("⚠️ Please go to 'P, Q, S Calculations' tab first to calculate totals.")
     
-    # TAB 4: DOWNLOAD REPORT
-    with tx_tabs[3]:
-        st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
+    # TAB 3: DOWNLOAD REPORT
+    with tx_tabs[2]:
+        st.markdown("### 📥 Download Options")
         
         if 'total_p' in st.session_state and 'total_q' in st.session_state:
             col1, col2 = st.columns(2)
@@ -2388,4 +2454,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 70.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 71.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
