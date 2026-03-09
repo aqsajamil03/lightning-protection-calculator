@@ -44,53 +44,18 @@ st.markdown("""
         font-family: 'Courier New', monospace;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .reference-box {
-        background-color: #E7F3FF;
+    .calc-step {
+        background-color: white;
         padding: 15px;
-        border-radius: 10px;
-        border-left: 6px solid #1E3A8A;
-        margin: 15px 0;
-        border: 1px solid #B8DAFF;
-    }
-    .stDataFrame {
-        color: #000000 !important;
-    }
-    .stDataFrame th {
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        padding: 12px !important;
-    }
-    .stDataFrame td {
-        padding: 10px !important;
-    }
-    .stDataFrame tr:nth-child(even) {
-        background-color: #F8F9FA !important;
-    }
-    .download-btn {
-        display: inline-block;
-        padding: 14px 28px;
-        margin: 10px;
-        color: white !important;
-        text-decoration: none;
         border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
-        transition: all 0.3s;
-        text-align: center;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 5px solid #FFA500;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .download-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    .pdf-btn {
-        background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);
-    }
-    .word-btn {
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+    .calc-step h4 {
+        color: #1E3A8A;
+        margin-top: 0;
+        margin-bottom: 10px;
     }
     .metric-card {
         background-color: white;
@@ -109,6 +74,14 @@ st.markdown("""
         font-size: 14px;
         color: #6C757D;
         margin-top: 5px;
+    }
+    .result-card {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 12px;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
@@ -136,6 +109,38 @@ st.markdown("""
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%) !important;
         color: white !important;
         font-weight: 700 !important;
+    }
+    .stDataFrame {
+        color: #000000 !important;
+    }
+    .stDataFrame th {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%) !important;
+        color: white !important;
+    }
+    .download-btn {
+        display: inline-block;
+        padding: 14px 28px;
+        margin: 10px;
+        color: white !important;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.3s;
+        text-align: center;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .pdf-btn {
+        background: linear-gradient(135deg, #DC3545 0%, #C82333 100%);
+    }
+    .word-btn {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1346,7 +1351,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== SIMPLIFIED TRANSFORMER SIZING (Only Calculations) ==========
+# ========== SIMPLIFIED TRANSFORMER CALCULATOR ==========
 class SimpleTransformerCalculator:
     def __init__(self):
         # IEC 60076 Standard Ratings
@@ -1357,21 +1362,28 @@ class SimpleTransformerCalculator:
     
     def calculate_p(self, rating_kw, quantity, diversity):
         """Calculate Real Power P (kW)"""
+        # Handle NaN values
+        if pd.isna(rating_kw) or pd.isna(quantity) or pd.isna(diversity):
+            return 0
         return rating_kw * quantity * diversity
     
     def calculate_q(self, p_kw, pf):
         """Calculate Reactive Power Q (kVAR)"""
-        if pf >= 1.0:
+        if pd.isna(p_kw) or pd.isna(pf) or pf >= 1.0:
             return 0
         phi = math.acos(pf)
         return p_kw * math.tan(phi)
     
     def calculate_s(self, p_kw, q_kvar):
         """Calculate Apparent Power S (kVA)"""
+        if pd.isna(p_kw) or pd.isna(q_kvar):
+            return 0
         return math.sqrt(p_kw**2 + q_kvar**2)
     
     def get_standard_rating(self, required_kva):
         """Get next higher standard rating from IEC 60076"""
+        if pd.isna(required_kva) or required_kva <= 0:
+            return 50
         for rating in self.standard_ratings:
             if rating >= required_kva:
                 return rating
@@ -2166,190 +2178,204 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== SIMPLIFIED TRANSFORMER SIZING - ONLY CALCULATIONS ==========
+# ========== SIMPLIFIED TRANSFORMER SIZING - WITH SEPARATE TABS AND LOAD LIST ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
-    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
-    
-    # tan(acos(PF)) Reference Table (as per document)
-    with st.expander("📊 tan(acos(PF)) Reference Table", expanded=False):
-        tan_data = {
-            'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
-            'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
-            'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
-                       'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
-                       'PF=0.70 → Q=1.02×P']
-        }
-        tan_df = pd.DataFrame(tan_data)
-        st.dataframe(tan_df, use_container_width=True, hide_index=True)
-        st.caption("Formula: Q = P × tan(acos(PF)) as per document")
-    
-    st.markdown("### 📋 Load Details")
-    
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("➕ Add Load", use_container_width=True):
-            new_row = pd.DataFrame({
-                'Load Description': [f'Load {len(st.session_state.tx_loads) + 1}'],
-                'Quantity': [1],
-                'Rating (kW)': [50.0],
-                'Power Factor': [0.85],
-                'Diversity Factor': [0.8]
-            })
-            st.session_state.tx_loads = pd.concat([st.session_state.tx_loads, new_row], ignore_index=True)
-            st.rerun()
-    
-    with col2:
-        if st.button("🗑️ Delete Last Load", use_container_width=True):
-            if len(st.session_state.tx_loads) > 1:
-                st.session_state.tx_loads = st.session_state.tx_loads[:-1]
-                st.rerun()
-            else:
-                st.warning("At least one row required")
-    
-    edited_loads = st.data_editor(
-        st.session_state.tx_loads,
-        num_rows="fixed",
-        use_container_width=True,
-        column_config={
-            "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
-            "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
-            "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
-            "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
-            "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
-        }
-    )
-    st.session_state.tx_loads = edited_loads
-    
-    st.markdown("### ⚙️ Future Expansion")
-    future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
+    tx_tabs = st.tabs([
+        "📋 Load List",
+        "📊 P, Q, S Calculations",
+        "📈 Totals & Selection",
+        "📥 Download Report"
+    ])
     
     tx_calc = SimpleTransformerCalculator()
     
-    # Calculate P, Q, S for each load
-    results_data = []
-    detailed_steps = []
-    total_p = 0
-    total_q = 0
-    
-    st.markdown("### 📊 Calculations")
-    
-    for idx, load in st.session_state.tx_loads.iterrows():
-        # Step 1: Calculate P (Real Power)
-        p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+    # TAB 1: LOAD LIST (MAIN TAB)
+    with tx_tabs[0]:
+        st.markdown('<div class="report-header">📋 LOAD LIST</div>', unsafe_allow_html=True)
         
-        # Step 2: Calculate tan(acos(PF))
-        phi = math.acos(load['Power Factor'])
-        tan_phi = math.tan(phi)
+        # tan(acos(PF)) Reference Table
+        with st.expander("📊 tan(acos(PF)) Reference Table", expanded=False):
+            tan_data = {
+                'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
+                'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
+                'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
+                           'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
+                           'PF=0.70 → Q=1.02×P']
+            }
+            tan_df = pd.DataFrame(tan_data)
+            st.dataframe(tan_df, use_container_width=True, hide_index=True)
+            st.caption("Formula: Q = P × tan(acos(PF)) as per document")
         
-        # Step 3: Calculate Q (Reactive Power)
-        q = tx_calc.calculate_q(p, load['Power Factor'])
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("➕ Add Load", use_container_width=True):
+                new_row = pd.DataFrame({
+                    'Load Description': [f'Load {len(st.session_state.tx_loads) + 1}'],
+                    'Quantity': [1],
+                    'Rating (kW)': [50.0],
+                    'Power Factor': [0.85],
+                    'Diversity Factor': [0.8]
+                })
+                st.session_state.tx_loads = pd.concat([st.session_state.tx_loads, new_row], ignore_index=True)
+                st.rerun()
         
-        # Step 4: Calculate S (Apparent Power)
-        s = tx_calc.calculate_s(p, q)
+        with col2:
+            if st.button("🗑️ Delete Last Load", use_container_width=True):
+                if len(st.session_state.tx_loads) > 1:
+                    st.session_state.tx_loads = st.session_state.tx_loads[:-1]
+                    st.rerun()
+                else:
+                    st.warning("At least one row required")
         
-        results_data.append({
-            'Load': load['Load Description'],
-            'Qty': load['Quantity'],
-            'Rating': f"{load['Rating (kW)']:.0f} kW",
-            'PF': f"{load['Power Factor']:.2f}",
-            'Diversity': f"{load['Diversity Factor']:.2f}",
-            'P (kW)': f"{p:.1f}",
-            'Q (kVAR)': f"{q:.1f}",
-            'S (kVA)': f"{s:.1f}"
-        })
+        edited_loads = st.data_editor(
+            st.session_state.tx_loads,
+            num_rows="fixed",
+            use_container_width=True,
+            column_config={
+                "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
+                "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
+                "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+                "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
+            }
+        )
+        st.session_state.tx_loads = edited_loads
         
-        detailed_steps.append(f"""
-**Load {idx+1}: {load['Load Description']}**
-- Step 1: P = {load['Rating (kW)']} kW × {load['Quantity']} × {load['Diversity Factor']} = **{p:.1f} kW**
-- Step 2: tan(acos({load['Power Factor']})) = **{tan_phi:.3f}**
-- Step 3: Q = {p:.1f} × {tan_phi:.3f} = **{q:.1f} kVAR**
-- Step 4: S = √({p:.1f}² + {q:.1f}²) = **{s:.1f} kVA**
----
-        """)
+        # Quick summary of loads
+        total_connected = 0
+        for idx, load in st.session_state.tx_loads.iterrows():
+            total_connected += load['Rating (kW)'] * load['Quantity']
         
-        total_p += p
-        total_q += q
+        st.info(f"📊 **Total Connected Load:** {total_connected:.0f} kW")
     
-    total_s = math.sqrt(total_p**2 + total_q**2)
-    with_future = total_s * (1 + future_expansion/100)
-    selected_kva = tx_calc.get_standard_rating(with_future)
+    # TAB 2: P, Q, S CALCULATIONS
+    with tx_tabs[1]:
+        st.markdown('<div class="report-header">📊 P, Q, S CALCULATIONS</div>', unsafe_allow_html=True)
+        
+        st.markdown("### 📋 Step-by-Step Calculations")
+        
+        total_p = 0
+        total_q = 0
+        
+        for idx, load in st.session_state.tx_loads.iterrows():
+            # Step 1: Calculate P (Real Power)
+            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+            
+            # Step 2: Calculate tan(acos(PF))
+            phi = math.acos(load['Power Factor'])
+            tan_phi = math.tan(phi)
+            
+            # Step 3: Calculate Q (Reactive Power)
+            q = tx_calc.calculate_q(p, load['Power Factor'])
+            
+            # Step 4: Calculate S (Apparent Power)
+            s = tx_calc.calculate_s(p, q)
+            
+            st.markdown(f"""
+            <div class="calc-step">
+                <h4>📌 Load {idx+1}: {load['Load Description']}</h4>
+                <p><b>Step 1:</b> P = {load['Rating (kW)']:.0f} kW × {load['Quantity']:.0f} × {load['Diversity Factor']:.1f} = <b>{p:.1f} kW</b></p>
+                <p><b>Step 2:</b> tan(acos({load['Power Factor']:.2f})) = <b>{tan_phi:.3f}</b></p>
+                <p><b>Step 3:</b> Q = {p:.1f} × {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
+                <p><b>Step 4:</b> S = √({p:.1f}² + {q:.1f}²) = <b>{s:.1f} kVA</b></p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            total_p += p
+            total_q += q
+        
+        st.session_state.total_p = total_p
+        st.session_state.total_q = total_q
     
-    # Display results table
-    st.markdown("#### 📋 Load Summary with P, Q, S")
-    results_df = pd.DataFrame(results_data)
-    st.dataframe(results_df, use_container_width=True, hide_index=True)
+    # TAB 3: TOTALS & SELECTION
+    with tx_tabs[2]:
+        st.markdown('<div class="report-header">📈 TOTALS & SELECTION</div>', unsafe_allow_html=True)
+        
+        if 'total_p' in st.session_state and 'total_q' in st.session_state:
+            total_p = st.session_state.total_p
+            total_q = st.session_state.total_q
+            
+            total_s = math.sqrt(total_p**2 + total_q**2)
+            
+            st.markdown("### ⚙️ Future Expansion")
+            future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
+            
+            with_future = total_s * (1 + future_expansion/100)
+            selected_kva = tx_calc.get_standard_rating(with_future)
+            
+            # Display totals in metric cards
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_p:.0f}</div>
+                    <div class="label">Total P (kW)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_q:.0f}</div>
+                    <div class="label">Total Q (kVAR)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_s:.0f}</div>
+                    <div class="label">Total S (kVA)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{with_future:.0f}</div>
+                    <div class="label">With {future_expansion}% Future</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Final selection
+            st.markdown(f"""
+            <div class="result-card">
+                <h3 style="margin-top:0;">✅ Final Transformer Selection</h3>
+                <p style="font-size: 18px;"><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
+                <p style="font-size: 18px;"><b>With {future_expansion}% future expansion = {total_s:.0f} × 1.{future_expansion/100:.0f} = {with_future:.0f} kVA</b></p>
+                <p style="font-size: 24px; margin: 15px 0;"><b>Selected Standard Rating [IEC 60076]: {selected_kva} kVA</b></p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Formula display
+            st.markdown("""
+            <div class="formula-box">
+                <h4>📐 Formulas Used (As per Document):</h4>
+                <p><b>P = Connected Load × Quantity × Diversity Factor</b></p>
+                <p><b>Q = P × tan(acos(PF))</b></p>
+                <p><b>S = √(P² + Q²)</b></p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ Please go to 'P, Q, S Calculations' tab first to calculate totals.")
     
-    # Display detailed calculations
-    with st.expander("🔍 View Detailed Step-by-Step Calculations", expanded=True):
-        for step in detailed_steps:
-            st.markdown(step)
-    
-    # Display totals in metric cards
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="value">{total_p:.0f}</div>
-            <div class="label">Total P (kW)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="value">{total_q:.0f}</div>
-            <div class="label">Total Q (kVAR)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="value">{total_s:.0f}</div>
-            <div class="label">Total S (kVA)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="value">{with_future:.0f}</div>
-            <div class="label">With {future_expansion}% Future</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Final selection (exactly like document)
-    st.markdown("---")
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%); color: white; padding: 25px; border-radius: 12px; margin: 20px 0;">
-        <h3 style="margin-top:0;">✅ Final Transformer Selection</h3>
-        <p style="font-size: 18px;"><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
-        <p style="font-size: 18px;"><b>With {future_expansion}% future expansion = {total_s:.0f} × 1.{future_expansion/100:.0f} = {with_future:.0f} kVA</b></p>
-        <p style="font-size: 24px; margin: 15px 0;"><b>Selected Standard Rating [IEC 60076]: {selected_kva} kVA</b></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Formula display (as per document)
-    st.markdown("""
-    <div class="formula-box">
-        <h4>📐 Formulas Used (As per Document):</h4>
-        <p><b>P = Connected Load × Quantity × Diversity Factor</b></p>
-        <p><b>Q = P × tan(acos(PF))</b></p>
-        <p><b>S = √(P² + Q²)</b></p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Download buttons
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
-            with st.spinner("Generating PDF report..."):
-                st.success("✅ PDF generated successfully!")
-    with col2:
-        if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
-            with st.spinner("Generating Word report..."):
-                st.success("✅ Word generated successfully!")
+    # TAB 4: DOWNLOAD REPORT
+    with tx_tabs[3]:
+        st.markdown('<div class="report-header">📥 DOWNLOAD REPORT</div>', unsafe_allow_html=True)
+        
+        if 'total_p' in st.session_state and 'total_q' in st.session_state:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
+                    with st.spinner("Generating PDF report..."):
+                        st.success("✅ PDF generated successfully!")
+            with col2:
+                if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
+                    with st.spinner("Generating Word report..."):
+                        st.success("✅ Word generated successfully!")
+        else:
+            st.info("👈 Complete calculations first in the 'P, Q, S Calculations' tab.")
 
 # ========== OTHER CALCULATORS (Placeholders) ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
@@ -2362,4 +2388,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 69.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 70.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
