@@ -1,21 +1,11 @@
 
-**Default Values Used:**
+**Default Values:**
 - Power Factor (PF) = 0.85
 - Efficiency = 0.95
-- Voltage > 300V → 3-Phase
-- Voltage ≤ 300V → 1-Phase
 
-**Example Calculation for 75kW, 415V Motor:**
-I = (75 × 1000) / (1.732 × 415 × 0.85 × 0.95)
-I = 75,000 / (1.732 × 415 × 0.8075)
-I = 75,000 / 580.5
-I = 129.2 A
-
-**Example Calculation for 25kW, 230V Lighting:**
-I = (25 × 1000) / (230 × 0.85 × 0.95)
-I = 25,000 / (230 × 0.8075)
-I = 25,000 / 185.7
-I = 134.6 A
+**Example:**
+- 75kW, 415V Motor → I = 129.2 A
+- 25kW, 230V Lighting → I = 134.6 A
 """)
 
 # ========== TAB 2: LIGHTNING PROTECTION ==========
@@ -1277,4 +1267,4 @@ if st.button("📥 Generate Earthing Design Report", use_container_width=True):
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 79.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 80.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
