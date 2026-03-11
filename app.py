@@ -4,8 +4,8 @@
 - Efficiency = 0.95
 
 **Example:**
-- 75kW, 415V Motor → I = 129.2 A
-- 25kW, 230V Lighting → I = 134.6 A
+* 75kW, 415V Motor → I = 129.2 A
+* 25kW, 230V Lighting → I = 134.6 A
 """)
 
 # ========== TAB 2: LIGHTNING PROTECTION ==========
@@ -1267,4 +1267,4 @@ if st.button("📥 Generate Earthing Design Report", use_container_width=True):
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 80.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 81.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
