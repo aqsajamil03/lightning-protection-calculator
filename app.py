@@ -2042,7 +2042,7 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== ENHANCED UNIVERSAL LOAD SHEET WITH ALL COLUMNS ==========
+# ========== ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
         'SR. NO.': [1, 2, 3, 4],
@@ -2050,19 +2050,21 @@ if 'universal_loads' not in st.session_state:
         'DESCRIPTION': ['Motor 1 - Cooling Tower', 'Motor 2 - Pump', 'Lighting Panel', 'HVAC Unit'],
         'CONNECTED FROM SWBRD.': ['MCC-01', 'MCC-01', 'DB-03', 'MCC-02'],
         'MOTOR OUTPUT [kW]': [75, 50, 25, 40],
+        '': ['', '', '', ''],  # Empty column as per format
+        '': ['', '', '', ''],  # Empty column as per format
         'VOLTAGE [V]': [415, 415, 230, 415],
         'CURRENT [A]': [130, 85, 108, 70],
-        'STARTING RATED / RATED (I/In)': [6.5, 6.5, 1.0, 5.5],
-        'DIRECT DOL1': ['Yes', 'Yes', 'No', 'Yes'],
-        'OTHER': ['Soft Starter', 'VFD', 'MCB', 'Star-Delta'],
-        'CONTINUOUS (100%)': [75, 50, 25, 40],
-        'INTERMITTENT (30%)': [0, 0, 0, 0],
-        'STAND-BY (10%)': [0, 0, 0, 0],
+        '': ['', '', '', ''],  # Empty column as per format
+        'STARTING OF MOTOR': ['DOL', 'Star-Delta', 'MCB', 'Soft Start'],
+        '': ['', '', '', ''],  # Empty column as per format
+        '': ['', '', '', ''],  # Empty column as per format
+        'RUNNING [kW]': [75, 50, 25, 40],
+        '': ['', '', '', ''],  # Empty column as per format
+        '': ['', '', '', ''],  # Empty column as per format
+        '': ['', '', '', ''],  # Empty column as per format
         'METHOD OF CONTROL': ['Auto/Manual', 'Manual', 'Manual', 'Auto'],
-        'LOCAL': ['Yes', 'Yes', 'Yes', 'Yes'],
-        'REMOTE': ['Yes', 'No', 'No', 'Yes'],
+        '': ['', '', '', ''],  # Empty column as per format
         'IP - INGRESS PROTECTION': ['IP55', 'IP54', 'IP20', 'IP54'],
-        'STOP': ['E-Stop', 'Local', 'MCB', 'E-Stop'],
         'EXPLOSION PROTECTION Eex': ['Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous'],
         'TYPE OF MOTOR/LOAD': ['Induction Motor', 'Induction Motor', 'Lighting', 'Compressor'],
         'CONTROL DIAGRAM': ['DW-101', 'DW-102', 'DW-103', 'DW-104'],
@@ -2121,56 +2123,32 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: ENHANCED UNIVERSAL LOAD SHEET WITH ALL COLUMNS ==========
+# ========== TAB 1: ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
 if st.session_state.selected_calculator == "📋 LOAD SHEET":
     
     st.markdown('<div class="report-header">📋 COMPREHENSIVE LOAD SHEET</div>', unsafe_allow_html=True)
     
     st.markdown("""
     <div class="info-box">
-        <h4>📌 Complete Motor/Load Data Sheet</h4>
-        <p>All columns from the image have been included. This data is used by all calculators.</p>
+        <h4>📌 Complete Motor/Load Data Sheet - Exact Format as Requested</h4>
+        <p>All columns in the exact order: SR. NO. | CONSUMER ID | DESCRIPTION | CONNECTED FROM SWBRD. | MOTOR OUTPUT [kW] | (empty) | (empty) | VOLTAGE [V] | CURRENT [A] | (empty) | STARTING OF MOTOR | (empty) | (empty) | RUNNING [kW] | (empty) | (empty) | (empty) | METHOD OF CONTROL | (empty) | IP - INGRESS PROTECTION | EXPLOSION PROTECTION Eex | TYPE OF MOTOR/LOAD | CONTROL DIAGRAM | REMARKS</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Show column categories
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("""
-        <div class="motor-category">⚡ Motor Electrical Data</div>
-        - SR. NO., CONSUMER ID
-        - DESCRIPTION
-        - CONNECTED FROM SWBRD.
-        - MOTOR OUTPUT [kW]
-        - VOLTAGE [V], CURRENT [A]
-        - STARTING RATED / RATED (I/In)
-        - DIRECT DOL1, OTHER
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="motor-category">⏱️ Duty Ratings</div>
-        - CONTINUOUS (100%)
-        - INTERMITTENT (30%)
-        - STAND-BY (10%)
-        
-        <div class="motor-category">🎮 Control Methods</div>
-        - METHOD OF CONTROL
-        - LOCAL, REMOTE
-        - STOP
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="motor-category">🛡️ Protection</div>
-        - IP - INGRESS PROTECTION
-        - EXPLOSION PROTECTION Eex
-        
-        <div class="motor-category">📋 Documentation</div>
-        - TYPE OF MOTOR/LOAD
-        - CONTROL DIAGRAM
-        - REMARKS
-        """, unsafe_allow_html=True)
+    # Show column structure
+    st.markdown("### 📋 Column Structure")
+    col_structure = """
+    | Group | Columns |
+    |-------|---------|
+    | **Basic Info** | SR. NO. \| CONSUMER ID \| DESCRIPTION \| CONNECTED FROM SWBRD. |
+    | **Motor Ratings** | MOTOR OUTPUT [kW] \| (empty) \| (empty) \| VOLTAGE [V] \| CURRENT [A] \| (empty) |
+    | **Starting Method** | STARTING OF MOTOR \| (empty) \| (empty) |
+    | **Running Power** | RUNNING [kW] \| (empty) \| (empty) \| (empty) |
+    | **Control** | METHOD OF CONTROL \| (empty) |
+    | **Protection** | IP - INGRESS PROTECTION \| EXPLOSION PROTECTION Eex |
+    | **Documentation** | TYPE OF MOTOR/LOAD \| CONTROL DIAGRAM \| REMARKS |
+    """
+    st.markdown(col_structure)
     
     st.markdown("---")
     
@@ -2184,19 +2162,21 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
                 'DESCRIPTION': [f'Load {len(st.session_state.universal_loads) + 1}'],
                 'CONNECTED FROM SWBRD.': ['MCC-01'],
                 'MOTOR OUTPUT [kW]': [50.0],
+                '': [''],
+                '': [''],
                 'VOLTAGE [V]': [415],
                 'CURRENT [A]': [85],
-                'STARTING RATED / RATED (I/In)': [6.5],
-                'DIRECT DOL1': ['Yes'],
-                'OTHER': ['-'],
-                'CONTINUOUS (100%)': [50],
-                'INTERMITTENT (30%)': [0],
-                'STAND-BY (10%)': [0],
+                '': [''],
+                'STARTING OF MOTOR': ['DOL'],
+                '': [''],
+                '': [''],
+                'RUNNING [kW]': [50],
+                '': [''],
+                '': [''],
+                '': [''],
                 'METHOD OF CONTROL': ['Manual'],
-                'LOCAL': ['Yes'],
-                'REMOTE': ['No'],
+                '': [''],
                 'IP - INGRESS PROTECTION': ['IP55'],
-                'STOP': ['Local'],
                 'EXPLOSION PROTECTION Eex': ['Non-Hazardous'],
                 'TYPE OF MOTOR/LOAD': ['Induction Motor'],
                 'CONTROL DIAGRAM': [f'DW-{100 + len(st.session_state.universal_loads) + 1}'],
@@ -2221,32 +2201,28 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.markdown("**⚡ Electrical Data**")
+                st.markdown("**⚡ Motor Data**")
                 st.markdown(f"- **Motor Output:** {load['MOTOR OUTPUT [kW]']} kW")
                 st.markdown(f"- **Voltage:** {load['VOLTAGE [V]']} V")
                 st.markdown(f"- **Current:** {load['CURRENT [A]']} A")
-                st.markdown(f"- **Starting Current Ratio:** {load['STARTING RATED / RATED (I/In)']}")
-                st.markdown(f"- **Starting Method:** {load['DIRECT DOL1']} / {load['OTHER']}")
+                st.markdown(f"- **Running kW:** {load['RUNNING [kW]']} kW")
             
             with col2:
-                st.markdown("**⏱️ Duty & Control**")
-                st.markdown(f"- **Continuous (100%):** {load['CONTINUOUS (100%)']} kW")
-                st.markdown(f"- **Intermittent (30%):** {load['INTERMITTENT (30%)']} kW")
-                st.markdown(f"- **Stand-by (10%):** {load['STAND-BY (10%)']} kW")
+                st.markdown("**🎮 Starting & Control**")
+                st.markdown(f"- **Starting Method:** {load['STARTING OF MOTOR']}")
                 st.markdown(f"- **Control Method:** {load['METHOD OF CONTROL']}")
-                st.markdown(f"- **Local/Remote:** {load['LOCAL']}/{load['REMOTE']}")
-                st.markdown(f"- **Stop Type:** {load['STOP']}")
+                st.markdown(f"- **From Switchboard:** {load['CONNECTED FROM SWBRD.']}")
             
             with col3:
                 st.markdown("**🛡️ Protection & Docs**")
                 st.markdown(f"- **IP Rating:** {load['IP - INGRESS PROTECTION']}")
                 st.markdown(f"- **Ex Protection:** {load['EXPLOSION PROTECTION Eex']}")
                 st.markdown(f"- **Load Type:** {load['TYPE OF MOTOR/LOAD']}")
-                st.markdown(f"- **Control Diagram:** {load['CONTROL DIAGRAM']}")
+                st.markdown(f"- **Diagram:** {load['CONTROL DIAGRAM']}")
                 st.markdown(f"- **Remarks:** {load['REMARKS']}")
     
     # Full data editor
-    st.markdown("### 📝 Edit Full Load Data")
+    st.markdown("### 📝 Edit Full Load Data (Exact Column Order)")
     st.markdown("*Scroll horizontally to see all columns*")
     
     edited_loads = st.data_editor(
@@ -2255,27 +2231,29 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
         use_container_width=True,
         column_config={
             "SR. NO.": st.column_config.NumberColumn("SR. NO.", disabled=True),
-            "CONSUMER ID": st.column_config.TextColumn("Consumer ID", width="small"),
-            "DESCRIPTION": st.column_config.TextColumn("Description", width="medium"),
-            "CONNECTED FROM SWBRD.": st.column_config.TextColumn("From SWBRD.", width="small"),
-            "MOTOR OUTPUT [kW]": st.column_config.NumberColumn("Motor kW", min_value=0.0, max_value=10000.0, step=1.0),
-            "VOLTAGE [V]": st.column_config.NumberColumn("Voltage", min_value=0, max_value=11000, step=1),
-            "CURRENT [A]": st.column_config.NumberColumn("Current (A)", min_value=0.0, max_value=10000.0, step=1.0),
-            "STARTING RATED / RATED (I/In)": st.column_config.NumberColumn("Istart/In", min_value=1.0, max_value=10.0, step=0.5),
-            "DIRECT DOL1": st.column_config.SelectboxColumn("DOL", options=['Yes', 'No']),
-            "OTHER": st.column_config.TextColumn("Other Start", width="small"),
-            "CONTINUOUS (100%)": st.column_config.NumberColumn("Cont. (kW)", min_value=0.0, max_value=10000.0),
-            "INTERMITTENT (30%)": st.column_config.NumberColumn("Int. (kW)", min_value=0.0, max_value=10000.0),
-            "STAND-BY (10%)": st.column_config.NumberColumn("Standby (kW)", min_value=0.0, max_value=10000.0),
-            "METHOD OF CONTROL": st.column_config.SelectboxColumn("Control", options=['Auto/Manual', 'Manual', 'Auto']),
-            "LOCAL": st.column_config.SelectboxColumn("Local", options=['Yes', 'No']),
-            "REMOTE": st.column_config.SelectboxColumn("Remote", options=['Yes', 'No']),
-            "IP - INGRESS PROTECTION": st.column_config.TextColumn("IP Rating", width="small"),
-            "STOP": st.column_config.SelectboxColumn("Stop Type", options=['E-Stop', 'Local', 'MCB', 'Remote']),
-            "EXPLOSION PROTECTION Eex": st.column_config.TextColumn("Ex Rating", width="small"),
-            "TYPE OF MOTOR/LOAD": st.column_config.TextColumn("Load Type", width="medium"),
-            "CONTROL DIAGRAM": st.column_config.TextColumn("Diagram", width="small"),
-            "REMARKS": st.column_config.TextColumn("Remarks", width="medium")
+            "CONSUMER ID": st.column_config.TextColumn("CONSUMER ID", width="small"),
+            "DESCRIPTION": st.column_config.TextColumn("DESCRIPTION", width="medium"),
+            "CONNECTED FROM SWBRD.": st.column_config.TextColumn("CONNECTED FROM SWBRD.", width="small"),
+            "MOTOR OUTPUT [kW]": st.column_config.NumberColumn("MOTOR OUTPUT [kW]", min_value=0.0, max_value=10000.0, step=1.0),
+            "": st.column_config.TextColumn(" ", width="small", disabled=True),
+            "": st.column_config.TextColumn("  ", width="small", disabled=True),
+            "VOLTAGE [V]": st.column_config.NumberColumn("VOLTAGE [V]", min_value=0, max_value=11000, step=1),
+            "CURRENT [A]": st.column_config.NumberColumn("CURRENT [A]", min_value=0.0, max_value=10000.0, step=1.0),
+            "": st.column_config.TextColumn("   ", width="small", disabled=True),
+            "STARTING OF MOTOR": st.column_config.TextColumn("STARTING OF MOTOR", width="small"),
+            "": st.column_config.TextColumn("    ", width="small", disabled=True),
+            "": st.column_config.TextColumn("     ", width="small", disabled=True),
+            "RUNNING [kW]": st.column_config.NumberColumn("RUNNING [kW]", min_value=0.0, max_value=10000.0),
+            "": st.column_config.TextColumn("      ", width="small", disabled=True),
+            "": st.column_config.TextColumn("       ", width="small", disabled=True),
+            "": st.column_config.TextColumn("        ", width="small", disabled=True),
+            "METHOD OF CONTROL": st.column_config.SelectboxColumn("METHOD OF CONTROL", options=['Auto/Manual', 'Manual', 'Auto']),
+            "": st.column_config.TextColumn("         ", width="small", disabled=True),
+            "IP - INGRESS PROTECTION": st.column_config.TextColumn("IP - INGRESS PROTECTION", width="small"),
+            "EXPLOSION PROTECTION Eex": st.column_config.TextColumn("EXPLOSION PROTECTION Eex", width="small"),
+            "TYPE OF MOTOR/LOAD": st.column_config.TextColumn("TYPE OF MOTOR/LOAD", width="medium"),
+            "CONTROL DIAGRAM": st.column_config.TextColumn("CONTROL DIAGRAM", width="small"),
+            "REMARKS": st.column_config.TextColumn("REMARKS", width="medium")
         }
     )
     st.session_state.universal_loads = edited_loads
@@ -2283,20 +2261,14 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     # Summary statistics
     st.markdown("### 📊 Load Summary Statistics")
     
-    total_connected = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
-    total_continuous = st.session_state.universal_loads['CONTINUOUS (100%)'].sum()
-    total_intermittent = st.session_state.universal_loads['INTERMITTENT (30%)'].sum()
-    total_standby = st.session_state.universal_loads['STAND-BY (10%)'].sum()
+    total_motor_output = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
+    total_running = st.session_state.universal_loads['RUNNING [kW]'].sum()
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Connected", f"{total_connected:.0f} kW")
+        st.metric("Total Motor Output", f"{total_motor_output:.0f} kW")
     with col2:
-        st.metric("Continuous (100%)", f"{total_continuous:.0f} kW")
-    with col3:
-        st.metric("Intermittent (30%)", f"{total_intermittent:.0f} kW")
-    with col4:
-        st.metric("Stand-by (10%)", f"{total_standby:.0f} kW")
+        st.metric("Total Running Power", f"{total_running:.0f} kW")
     
     # Motor types breakdown
     motor_types = st.session_state.universal_loads['TYPE OF MOTOR/LOAD'].value_counts()
@@ -3315,4 +3287,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 76.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 77.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
