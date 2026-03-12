@@ -2042,44 +2042,44 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
+# ========== SIMPLIFIED LOAD SHEET WITH SINGLE EXAMPLE ROW ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
-        'SR. NO.': [1, 2, 3, 4],
-        'CONSUMER ID': ['MTR-01', 'MTR-02', 'LTG-01', 'HVAC-01'],
-        'DESCRIPTION': ['Motor 1 - Cooling Tower', 'Motor 2 - Pump', 'Lighting Panel', 'HVAC Unit'],
-        'CONNECTED FROM SWBRD.': ['MCC-01', 'MCC-01', 'DB-03', 'MCC-02'],
-        'MOTOR OUTPUT [kW]': [75, 50, 25, 40],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'VOLTAGE [V]': [415, 415, 230, 415],
-        'CURRENT [A]': [130, 85, 108, 70],
-        '': ['', '', '', ''],  # Empty column as per format
-        'STARTING OF MOTOR': ['DOL', 'Star-Delta', 'MCB', 'Soft Start'],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'RUNNING [kW]': [75, 50, 25, 40],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'METHOD OF CONTROL': ['Auto/Manual', 'Manual', 'Manual', 'Auto'],
-        '': ['', '', '', ''],  # Empty column as per format
-        'IP - INGRESS PROTECTION': ['IP55', 'IP54', 'IP20', 'IP54'],
-        'EXPLOSION PROTECTION Eex': ['Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous'],
-        'TYPE OF MOTOR/LOAD': ['Induction Motor', 'Induction Motor', 'Lighting', 'Compressor'],
-        'CONTROL DIAGRAM': ['DW-101', 'DW-102', 'DW-103', 'DW-104'],
-        'REMARKS': ['New Installation', 'Existing', 'LED Lighting', 'Spare']
+        'SR. NO.': [1],
+        'CONSUMER ID': ['MTR-01'],
+        'DESCRIPTION': ['Cooling Tower Motor'],
+        'CONNECTED FROM SWBRD.': ['MCC-01'],
+        'MOTOR OUTPUT [kW]': [75],
+        '': [''],
+        '': [''],
+        'VOLTAGE [V]': [415],
+        'CURRENT [A]': [130],
+        '': [''],
+        'STARTING OF MOTOR': ['DOL'],
+        '': [''],
+        '': [''],
+        'RUNNING [kW]': [75],
+        '': [''],
+        '': [''],
+        '': [''],
+        'METHOD OF CONTROL': ['Auto/Manual'],
+        '': [''],
+        'IP - INGRESS PROTECTION': ['IP55'],
+        'EXPLOSION PROTECTION Eex': ['Non-Hazardous'],
+        'TYPE OF MOTOR/LOAD': ['Induction Motor'],
+        'CONTROL DIAGRAM': ['DW-101'],
+        'REMARKS': ['Example Row - Single Entry']
     })
 
 # Cable sizing loads (simplified version for cable calculator)
 if 'loads_df' not in st.session_state:
     st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
-        'Power (kW)': [75, 50, 25, 40],
-        'Voltage (V)': [415, 415, 230, 415],
-        'Phase': ['3-phase', '3-phase', '1-phase', '3-phase'],
-        'Power Factor': [0.85, 0.85, 0.95, 0.80],
-        'Length (m)': [50, 60, 30, 45]
+        'Load Name': ['Motor 1'],
+        'Power (kW)': [75],
+        'Voltage (V)': [415],
+        'Phase': ['3-phase'],
+        'Power Factor': [0.85],
+        'Length (m)': [50]
     })
 
 if 'cable_results_df' not in st.session_state:
@@ -2123,15 +2123,15 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
+# ========== TAB 1: SIMPLIFIED LOAD SHEET WITH SINGLE EXAMPLE ROW ==========
 if st.session_state.selected_calculator == "📋 LOAD SHEET":
     
-    st.markdown('<div class="report-header">📋 COMPREHENSIVE LOAD SHEET</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">📋 LOAD SHEET - SINGLE EXAMPLE ROW</div>', unsafe_allow_html=True)
     
     st.markdown("""
     <div class="info-box">
-        <h4>📌 Complete Motor/Load Data Sheet - Exact Format as Requested</h4>
-        <p>All columns in the exact order: SR. NO. | CONSUMER ID | DESCRIPTION | CONNECTED FROM SWBRD. | MOTOR OUTPUT [kW] | (empty) | (empty) | VOLTAGE [V] | CURRENT [A] | (empty) | STARTING OF MOTOR | (empty) | (empty) | RUNNING [kW] | (empty) | (empty) | (empty) | METHOD OF CONTROL | (empty) | IP - INGRESS PROTECTION | EXPLOSION PROTECTION Eex | TYPE OF MOTOR/LOAD | CONTROL DIAGRAM | REMARKS</p>
+        <h4>📌 Complete Motor/Load Data Sheet - Single Example Row</h4>
+        <p>All columns in the exact order with one example row only.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2152,77 +2152,8 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     
     st.markdown("---")
     
-    # Add/Delete buttons
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("➕ Add New Load", key="add_load_main", use_container_width=True):
-            new_row = pd.DataFrame({
-                'SR. NO.': [len(st.session_state.universal_loads) + 1],
-                'CONSUMER ID': [f'MTR-{len(st.session_state.universal_loads) + 1:02d}'],
-                'DESCRIPTION': [f'Load {len(st.session_state.universal_loads) + 1}'],
-                'CONNECTED FROM SWBRD.': ['MCC-01'],
-                'MOTOR OUTPUT [kW]': [50.0],
-                '': [''],
-                '': [''],
-                'VOLTAGE [V]': [415],
-                'CURRENT [A]': [85],
-                '': [''],
-                'STARTING OF MOTOR': ['DOL'],
-                '': [''],
-                '': [''],
-                'RUNNING [kW]': [50],
-                '': [''],
-                '': [''],
-                '': [''],
-                'METHOD OF CONTROL': ['Manual'],
-                '': [''],
-                'IP - INGRESS PROTECTION': ['IP55'],
-                'EXPLOSION PROTECTION Eex': ['Non-Hazardous'],
-                'TYPE OF MOTOR/LOAD': ['Induction Motor'],
-                'CONTROL DIAGRAM': [f'DW-{100 + len(st.session_state.universal_loads) + 1}'],
-                'REMARKS': ['New']
-            })
-            st.session_state.universal_loads = pd.concat([st.session_state.universal_loads, new_row], ignore_index=True)
-            st.rerun()
-    
-    with col2:
-        if st.button("🗑️ Delete Last Load", key="delete_load_main", use_container_width=True):
-            if len(st.session_state.universal_loads) > 1:
-                st.session_state.universal_loads = st.session_state.universal_loads[:-1]
-                st.rerun()
-            else:
-                st.warning("At least one row required")
-    
-    # Display current loads in a nice format
-    st.markdown("### 📋 Current Loads")
-    
-    for idx, load in st.session_state.universal_loads.iterrows():
-        with st.expander(f"🔌 Load {idx+1}: {load['DESCRIPTION']} ({load['CONSUMER ID']})", expanded=(idx==0)):
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("**⚡ Motor Data**")
-                st.markdown(f"- **Motor Output:** {load['MOTOR OUTPUT [kW]']} kW")
-                st.markdown(f"- **Voltage:** {load['VOLTAGE [V]']} V")
-                st.markdown(f"- **Current:** {load['CURRENT [A]']} A")
-                st.markdown(f"- **Running kW:** {load['RUNNING [kW]']} kW")
-            
-            with col2:
-                st.markdown("**🎮 Starting & Control**")
-                st.markdown(f"- **Starting Method:** {load['STARTING OF MOTOR']}")
-                st.markdown(f"- **Control Method:** {load['METHOD OF CONTROL']}")
-                st.markdown(f"- **From Switchboard:** {load['CONNECTED FROM SWBRD.']}")
-            
-            with col3:
-                st.markdown("**🛡️ Protection & Docs**")
-                st.markdown(f"- **IP Rating:** {load['IP - INGRESS PROTECTION']}")
-                st.markdown(f"- **Ex Protection:** {load['EXPLOSION PROTECTION Eex']}")
-                st.markdown(f"- **Load Type:** {load['TYPE OF MOTOR/LOAD']}")
-                st.markdown(f"- **Diagram:** {load['CONTROL DIAGRAM']}")
-                st.markdown(f"- **Remarks:** {load['REMARKS']}")
-    
     # Full data editor
-    st.markdown("### 📝 Edit Full Load Data (Exact Column Order)")
+    st.markdown("### 📝 Load Data (Single Example Row)")
     st.markdown("*Scroll horizontally to see all columns*")
     
     edited_loads = st.data_editor(
@@ -2261,21 +2192,23 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     # Summary statistics
     st.markdown("### 📊 Load Summary Statistics")
     
-    total_motor_output = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
-    total_running = st.session_state.universal_loads['RUNNING [kW]'].sum()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Motor Output", f"{total_motor_output:.0f} kW")
-    with col2:
-        st.metric("Total Running Power", f"{total_running:.0f} kW")
-    
-    # Motor types breakdown
-    motor_types = st.session_state.universal_loads['TYPE OF MOTOR/LOAD'].value_counts()
-    st.markdown("**Load Type Distribution:**")
-    st.dataframe(motor_types, use_container_width=True)
+    if len(st.session_state.universal_loads) > 0:
+        total_motor_output = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].iloc[0]
+        total_running = st.session_state.universal_loads['RUNNING [kW]'].iloc[0]
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Motor Output", f"{total_motor_output:.0f} kW")
+        with col2:
+            st.metric("Running Power", f"{total_running:.0f} kW")
+        
+        # Motor types breakdown
+        motor_type = st.session_state.universal_loads['TYPE OF MOTOR/LOAD'].iloc[0]
+        st.markdown(f"**Load Type:** {motor_type}")
+    else:
+        st.info("No load data available")
 
-# ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
+# ========== TAB 2: LIGHTNING PROTECTION ==========
 elif st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
@@ -3276,15 +3209,16 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         else:
             st.warning("⚠️ Please go to Load Analysis tab first.")
 
-# ========== OTHER CALCULATORS ==========
+# ========== TAB 5: GENERATOR SIZING ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
     st.markdown('<div class="report-header">⚡ GENERATOR SIZING</div>', unsafe_allow_html=True)
     st.info("⚡ Coming soon!")
 
+# ========== TAB 6: EARTHING SYSTEM DESIGN ==========
 elif st.session_state.selected_calculator == "🌍 Earthing System Design":
     st.markdown('<div class="report-header">🌍 EARTHING SYSTEM DESIGN</div>', unsafe_allow_html=True)
     st.info("🌍 Coming soon!")
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 77.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 78.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
