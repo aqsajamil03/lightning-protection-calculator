@@ -2042,7 +2042,7 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== SIMPLIFIED LOAD SHEET WITH ONLY ADD/DELETE BUTTONS ==========
+# ========== SIMPLIFIED LOAD LIST ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
         'SR. NO.': [1, 2, 3, 4],
@@ -2104,10 +2104,10 @@ with st.sidebar:
     st.markdown('<div class="sidebar-nav"><h2>⚡ CES-Electrical</h2></div>', unsafe_allow_html=True)
     
     if 'selected_calculator' not in st.session_state:
-        st.session_state.selected_calculator = "📋 LOAD LIST CALCULATOR"
+        st.session_state.selected_calculator = "📋 LOAD LIST"
     
     calculators = [
-        "📋 LOAD LIST CALCULATOR",
+        "📋 LOAD LIST",
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
         "⚙️ Transformer Sizing",
@@ -2123,10 +2123,10 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: SIMPLIFIED LOAD LIST CALCULATOR ==========
-if st.session_state.selected_calculator == "📋 LOAD LIST CALCULATOR":
+# ========== TAB 1: SIMPLIFIED LOAD LIST ==========
+if st.session_state.selected_calculator == "📋 LOAD LIST":
     
-    st.markdown('<div class="report-header">📋 LOAD LIST CALCULATOR</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">📋 LOAD LIST</div>', unsafe_allow_html=True)
     
     # Only Add/Delete buttons - NO DESCRIPTION
     col1, col2 = st.columns([1, 1])
@@ -2418,12 +2418,12 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using loads from Load List Calculator</h4>
+        <h4>📌 Using loads from LOAD LIST</h4>
         <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import motor data.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("📥 Import Motor Loads from Load List", use_container_width=True):
+    if st.button("📥 Import Motor Loads from LOAD LIST", use_container_width=True):
         # Convert universal loads to cable sizing format (using motor output as power)
         new_loads = []
         for idx, load in st.session_state.universal_loads.iterrows():
@@ -2452,10 +2452,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 1: LOADS INPUT
     with cable_tabs[0]:
-        st.markdown("### 📋 Load Details (Imported from Load List)")
+        st.markdown("### 📋 Load Details (Imported from LOAD LIST)")
         st.markdown("""
         <div class="info-box">
-            <p>To add or modify loads, please go to the main <b>📋 LOAD LIST CALCULATOR</b> tab.</p>
+            <p>To add or modify loads, please go to the main <b>📋 LOAD LIST</b> tab.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2960,7 +2960,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using motor loads from Load List Calculator</h4>
+        <h4>📌 Using motor loads from LOAD LIST</h4>
         <p>Total {len(st.session_state.universal_loads)} motor loads available. Calculations use MOTOR OUTPUT [kW] with appropriate diversity.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -3227,4 +3227,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 79.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 80.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
