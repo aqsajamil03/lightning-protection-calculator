@@ -2042,7 +2042,7 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
+# ========== SIMPLIFIED LOAD SHEET WITH ONLY ADD/DELETE BUTTONS ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
         'SR. NO.': [1, 2, 3, 4],
@@ -2104,10 +2104,10 @@ with st.sidebar:
     st.markdown('<div class="sidebar-nav"><h2>⚡ CES-Electrical</h2></div>', unsafe_allow_html=True)
     
     if 'selected_calculator' not in st.session_state:
-        st.session_state.selected_calculator = "📋 LOAD SHEET"
+        st.session_state.selected_calculator = "📋 LOAD LIST CALCULATOR"
     
     calculators = [
-        "📋 LOAD SHEET",
+        "📋 LOAD LIST CALCULATOR",
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
         "⚙️ Transformer Sizing",
@@ -2123,36 +2123,12 @@ with st.sidebar:
 # ========== MAIN CONTENT ==========
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: ENHANCED UNIVERSAL LOAD SHEET WITH EXACT COLUMN ORDER ==========
-if st.session_state.selected_calculator == "📋 LOAD SHEET":
+# ========== TAB 1: SIMPLIFIED LOAD LIST CALCULATOR ==========
+if st.session_state.selected_calculator == "📋 LOAD LIST CALCULATOR":
     
-    st.markdown('<div class="report-header">📋 COMPREHENSIVE LOAD SHEET</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">📋 LOAD LIST CALCULATOR</div>', unsafe_allow_html=True)
     
-    st.markdown("""
-    <div class="info-box">
-        <h4>📌 Complete Motor/Load Data Sheet - Exact Format as Requested</h4>
-        <p>All columns in the exact order: SR. NO. | CONSUMER ID | DESCRIPTION | CONNECTED FROM SWBRD. | MOTOR OUTPUT [kW] | (empty) | (empty) | VOLTAGE [V] | CURRENT [A] | (empty) | STARTING OF MOTOR | (empty) | (empty) | RUNNING [kW] | (empty) | (empty) | (empty) | METHOD OF CONTROL | (empty) | IP - INGRESS PROTECTION | EXPLOSION PROTECTION Eex | TYPE OF MOTOR/LOAD | CONTROL DIAGRAM | REMARKS</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Show column structure
-    st.markdown("### 📋 Column Structure")
-    col_structure = """
-    | Group | Columns |
-    |-------|---------|
-    | **Basic Info** | SR. NO. \| CONSUMER ID \| DESCRIPTION \| CONNECTED FROM SWBRD. |
-    | **Motor Ratings** | MOTOR OUTPUT [kW] \| (empty) \| (empty) \| VOLTAGE [V] \| CURRENT [A] \| (empty) |
-    | **Starting Method** | STARTING OF MOTOR \| (empty) \| (empty) |
-    | **Running Power** | RUNNING [kW] \| (empty) \| (empty) \| (empty) |
-    | **Control** | METHOD OF CONTROL \| (empty) |
-    | **Protection** | IP - INGRESS PROTECTION \| EXPLOSION PROTECTION Eex |
-    | **Documentation** | TYPE OF MOTOR/LOAD \| CONTROL DIAGRAM \| REMARKS |
-    """
-    st.markdown(col_structure)
-    
-    st.markdown("---")
-    
-    # Add/Delete buttons
+    # Only Add/Delete buttons - NO DESCRIPTION
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("➕ Add New Load", key="add_load_main", use_container_width=True):
@@ -2193,36 +2169,8 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
             else:
                 st.warning("At least one row required")
     
-    # Display current loads in a nice format
-    st.markdown("### 📋 Current Loads")
-    
-    for idx, load in st.session_state.universal_loads.iterrows():
-        with st.expander(f"🔌 Load {idx+1}: {load['DESCRIPTION']} ({load['CONSUMER ID']})", expanded=(idx==0)):
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("**⚡ Motor Data**")
-                st.markdown(f"- **Motor Output:** {load['MOTOR OUTPUT [kW]']} kW")
-                st.markdown(f"- **Voltage:** {load['VOLTAGE [V]']} V")
-                st.markdown(f"- **Current:** {load['CURRENT [A]']} A")
-                st.markdown(f"- **Running kW:** {load['RUNNING [kW]']} kW")
-            
-            with col2:
-                st.markdown("**🎮 Starting & Control**")
-                st.markdown(f"- **Starting Method:** {load['STARTING OF MOTOR']}")
-                st.markdown(f"- **Control Method:** {load['METHOD OF CONTROL']}")
-                st.markdown(f"- **From Switchboard:** {load['CONNECTED FROM SWBRD.']}")
-            
-            with col3:
-                st.markdown("**🛡️ Protection & Docs**")
-                st.markdown(f"- **IP Rating:** {load['IP - INGRESS PROTECTION']}")
-                st.markdown(f"- **Ex Protection:** {load['EXPLOSION PROTECTION Eex']}")
-                st.markdown(f"- **Load Type:** {load['TYPE OF MOTOR/LOAD']}")
-                st.markdown(f"- **Diagram:** {load['CONTROL DIAGRAM']}")
-                st.markdown(f"- **Remarks:** {load['REMARKS']}")
-    
-    # Full data editor
-    st.markdown("### 📝 Edit Full Load Data (Exact Column Order)")
+    # Full data editor - Just the table, no description
+    st.markdown("### 📋 Load Data")
     st.markdown("*Scroll horizontally to see all columns*")
     
     edited_loads = st.data_editor(
@@ -2258,22 +2206,14 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     )
     st.session_state.universal_loads = edited_loads
     
-    # Summary statistics
-    st.markdown("### 📊 Load Summary Statistics")
-    
-    total_motor_output = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
-    total_running = st.session_state.universal_loads['RUNNING [kW]'].sum()
-    
+    # Simple summary
+    st.markdown("### 📊 Summary")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Motor Output", f"{total_motor_output:.0f} kW")
+        st.metric("Total Loads", len(st.session_state.universal_loads))
     with col2:
-        st.metric("Total Running Power", f"{total_running:.0f} kW")
-    
-    # Motor types breakdown
-    motor_types = st.session_state.universal_loads['TYPE OF MOTOR/LOAD'].value_counts()
-    st.markdown("**Load Type Distribution:**")
-    st.dataframe(motor_types, use_container_width=True)
+        total_power = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
+        st.metric("Total Power", f"{total_power:.0f} kW")
 
 # ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
 elif st.session_state.selected_calculator == "⚡ Lightning Protection":
@@ -2478,12 +2418,12 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using loads from Universal Load Sheet</h4>
+        <h4>📌 Using loads from Load List Calculator</h4>
         <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import motor data.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("📥 Import Motor Loads from Load Sheet", use_container_width=True):
+    if st.button("📥 Import Motor Loads from Load List", use_container_width=True):
         # Convert universal loads to cable sizing format (using motor output as power)
         new_loads = []
         for idx, load in st.session_state.universal_loads.iterrows():
@@ -2512,10 +2452,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 1: LOADS INPUT
     with cable_tabs[0]:
-        st.markdown("### 📋 Load Details (Imported from Motor Load Sheet)")
+        st.markdown("### 📋 Load Details (Imported from Load List)")
         st.markdown("""
         <div class="info-box">
-            <p>To add or modify loads, please go to the main <b>📋 LOAD SHEET</b> tab.</p>
+            <p>To add or modify loads, please go to the main <b>📋 LOAD LIST CALCULATOR</b> tab.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -3020,7 +2960,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using motor loads from Universal Load Sheet</h4>
+        <h4>📌 Using motor loads from Load List Calculator</h4>
         <p>Total {len(st.session_state.universal_loads)} motor loads available. Calculations use MOTOR OUTPUT [kW] with appropriate diversity.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -3287,4 +3227,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 77.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 79.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
