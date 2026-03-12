@@ -2121,7 +2121,8 @@ with st.sidebar:
             st.rerun()
 
 # ========== MAIN CONTENT ==========
-st.title(f"{st.session_state.selected_calculator}")
+# FIXED: Removed "Calculator" word completely
+st.title(st.session_state.selected_calculator)
 
 # ========== TAB 1: SIMPLIFIED LOAD LIST ==========
 if st.session_state.selected_calculator == "📋 LOAD LIST":
@@ -2215,7 +2216,7 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
         total_power = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
         st.metric("Total Power", f"{total_power:.0f} kW")
 
-# ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
+# ========== TAB 2: LIGHTNING PROTECTION ==========
 elif st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
@@ -3227,4 +3228,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 81.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 82.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
