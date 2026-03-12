@@ -2121,7 +2121,7 @@ with st.sidebar:
             st.rerun()
 
 # ========== MAIN CONTENT ==========
-st.title(f"{st.session_state.selected_calculator} Calculator")
+st.title(f"{st.session_state.selected_calculator}")
 
 # ========== TAB 1: SIMPLIFIED LOAD LIST ==========
 if st.session_state.selected_calculator == "📋 LOAD LIST":
@@ -3227,4 +3227,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 80.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 81.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
