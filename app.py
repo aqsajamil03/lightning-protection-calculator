@@ -193,6 +193,69 @@ st.markdown("""
     .word-btn {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
     }
+    
+    /* Calculation Step */
+    .calc-step {
+        background-color: #FFFFFF;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #00A86B;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #DEE2E6;
+        color: #000000 !important;
+    }
+    .calc-step h4 {
+        color: #1E3A8A !important;
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 18px;
+    }
+    .calc-step p {
+        color: #000000 !important;
+        margin: 5px 0;
+        font-size: 14px;
+    }
+    .calc-step b {
+        color: #1E3A8A !important;
+    }
+    
+    /* Largest Equipment Highlight */
+    .largest-equipment {
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 6px solid #00A86B;
+        margin: 15px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .largest-equipment h3 {
+        color: #006B3C !important;
+        margin-top: 0;
+    }
+    .largest-equipment .value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #006B3C;
+    }
+    
+    /* Result Card */
+    .result-card {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
+        color: white !important;
+        padding: 25px;
+        border-radius: 12px;
+        margin: 20px 0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .result-card * {
+        color: white !important;
+    }
+    .result-card h3 {
+        color: white !important;
+        border-bottom: 2px solid #00A86B;
+        padding-bottom: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1616,7 +1679,7 @@ class TransformerPDFReport(FPDF):
         
         self.set_font('Arial', '', 10)
         self.cell(0, 7, f'Future Expansion: +{future_expansion}%', 0, 1)
-        self.cell(0, 7, f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA', 0, 1)
+        self.cell(0, 7, f'Required with future = {total_s:.1f} × {1 + future_expansion/100:.2f} = {with_future:.1f} kVA', 0, 1)
         self.ln(3)
         
         self.set_font('Arial', 'B', 12)
@@ -1814,7 +1877,7 @@ class TransformerWordReport:
         
         self.doc.add_paragraph()
         self.doc.add_paragraph(f'Future Expansion: +{future_expansion}%')
-        self.doc.add_paragraph(f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA')
+        self.doc.add_paragraph(f'Required with future = {total_s:.1f} × {1 + future_expansion/100:.2f} = {with_future:.1f} kVA')
         self.doc.add_paragraph()
         
         self.doc.add_heading('Standard Ratings [IEC 60076]:', level=3)
@@ -1881,20 +1944,13 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== NEW: Excel Upload Only ==========
+# ========== SESSION STATE INITIALIZATION ==========
 if 'uploaded_data' not in st.session_state:
     st.session_state.uploaded_data = None
 
-# Cable sizing loads
+# Cable sizing loads - EMPTY by default
 if 'loads_df' not in st.session_state:
-    st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
-        'Power (kW)': [75, 50, 25, 40],
-        'Voltage (V)': [415, 415, 230, 415],
-        'Phase': ['3-phase', '3-phase', '1-phase', '3-phase'],
-        'Power Factor': [0.85, 0.85, 0.95, 0.80],
-        'Length (m)': [50, 60, 30, 45]
-    })
+    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Power Factor', 'Length (m)'])
 
 if 'cable_results_df' not in st.session_state:
     st.session_state.cable_results_df = pd.DataFrame()
@@ -1912,6 +1968,12 @@ if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
 if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
+if 'total_p' not in st.session_state:
+    st.session_state.total_p = 0
+if 'total_q' not in st.session_state:
+    st.session_state.total_q = 0
+if 'tx_largest_data' not in st.session_state:
+    st.session_state.tx_largest_data = None
 
 # ========== SIDEBAR NAVIGATION ==========
 with st.sidebar:
@@ -2274,39 +2336,46 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 
                 # Create basic loads
                 for idx, row in df.iterrows():
-                    power = row[power_col] if power_col else 50
+                    power = row[power_col] if power_col else 0
                     voltage = row[voltage_col] if voltage_col else 415
                     
                     new_loads.append({
                         'Load Name': f"Load {idx+1}",
-                        'Power (kW)': float(power) if pd.notna(power) else 50,
+                        'Power (kW)': float(power) if pd.notna(power) else 0,
                         'Voltage (V)': float(voltage) if pd.notna(voltage) else 415,
                         'Phase': '3-phase' if float(voltage) > 300 else '1-phase',
                         'Power Factor': 0.85,
                         'Length (m)': 50
                     })
                 
-                st.session_state.loads_df = pd.DataFrame(new_loads)
-                st.success(f"✅ Imported {len(new_loads)} loads successfully!")
+                if len(new_loads) > 0:
+                    st.session_state.loads_df = pd.DataFrame(new_loads)
+                    st.success(f"✅ Imported {len(new_loads)} loads successfully!")
+                else:
+                    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Power Factor', 'Length (m)'])
+                    st.warning("No valid load data found in uploaded file.")
                 st.rerun()
             else:
                 st.error("No data in LOAD LIST. Please upload an Excel file first.")
         
         st.markdown("### Current Cable Sizing Loads")
-        edited_df = st.data_editor(
-            st.session_state.loads_df,
-            num_rows="fixed",
-            use_container_width=True,
-            column_config={
-                "Load Name": st.column_config.TextColumn("Load Name"),
-                "Power (kW)": st.column_config.NumberColumn("Power (kW)", min_value=0.0, max_value=10000.0, step=1.0),
-                "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", min_value=0, max_value=11000, step=1),
-                "Phase": st.column_config.SelectboxColumn("Phase", options=['1-phase', '3-phase', 'DC']),
-                "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
-                "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=1.0, max_value=5000.0, step=1.0)
-            }
-        )
-        st.session_state.loads_df = edited_df
+        if st.session_state.loads_df.empty:
+            st.info("No loads imported yet. Click 'Import from LOAD LIST' to load data.")
+        else:
+            edited_df = st.data_editor(
+                st.session_state.loads_df,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "Load Name": st.column_config.TextColumn("Load Name"),
+                    "Power (kW)": st.column_config.NumberColumn("Power (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+                    "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", min_value=0, max_value=11000, step=1),
+                    "Phase": st.column_config.SelectboxColumn("Phase", options=['1-phase', '3-phase', 'DC']),
+                    "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+                    "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=1.0, max_value=5000.0, step=1.0)
+                }
+            )
+            st.session_state.loads_df = edited_df
         
         st.markdown("### ⚙️ Installation Parameters")
         
@@ -2814,7 +2883,8 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         # Try to find power column
         power_col = None
         for col in st.session_state.uploaded_data.columns:
-            if 'power' in str(col).lower() or 'kw' in str(col).lower() or 'motor' in str(col).lower():
+            col_lower = str(col).lower()
+            if 'power' in col_lower or 'kw' in col_lower or 'motor' in col_lower or 'load' in col_lower:
                 power_col = col
                 break
         
@@ -2822,10 +2892,12 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             transformer_loads = pd.DataFrame({
                 'Load Description': [f"Load {i+1}" for i in range(len(st.session_state.uploaded_data))],
                 'Quantity': [1] * len(st.session_state.uploaded_data),
-                'Rating (kW)': st.session_state.uploaded_data[power_col].values,
+                'Rating (kW)': pd.to_numeric(st.session_state.uploaded_data[power_col], errors='coerce').fillna(0).values,
                 'Power Factor': [0.85] * len(st.session_state.uploaded_data),
                 'Diversity Factor': [0.8] * len(st.session_state.uploaded_data)
             })
+        else:
+            st.warning("No power column found in uploaded data. Please ensure your Excel file has a column with 'power', 'kw', or 'motor' in its name.")
     
     # TAB 1: LOAD ANALYSIS
     with tx_main_tabs[0]:
@@ -2877,7 +2949,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 st.session_state.total_p = total_p
                 st.session_state.total_q = total_q
             else:
-                st.info("No load data available. Please upload an Excel file in LOAD LIST tab.")
+                st.info("No load data available. Please upload an Excel file in LOAD LIST tab with a power column.")
         
         with load_sub_tabs[1]:
             st.markdown("### 📊 Load Summary Table")
@@ -2892,11 +2964,11 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                     
                     summary_data.append({
                         'Load': load['Load Description'],
-                        'Rating (kW)': load['Rating (kW)'],
+                        'Rating (kW)': f"{load['Rating (kW)']:.0f}",
                         'Connected (kW)': f"{connected:.0f}",
-                        'Diversity': load['Diversity Factor'],
+                        'Diversity': f"{load['Diversity Factor']:.1f}",
                         'P (kW)': f"{p:.1f}",
-                        'PF': load['Power Factor'],
+                        'PF': f"{load['Power Factor']:.2f}",
                         'Q (kVAR)': f"{q:.1f}",
                         'S (kVA)': f"{s:.1f}"
                     })
@@ -2910,7 +2982,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     with tx_main_tabs[1]:
         st.markdown("### 🏭 Largest Equipment Analysis")
         
-        if len(transformer_loads) > 0:
+        if len(transformer_loads) > 0 and transformer_loads['Rating (kW)'].sum() > 0:
             max_power_idx = transformer_loads['Rating (kW)'].idxmax()
             largest_load = transformer_loads.loc[max_power_idx]
             
@@ -2926,7 +2998,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 total_p += p
                 total_q += q
             
-            total_s = math.sqrt(total_p**2 + total_q**2)
+            total_s = math.sqrt(total_p**2 + total_q**2) if (total_p**2 + total_q**2) > 0 else 0
             
             st.markdown(f"""
             <div class="largest-equipment">
@@ -2955,8 +3027,8 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             </div>
             """, unsafe_allow_html=True)
             
-            p_pct = (p_largest / total_p) * 100 if total_p > 0 else 0
-            s_pct = (s_largest / total_s) * 100 if total_s > 0 else 0
+            p_pct = (p_largest / total_p * 100) if total_p > 0 else 0
+            s_pct = (s_largest / total_s * 100) if total_s > 0 else 0
             
             st.markdown(f"""
             <div class="info-box">
@@ -2979,9 +3051,9 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     # TAB 3: DOWNLOAD REPORT
     with tx_main_tabs[2]:
         st.markdown("### ⚙️ Future Expansion")
-        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
+        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=100, step=5)
         
-        if 'total_p' in st.session_state and 'total_q' in st.session_state:
+        if 'total_p' in st.session_state and 'total_q' in st.session_state and st.session_state.total_p > 0:
             total_p = st.session_state.total_p
             total_q = st.session_state.total_q
             
@@ -3011,48 +3083,54 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
-                    with st.spinner("Generating PDF..."):
-                        pdf = TransformerPDFReport()
-                        pdf.add_title()
-                        pdf.add_load_analysis(transformer_loads, tx_calc)
-                        pdf.add_step_by_step(transformer_loads, tx_calc)
-                        
-                        if 'tx_largest_data' in st.session_state:
-                            pdf.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
-                        
-                        pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
-                        
-                        pdf_output = pdf.output(dest='S')
-                        b64 = base64.b64encode(pdf_output).decode()
-                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated!")
+                    with st.spinner("Generating PDF Report..."):
+                        try:
+                            pdf = TransformerPDFReport()
+                            pdf.add_title()
+                            pdf.add_load_analysis(transformer_loads, tx_calc)
+                            pdf.add_step_by_step(transformer_loads, tx_calc)
+                            
+                            if 'tx_largest_data' in st.session_state and st.session_state.tx_largest_data:
+                                pdf.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
+                            
+                            pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                            
+                            pdf_output = pdf.output(dest='S').encode('latin1')
+                            b64 = base64.b64encode(pdf_output).decode()
+                            filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                            st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
+                            st.success("✅ PDF generated successfully!")
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {e}")
             
             with col2:
                 if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
-                    with st.spinner("Generating Word..."):
-                        word = TransformerWordReport()
-                        word.add_title()
-                        word.add_load_analysis(transformer_loads)
-                        
-                        total_p_step, total_q_step = word.add_step_by_step(transformer_loads, tx_calc)
-                        
-                        if 'tx_largest_data' in st.session_state:
-                            word.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
-                        
-                        word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
-                        
-                        word_path = "temp_transformer_report.docx"
-                        word.save(word_path)
-                        with open(word_path, "rb") as f:
-                            word_bytes = f.read()
-                        b64 = base64.b64encode(word_bytes).decode()
-                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
-                        os.remove(word_path)
-                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated!")
+                    with st.spinner("Generating Word Report..."):
+                        try:
+                            word = TransformerWordReport()
+                            word.add_title()
+                            word.add_load_analysis(transformer_loads)
+                            
+                            total_p_step, total_q_step = word.add_step_by_step(transformer_loads, tx_calc)
+                            
+                            if 'tx_largest_data' in st.session_state and st.session_state.tx_largest_data:
+                                word.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
+                            
+                            word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                            
+                            word_path = "temp_transformer_report.docx"
+                            word.save(word_path)
+                            with open(word_path, "rb") as f:
+                                word_bytes = f.read()
+                            b64 = base64.b64encode(word_bytes).decode()
+                            filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                            os.remove(word_path)
+                            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
+                            st.success("✅ Word generated successfully!")
+                        except Exception as e:
+                            st.error(f"Error generating Word document: {e}")
         else:
-            st.warning("⚠️ Please go to Load Analysis tab first.")
+            st.warning("⚠️ Please go to Load Analysis tab first and ensure load data is available.")
 
 # ========== OTHER CALCULATORS ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
@@ -3065,4 +3143,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 84.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 85.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
