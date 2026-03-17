@@ -17,6 +17,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+import re
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
@@ -283,6 +284,25 @@ MANUFACTURERS = {
         'MCB': 'S200 series',
         'MCCB': 'Tmax XT series',
         'ACB': 'Emax 2 series'
+    }
+}
+
+# ========== LOAD TYPE FACTORS (for reference only) ==========
+LOAD_TYPE_FACTORS = {
+    'Continuous': {
+        'diversity': 1.0,
+        'description': 'Continuous (100%) - Full time operation',
+        'cb_factor': 1.25  # All loads use 1.25
+    },
+    'Intermittent': {
+        'diversity': 0.3,
+        'description': 'Intermittent (30%) - Cyclic operation',
+        'cb_factor': 1.25  # All loads use 1.25
+    },
+    'Standby': {
+        'diversity': 0.1,
+        'description': 'Stand-by (10%) - Emergency/backup only',
+        'cb_factor': 1.25  # All loads use 1.25
     }
 }
 
@@ -647,12 +667,20 @@ class LightningPDFReport(FPDF):
             self.cell(90, 7, value, 1, 1, 'R', fill)
             fill = not fill
 
-# ========== CABLE SIZING CALCULATOR CLASS ==========
+# ========== CABLE SIZING CALCULATOR CLASS (FIXED) ==========
 class CableSizingCalculator:
     def __init__(self):
         self.results = {}
     
     def calculate_load_current(self, power_kw, voltage_v, pf, efficiency=1.0, phase='3-phase'):
+        # Handle None/NaN values
+        if power_kw is None or pd.isna(power_kw) or power_kw <= 0:
+            return 0
+        if voltage_v is None or pd.isna(voltage_v) or voltage_v <= 0:
+            voltage_v = 415  # Default voltage
+        if pf is None or pd.isna(pf) or pf <= 0:
+            pf = 0.85  # Default power factor
+            
         if phase == '3-phase':
             return (power_kw * 1000) / (1.732 * voltage_v * pf * efficiency)
         elif phase == '1-phase':
@@ -708,6 +736,16 @@ class CableSizingCalculator:
         return total_k, factors
     
     def calculate_voltage_drop(self, current, length_m, R, X, pf, voltage_v, phase='3-phase'):
+        # Handle None/NaN values
+        if current is None or pd.isna(current) or current <= 0:
+            return 0, 0
+        if length_m is None or pd.isna(length_m) or length_m <= 0:
+            length_m = 50  # Default length
+        if voltage_v is None or pd.isna(voltage_v) or voltage_v <= 0:
+            voltage_v = 415  # Default voltage
+        if pf is None or pd.isna(pf) or pf <= 0:
+            pf = 0.85  # Default power factor
+            
         R_total = R * length_m / 1000
         X_total = X * length_m / 1000
         
@@ -722,15 +760,24 @@ class CableSizingCalculator:
         return Vd, Vd_percent
     
     def calculate_short_circuit(self, size_mm2, duration_s=1.0):
+        if size_mm2 is None or pd.isna(size_mm2) or size_mm2 <= 0:
+            return 0
         K = 143
         Isc = K * size_mm2 / math.sqrt(duration_s)
         return Isc
     
     def get_cable_type(self, voltage_v):
-        if voltage_v <= 1000:
-            return 'LV (0.6/1kV)', LV_CABLE_DATA
-        else:
-            return 'MV (3.6/6kV - 12/20kV)', MV_CABLE_DATA
+        """Get cable type based on voltage, with None handling"""
+        # Handle None/NaN values
+        if voltage_v is None or pd.isna(voltage_v):
+            return 'LV (0.6/1kV)', LV_CABLE_DATA  # Default to LV
+        try:
+            if float(voltage_v) <= 1000:
+                return 'LV (0.6/1kV)', LV_CABLE_DATA
+            else:
+                return 'MV (3.6/6kV - 12/20kV)', MV_CABLE_DATA
+        except (ValueError, TypeError):
+            return 'LV (0.6/1kV)', LV_CABLE_DATA  # Default on error
 
 # ========== CIRCUIT BREAKER CALCULATOR CLASS ==========
 class CircuitBreakerCalculator:
@@ -738,6 +785,8 @@ class CircuitBreakerCalculator:
         pass
     
     def get_standard_rating(self, current, design_factor=1.25):
+        if current is None or pd.isna(current) or current <= 0:
+            return CB_RATINGS[0], 0
         required = current * design_factor
         for rating in CB_RATINGS:
             if rating >= required:
@@ -745,6 +794,8 @@ class CircuitBreakerCalculator:
         return CB_RATINGS[-1], required
     
     def get_breaker_type(self, rating):
+        if rating is None or pd.isna(rating):
+            return 'MCB', 'IEC 60898'
         if rating <= 125:
             return 'MCB', 'IEC 60898'
         elif rating <= 1600:
@@ -773,6 +824,14 @@ class CircuitBreakerCalculator:
         detailed_reasons = []
         
         for idx, load in loads_df.iterrows():
+            # Validate load data
+            if pd.isna(load.get('Power (kW)')) or load.get('Power (kW)') is None or load.get('Power (kW)') <= 0:
+                continue
+            if pd.isna(load.get('Voltage (V)')) or load.get('Voltage (V)') is None:
+                continue
+            if pd.isna(load.get('Power Factor')) or load.get('Power Factor') is None:
+                load['Power Factor'] = 0.85
+            
             if load['Phase'] == '3-phase':
                 current = load['Power (kW)'] * 1000 / (1.732 * load['Voltage (V)'] * load['Power Factor'])
                 phase_desc = "Three-phase"
@@ -783,7 +842,10 @@ class CircuitBreakerCalculator:
                 current = load['Power (kW)'] * 1000 / load['Voltage (V)']
                 phase_desc = "DC"
             
-            rating, required = self.get_standard_rating(current, design_factor)
+            # Use 1.25 for ALL load types
+            cb_factor = 1.25
+            
+            rating, required = self.get_standard_rating(current, cb_factor)
             breaker_type, standard = self.get_breaker_type(rating)
             poles, reason = self.select_poles(load['Phase'], system_type)
             series = MANUFACTURERS[manufacturer][breaker_type]
@@ -793,6 +855,7 @@ class CircuitBreakerCalculator:
                 'Power (kW)': load['Power (kW)'],
                 'Voltage (V)': load['Voltage (V)'],
                 'Phase': load['Phase'],
+                'Load Type': load.get('Load Type', 'Continuous'),
                 'Current (A)': current,
                 'Required CB (A)': required,
                 'Selected CB (A)': rating,
@@ -800,7 +863,8 @@ class CircuitBreakerCalculator:
                 'Standard': standard,
                 'Poles': poles,
                 'Manufacturer': manufacturer,
-                'Series': series
+                'Series': series,
+                'CB Factor': cb_factor
             })
             
             detailed_reasons.append({
@@ -813,7 +877,8 @@ class CircuitBreakerCalculator:
                 'standard': standard,
                 'poles': poles,
                 'pole_reason': reason,
-                'design_factor': design_factor,
+                'design_factor': cb_factor,
+                'load_type': load.get('Load Type', 'Continuous'),
                 'system_type': system_type,
                 'manufacturer': manufacturer,
                 'series': series
@@ -822,8 +887,14 @@ class CircuitBreakerCalculator:
         return results, detailed_reasons
     
     def calculate_main_cb(self, loads_df, voltage=400, pf=0.85, design_factor=1.25, system_type='TN-S'):
-        total_power = loads_df['Power (kW)'].sum()
-        current = total_power * 1000 / (1.732 * voltage * pf)
+        # Filter out invalid loads
+        valid_loads = []
+        for idx, load in loads_df.iterrows():
+            if pd.notna(load.get('Power (kW)')) and load.get('Power (kW)') is not None and load.get('Power (kW)') > 0:
+                valid_loads.append(load['Power (kW)'])
+        
+        total_power = sum(valid_loads) if valid_loads else 0
+        current = total_power * 1000 / (1.732 * voltage * pf) if total_power > 0 else 0
         rating, required = self.get_standard_rating(current, design_factor)
         breaker_type, standard = self.get_breaker_type(rating)
         poles, reason = self.select_poles('3-phase', system_type)
@@ -843,7 +914,7 @@ I = {total_power:.2f} x 1000 / (1.732 x {voltage} x {pf})
 I = {current:.2f} A
 
 STEP 3: CIRCUIT BREAKER SIZING [IEC 60898/IEC 60947-2]
-- Design Factor: {design_factor}
+- Design Factor: {design_factor} (1.25 for all loads)
 - Required Rating = {current:.2f} x {design_factor} = {required:.2f} A
 - Selected Standard Rating: {rating} A
 
@@ -956,7 +1027,7 @@ class CablePDFReport(FPDF):
         self.cell(35, 8, 'Load Name', 1, 0, 'C', 1)
         self.cell(20, 8, 'Power', 1, 0, 'C', 1)
         self.cell(20, 8, 'Voltage', 1, 0, 'C', 1)
-        self.cell(20, 8, 'Phase', 1, 0, 'C', 1)
+        self.cell(15, 8, 'Type', 1, 0, 'C', 1)
         self.cell(15, 8, 'PF', 1, 0, 'C', 1)
         self.cell(20, 8, 'Length', 1, 1, 'C', 1)
         
@@ -966,7 +1037,7 @@ class CablePDFReport(FPDF):
             self.cell(35, 6, load['Load Name'][:20], 1, 0, 'L', fill)
             self.cell(20, 6, f"{load['Power (kW)']:.1f} kW", 1, 0, 'R', fill)
             self.cell(20, 6, f"{load['Voltage (V)']:.0f} V", 1, 0, 'R', fill)
-            self.cell(20, 6, load['Phase'], 1, 0, 'C', fill)
+            self.cell(15, 6, load.get('Load Type', 'Continuous')[:8], 1, 0, 'C', fill)
             self.cell(15, 6, f"{load['Power Factor']:.2f}", 1, 0, 'R', fill)
             self.cell(20, 6, f"{load['Length (m)']:.0f} m", 1, 1, 'R', fill)
             fill = not fill
@@ -980,8 +1051,8 @@ class CablePDFReport(FPDF):
         
         self.set_font('Arial', 'B', 7)
         self.set_fill_color(240, 240, 240)
-        headers = ['Load', 'Size', 'Type', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
-        widths = [25, 12, 12, 15, 15, 12, 12, 12, 15]
+        headers = ['Load', 'Type', 'Size', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
+        widths = [25, 10, 12, 15, 15, 12, 12, 12, 15]
         
         for i, header in enumerate(headers):
             self.cell(widths[i], 8, header, 1, 0, 'C', 1)
@@ -992,8 +1063,8 @@ class CablePDFReport(FPDF):
         for idx, row in cable_df.iterrows():
             data = [
                 row['Load Name'][:15],
+                row.get('Load Type', 'Continuous')[:5],
                 str(row['Size (mm²)']),
-                'Cu',
                 str(row['Base Ampacity (A)']),
                 str(row['Derated Ampacity (A)']).replace(' A', ''),
                 str(row['Voltage Drop (%)']).replace('%', ''),
@@ -1003,7 +1074,7 @@ class CablePDFReport(FPDF):
             ]
             
             for i, value in enumerate(data):
-                align = 'R' if i > 2 else 'L'
+                align = 'R' if i > 3 else 'L'
                 self.cell(widths[i], 5, value, 1, 0, align, fill)
             self.ln()
             fill = not fill
@@ -1022,7 +1093,7 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 14)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 10, f'LOAD {i+1}: {calc["load_name"]}', 0, 1)
+            self.cell(0, 10, f'LOAD {i+1}: {calc["load_name"]} ({calc.get("load_type", "Continuous")})', 0, 1)
             self.ln(2)
             
             self.set_font('Arial', 'B', 12)
@@ -1141,22 +1212,22 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 8, f'LOAD {i+1}: {detail["load_name"]}', 0, 1)
+            self.cell(0, 8, f'LOAD {i+1}: {detail["load_name"]} ({detail["load_type"]})', 0, 1)
             self.ln(1)
             
             self.set_font('Arial', 'B', 11)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'STEP 1: LOAD ANALYSIS', 0, 1)
             self.set_font('Arial', '', 10)
-            self.cell(0, 5, f'  - Load Type: {detail["phase_desc"]}', 0, 1)
+            self.cell(0, 5, f'  - Load Type: {detail["phase_desc"]} ({detail["load_type"]})', 0, 1)
             self.cell(0, 5, f'  - Load Current: {detail["current"]:.2f} A', 0, 1)
             self.ln(1)
             
             self.set_font('Arial', 'B', 11)
             self.cell(0, 6, 'STEP 2: RATING CALCULATION [IEC 60364]', 0, 1)
             self.set_font('Arial', '', 10)
-            self.cell(0, 5, f'  - Design Factor: {detail["design_factor"]}', 0, 1)
-            self.cell(0, 5, f'  - Required Rating = {detail["current"]:.2f} x {detail["design_factor"]} = {detail["required"]:.2f} A', 0, 1)
+            self.cell(0, 5, f'  - Design Factor: 1.25 (same for all load types)', 0, 1)
+            self.cell(0, 5, f'  - Required Rating = {detail["current"]:.2f} x 1.25 = {detail["required"]:.2f} A', 0, 1)
             self.cell(0, 5, f'  - Selected Standard Rating: {detail["selected"]} A', 0, 1)
             self.ln(1)
             
@@ -1282,10 +1353,10 @@ class CableWordReport:
         heading = self.doc.add_heading('3. LOAD DETAILS', level=1)
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
-        table = self.doc.add_table(rows=1, cols=6)
+        table = self.doc.add_table(rows=1, cols=7)
         table.style = 'Light Grid Accent 1'
         
-        headers = ['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'PF', 'Length (m)']
+        headers = ['Load Name', 'Power (kW)', 'Voltage (V)', 'Load Type', 'Phase', 'PF', 'Length (m)']
         for i, header in enumerate(headers):
             table.rows[0].cells[i].text = header
             table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
@@ -1295,9 +1366,10 @@ class CableWordReport:
             row[0].text = load['Load Name']
             row[1].text = f"{load['Power (kW)']:.1f}"
             row[2].text = f"{load['Voltage (V)']:.0f}"
-            row[3].text = load['Phase']
-            row[4].text = f"{load['Power Factor']:.2f}"
-            row[5].text = f"{load['Length (m)']:.0f}"
+            row[3].text = load.get('Load Type', 'Continuous')
+            row[4].text = load['Phase']
+            row[5].text = f"{load['Power Factor']:.2f}"
+            row[6].text = f"{load['Length (m)']:.0f}"
         
         self.doc.add_paragraph()
     
@@ -1305,10 +1377,10 @@ class CableWordReport:
         heading = self.doc.add_heading('4. CABLE SIZING RESULTS', level=1)
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
-        table = self.doc.add_table(rows=1, cols=9)
+        table = self.doc.add_table(rows=1, cols=10)
         table.style = 'Light Grid Accent 1'
         
-        headers = ['Load', 'Size', 'Type', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
+        headers = ['Load', 'Type', 'Size', 'Cable Type', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
         for i, header in enumerate(headers):
             table.rows[0].cells[i].text = header
             table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
@@ -1316,14 +1388,15 @@ class CableWordReport:
         for idx, row in cable_df.iterrows():
             new_row = table.add_row().cells
             new_row[0].text = row['Load Name']
-            new_row[1].text = str(row['Size (mm²)'])
-            new_row[2].text = 'Cu'
-            new_row[3].text = str(row['Base Ampacity (A)'])
-            new_row[4].text = str(row['Derated Ampacity (A)']).replace(' A', '')
-            new_row[5].text = str(row['Voltage Drop (%)']).replace('%', '')
-            new_row[6].text = str(row['Short Circuit (kA)']).replace(' kA', '')
-            new_row[7].text = str(row['Efficiency (%)']).replace('%', '')
-            new_row[8].text = row['Status']
+            new_row[1].text = row.get('Load Type', 'Continuous')
+            new_row[2].text = str(row['Size (mm²)'])
+            new_row[3].text = 'Cu'
+            new_row[4].text = str(row['Base Ampacity (A)'])
+            new_row[5].text = str(row['Derated Ampacity (A)']).replace(' A', '')
+            new_row[6].text = str(row['Voltage Drop (%)']).replace('%', '')
+            new_row[7].text = str(row['Short Circuit (kA)']).replace(' kA', '')
+            new_row[8].text = str(row['Efficiency (%)']).replace('%', '')
+            new_row[9].text = row['Status']
         
         self.doc.add_paragraph()
     
@@ -1334,7 +1407,7 @@ class CableWordReport:
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
         for i, calc in enumerate(detailed_calcs):
-            self.doc.add_heading(f'LOAD {i+1}: {calc["load_name"]}', level=2)
+            self.doc.add_heading(f'LOAD {i+1}: {calc["load_name"]} ({calc.get("load_type", "Continuous")})', level=2)
             
             self.doc.add_heading('STEP 1: LOAD CURRENT CALCULATION [IEC 60364-5-52 Section 523]', level=3)
             p = self.doc.add_paragraph()
@@ -1426,15 +1499,15 @@ class CableWordReport:
         self.doc.add_heading('6.1 Individual Circuit Breakers - Detailed Calculations', level=2)
         
         for i, detail in enumerate(cb_details):
-            self.doc.add_heading(f'LOAD {i+1}: {detail["load_name"]}', level=3)
+            self.doc.add_heading(f'LOAD {i+1}: {detail["load_name"]} ({detail["load_type"]})', level=3)
             
             self.doc.add_heading('STEP 1: LOAD ANALYSIS', level=4)
-            self.doc.add_paragraph(f'  - Load Type: {detail["phase_desc"]}')
+            self.doc.add_paragraph(f'  - Load Type: {detail["phase_desc"]} ({detail["load_type"]})')
             self.doc.add_paragraph(f'  - Load Current: {detail["current"]:.2f} A')
             
             self.doc.add_heading('STEP 2: RATING CALCULATION [IEC 60364]', level=4)
-            self.doc.add_paragraph(f'  - Design Factor: {detail["design_factor"]}')
-            self.doc.add_paragraph(f'  - Required Rating = {detail["current"]:.2f} x {detail["design_factor"]} = {detail["required"]:.2f} A')
+            self.doc.add_paragraph(f'  - Design Factor: 1.25 (same for all load types)')
+            self.doc.add_paragraph(f'  - Required Rating = {detail["current"]:.2f} x 1.25 = {detail["required"]:.2f} A')
             self.doc.add_paragraph(f'  - Selected Standard Rating: {detail["selected"]} A')
             
             self.doc.add_heading('STEP 3: BREAKER TYPE SELECTION', level=4)
@@ -1903,26 +1976,34 @@ class SimpleTransformerCalculator:
     
     def calculate_p(self, rating_kw, quantity, diversity):
         """Calculate Real Power P (kW)"""
-        if pd.isna(rating_kw) or pd.isna(quantity) or pd.isna(diversity):
+        if pd.isna(rating_kw) or rating_kw is None or rating_kw <= 0:
             return 0
+        if pd.isna(quantity) or quantity is None or quantity <= 0:
+            quantity = 1
+        if pd.isna(diversity) or diversity is None or diversity <= 0:
+            diversity = 0.8
         return rating_kw * quantity * diversity
     
     def calculate_q(self, p_kw, pf):
         """Calculate Reactive Power Q (kVAR)"""
-        if pd.isna(p_kw) or pd.isna(pf) or pf >= 1.0:
+        if pd.isna(p_kw) or p_kw is None or p_kw <= 0:
             return 0
+        if pd.isna(pf) or pf is None or pf >= 1.0 or pf <= 0:
+            pf = 0.85
         phi = math.acos(pf)
         return p_kw * math.tan(phi)
     
     def calculate_s(self, p_kw, q_kvar):
         """Calculate Apparent Power S (kVA)"""
-        if pd.isna(p_kw) or pd.isna(q_kvar):
+        if pd.isna(p_kw) or p_kw is None or p_kw <= 0:
             return 0
+        if pd.isna(q_kvar) or q_kvar is None:
+            q_kvar = 0
         return math.sqrt(p_kw**2 + q_kvar**2)
     
     def get_standard_rating(self, required_kva):
         """Get next higher standard rating from IEC 60076"""
-        if pd.isna(required_kva) or required_kva <= 0:
+        if pd.isna(required_kva) or required_kva is None or required_kva <= 0:
             return 50
         for rating in self.standard_ratings:
             if rating >= required_kva:
@@ -1944,13 +2025,245 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
+# ========== FUNCTION TO READ EXCEL WITH MULTI-LEVEL HEADERS ==========
+def read_excel_with_multi_headers(uploaded_file):
+    """
+    Reads Excel file with structure:
+    Row 1: Main headers (SR. No., TAG No., DESCRIPTION, MOTOR OUTPUT [kW], etc.)
+    Row 2: Sub-headers (RATED (+55°C), Load Factor, ABSORB., etc.)
+    """
+    # Read the Excel file without assuming headers
+    df_raw = pd.read_excel(uploaded_file, header=None)
+    
+    # Get the number of rows and columns
+    num_rows, num_cols = df_raw.shape
+    
+    # Extract header rows
+    main_headers = []  # Row 0 (SR. No., TAG No., etc.)
+    sub_headers = []   # Row 1 (RATED (+55°C), Load Factor, etc.)
+    
+    for col in range(num_cols):
+        main_val = df_raw.iloc[0, col] if pd.notna(df_raw.iloc[0, col]) else ""
+        sub_val = df_raw.iloc[1, col] if pd.notna(df_raw.iloc[1, col]) else ""
+        
+        main_headers.append(str(main_val).strip() if main_val else "")
+        sub_headers.append(str(sub_val).strip() if sub_val else "")
+    
+    # Create combined headers for display
+    combined_headers = []
+    for i in range(num_cols):
+        if main_headers[i] and sub_headers[i]:
+            combined_headers.append(f"{main_headers[i]} - {sub_headers[i]}")
+        elif main_headers[i]:
+            combined_headers.append(main_headers[i])
+        elif sub_headers[i]:
+            combined_headers.append(sub_headers[i])
+        else:
+            combined_headers.append(f"Column_{i}")
+    
+    # Create dataframe with data starting from row 2 (index 2)
+    data = df_raw.iloc[2:].copy()
+    data.columns = combined_headers
+    
+    return data, main_headers, sub_headers
+
+# ========== FUNCTION TO EXTRACT LOADS WITH CORRECT COLUMN MAPPING ==========
+def extract_loads_from_excel(df, main_headers, sub_headers):
+    """
+    Extract loads with correct mapping:
+    - MOTOR OUTPUT [kW] (main header) has sub-headers: RATED (+55°C), Load Factor, ABSORB.
+    """
+    new_loads = []
+    
+    # Find column indices for important data
+    power_rated_col = None      # MOTOR OUTPUT [kW] - RATED (+55°C)
+    power_absorb_col = None     # MOTOR OUTPUT [kW] - ABSORB.
+    voltage_col = None           # VOLTAGE [V] - RATED
+    current_col = None           # CURRENT [A] - RATED
+    continuous_col = None        # RUNNING [kW] - CONTINUOUS (100%)
+    intermittent_col = None      # RUNNING [kW] - INTERMITTENT (30%)
+    standby_col = None           # RUNNING [kW] - STAND-BY (10%)
+    dol_col = None               # STARTING OF MOTOR - DIRECT [DOL]
+    
+    # Map columns based on our understanding of the structure
+    for col in df.columns:
+        col_lower = str(col).lower()
+        
+        if 'motor output' in col_lower and 'rated' in col_lower:
+            power_rated_col = col
+        elif 'motor output' in col_lower and 'absorb' in col_lower:
+            power_absorb_col = col
+        elif 'voltage' in col_lower and 'rated' in col_lower:
+            voltage_col = col
+        elif 'current' in col_lower and 'rated' in col_lower:
+            current_col = col
+        elif 'running' in col_lower and 'continuous' in col_lower:
+            continuous_col = col
+        elif 'running' in col_lower and 'intermittent' in col_lower:
+            intermittent_col = col
+        elif 'running' in col_lower and 'stand' in col_lower:
+            standby_col = col
+        elif 'starting' in col_lower and 'dol' in col_lower:
+            dol_col = col
+    
+    # Process each row (skip if all values are NaN or headers)
+    for idx, row in df.iterrows():
+        # Skip if first column is empty or contains header text
+        first_val = row.iloc[0] if len(row) > 0 else None
+        if pd.isna(first_val) or str(first_val).strip() in ['SR. No.', '']:
+            continue
+        
+        # Get SR. No. (usually first column)
+        sr_no = row.iloc[0] if len(row) > 0 and pd.notna(row.iloc[0]) else idx + 1
+        
+        # Get TAG No. (usually second column)
+        tag_no = row.iloc[1] if len(row) > 1 and pd.notna(row.iloc[1]) else f"LOAD-{sr_no}"
+        
+        # Get DESCRIPTION (usually third column)
+        description = row.iloc[2] if len(row) > 2 and pd.notna(row.iloc[2]) else f"Load {sr_no}"
+        
+        # Get POWER value (try RATED first, then ABSORB.)
+        power = 0
+        if power_rated_col and pd.notna(row[power_rated_col]):
+            try:
+                val = row[power_rated_col]
+                if isinstance(val, (int, float)):
+                    power = float(val)
+                else:
+                    # Remove % and other characters
+                    power_str = re.sub(r'[^\d.-]', '', str(val))
+                    power = float(power_str) if power_str else 0
+            except:
+                power = 0
+        
+        # If RATED is 0 or not found, try ABSORB.
+        if power == 0 and power_absorb_col and pd.notna(row[power_absorb_col]):
+            try:
+                val = row[power_absorb_col]
+                if isinstance(val, (int, float)):
+                    power = float(val)
+                else:
+                    power_str = re.sub(r'[^\d.-]', '', str(val))
+                    power = float(power_str) if power_str else 0
+            except:
+                power = 0
+        
+        # Skip if power is 0
+        if power <= 0:
+            continue
+        
+        # Get VOLTAGE
+        voltage = 415  # Default
+        if voltage_col and pd.notna(row[voltage_col]):
+            try:
+                val = row[voltage_col]
+                if isinstance(val, (int, float)):
+                    voltage = float(val)
+                else:
+                    voltage_str = re.sub(r'[^\d.-]', '', str(val))
+                    voltage = float(voltage_str) if voltage_str else 415
+            except:
+                voltage = 415
+        
+        # Ensure voltage is valid
+        if voltage <= 0 or pd.isna(voltage):
+            voltage = 415
+        
+        # Determine LOAD TYPE based on X marks in RUNNING columns
+        load_type = 'Continuous'  # Default
+        
+        # Check CONTINUOUS column for X mark
+        if continuous_col and pd.notna(row[continuous_col]):
+            val = str(row[continuous_col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                load_type = 'Continuous'
+        
+        # Check INTERMITTENT column for X mark
+        if intermittent_col and pd.notna(row[intermittent_col]):
+            val = str(row[intermittent_col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                load_type = 'Intermittent'
+        
+        # Check STANDBY column for X mark
+        if standby_col and pd.notna(row[standby_col]):
+            val = str(row[standby_col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                load_type = 'Standby'
+        
+        # Determine STARTING METHOD
+        starting_method = 'DOL'  # Default
+        if dol_col and pd.notna(row[dol_col]):
+            val = str(row[dol_col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                starting_method = 'DOL'
+        
+        # Determine phase based on voltage
+        if voltage >= 1000:
+            phase = '3-phase'
+        elif voltage > 300:
+            phase = '3-phase'
+        elif voltage > 100:
+            phase = '1-phase'
+        else:
+            phase = 'DC'
+        
+        new_loads.append({
+            'SR. No.': sr_no,
+            'TAG No.': tag_no,
+            'Description': description,
+            'Load Name': f"{tag_no} - {description}"[:30],
+            'Power (kW)': power,
+            'Voltage (V)': voltage,
+            'Phase': phase,
+            'Load Type': load_type,
+            'Starting Method': starting_method,
+            'Power Factor': 0.85,  # Default, can be adjusted
+            'Length (m)': 50  # Default, can be adjusted
+        })
+    
+    return new_loads
+
+# ========== FUNCTION TO DETECT LOAD TYPE FROM X MARKS ==========
+def detect_load_type(row, continuous_cols, intermittent_cols, standby_cols):
+    """
+    Detect load type based on where X is placed
+    Returns: 'Continuous', 'Intermittent', or 'Standby'
+    """
+    # Check each cell in the row for X marks
+    for col in continuous_cols:
+        if col in row.index and pd.notna(row[col]):
+            val = str(row[col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                return 'Continuous'
+    
+    for col in intermittent_cols:
+        if col in row.index and pd.notna(row[col]):
+            val = str(row[col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                return 'Intermittent'
+    
+    for col in standby_cols:
+        if col in row.index and pd.notna(row[col]):
+            val = str(row[col]).strip().lower()
+            if val in ['x', '✓', '✔', '1', 'yes', 'true', 'ü']:
+                return 'Standby'
+    
+    # Default to Continuous if no X found
+    return 'Continuous'
+
 # ========== SESSION STATE INITIALIZATION ==========
 if 'uploaded_data' not in st.session_state:
     st.session_state.uploaded_data = None
+if 'main_headers' not in st.session_state:
+    st.session_state.main_headers = None
+if 'sub_headers' not in st.session_state:
+    st.session_state.sub_headers = None
+if 'extracted_loads' not in st.session_state:
+    st.session_state.extracted_loads = None
 
 # Cable sizing loads - EMPTY by default
 if 'loads_df' not in st.session_state:
-    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Power Factor', 'Length (m)'])
+    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Load Type', 'Power Factor', 'Length (m)'])
 
 if 'cable_results_df' not in st.session_state:
     st.session_state.cable_results_df = pd.DataFrame()
@@ -2004,7 +2317,7 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
     
     st.markdown('<div class="report-header">📋 LOAD LIST</div>', unsafe_allow_html=True)
     
-    # ===== Excel Upload Section (No default data) =====
+    # ===== Excel Upload Section =====
     st.markdown('<div class="upload-section">', unsafe_allow_html=True)
     st.markdown("### 📤 Upload Excel File")
     st.markdown("Upload your Excel file to view and edit the data")
@@ -2017,10 +2330,19 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
     
     if uploaded_file is not None:
         try:
-            # Read the uploaded Excel file
-            df = pd.read_excel(uploaded_file)
+            # Read with multi-level headers
+            df, main_headers, sub_headers = read_excel_with_multi_headers(uploaded_file)
             st.session_state.uploaded_data = df
-            st.success(f"✅ Successfully loaded {len(df)} rows and {len(df.columns)} columns")
+            st.session_state.main_headers = main_headers
+            st.session_state.sub_headers = sub_headers
+            st.success(f"✅ Successfully loaded {len(df)} rows with multi-level headers")
+            
+            # Show header structure
+            with st.expander("📊 Header Structure Detected"):
+                st.write("**Main Headers (Row 1):**")
+                st.write(main_headers[:15])  # Show first 15
+                st.write("**Sub Headers (Row 2):**")
+                st.write(sub_headers[:15])  # Show first 15
             
         except Exception as e:
             st.error(f"Error reading file: {e}")
@@ -2030,17 +2352,46 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
     
     # ===== Display Uploaded Data =====
     if st.session_state.uploaded_data is not None:
-        st.markdown("### 📋 Load Data")
+        st.markdown("### 📋 Load Data (with combined headers)")
         st.markdown("*Scroll horizontally to see all columns*")
         
         edited_df = st.data_editor(
             st.session_state.uploaded_data,
-            num_rows="dynamic",  # Allows adding/removing rows
+            num_rows="dynamic",
             use_container_width=True
         )
         
         # Update the data in session state
         st.session_state.uploaded_data = edited_df
+        
+        # ===== Extract Loads for Calculators =====
+        st.markdown("### 📊 Extract Loads for Calculations")
+        st.markdown("This will extract motor data with correct mapping of RATED, ABSORB., and load types based on X marks.")
+        
+        if st.button("📊 Extract Loads for Calculations", use_container_width=True):
+            extracted_loads = extract_loads_from_excel(
+                edited_df, 
+                st.session_state.main_headers, 
+                st.session_state.sub_headers
+            )
+            
+            if extracted_loads:
+                # Store in session state for other calculators
+                st.session_state.extracted_loads = pd.DataFrame(extracted_loads)
+                st.success(f"✅ Extracted {len(extracted_loads)} loads successfully!")
+                
+                # Show extracted data
+                with st.expander("📋 Extracted Load Data (Ready for Cable Sizing)"):
+                    st.dataframe(st.session_state.extracted_loads)
+                    
+                    # Show summary by load type
+                    if 'Load Type' in st.session_state.extracted_loads.columns:
+                        type_counts = st.session_state.extracted_loads['Load Type'].value_counts()
+                        st.write("**Load Type Summary:**")
+                        for load_type, count in type_counts.items():
+                            st.write(f"- {load_type}: {count}")
+            else:
+                st.error("No valid loads could be extracted from the file.")
         
         # ===== Download Options =====
         st.markdown("### 📥 Download Options")
@@ -2057,7 +2408,6 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
             )
         
         with col2:
-            # Create Excel file in memory
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 edited_df.to_excel(writer, index=False, sheet_name='Load List')
@@ -2080,7 +2430,6 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
             st.metric("Total Columns", len(edited_df.columns))
     
     else:
-        # Show message when no file is uploaded
         st.info("👆 Please upload an Excel file to view and edit data")
 
 # ========== TAB 2: LIGHTNING PROTECTION ==========
@@ -2259,7 +2608,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
                     with st.spinner("Generating PDF..."):
                         pdf = LightningPDFReport()
                         pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
-                        pdf_output = pdf.output(dest='S')
+                        pdf_output = pdf.output(dest='S').encode('latin1')
                         b64 = base64.b64encode(pdf_output).decode()
                         filename = f"Lightning_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
                         st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
@@ -2279,7 +2628,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
                         st.success("✅ Word generated!")
 
-# ========== TAB 3: CABLE SIZING ==========
+# ========== TAB 3: CABLE SIZING (FIXED CALCULATION SECTION) ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2287,14 +2636,14 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     st.markdown("""
     <div class="info-box">
         <h4>📌 Cable Sizing Calculator</h4>
-        <p>Upload your load data in the LOAD LIST tab first, then import here.</p>
+        <p>First extract loads in the LOAD LIST tab, then import here.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.session_state.uploaded_data is not None:
-        st.info(f"✅ Load data available with {len(st.session_state.uploaded_data)} rows")
+    if st.session_state.extracted_loads is not None:
+        st.info(f"✅ Extracted load data available with {len(st.session_state.extracted_loads)} loads")
     else:
-        st.warning("⚠️ Please upload load data in the LOAD LIST tab first")
+        st.warning("⚠️ Please go to LOAD LIST tab and click 'Extract Loads for Calculations' first")
     
     cable_tabs = st.tabs([
         "📥 Loads Input", 
@@ -2310,57 +2659,36 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         st.markdown("### 📋 Load Details")
         st.markdown("""
         <div class="info-box">
-            <p>To add or modify loads, please go to the main <b>📋 LOAD LIST</b> tab and upload your Excel file.</p>
+            <p>Import loads extracted from your Excel file.</p>
         </div>
         """, unsafe_allow_html=True)
         
-        if st.button("📥 Import from LOAD LIST", use_container_width=True):
-            if st.session_state.uploaded_data is not None:
-                # Try to map common column names
-                df = st.session_state.uploaded_data
+        if st.button("📥 Import Extracted Loads", use_container_width=True):
+            if st.session_state.extracted_loads is not None:
+                # Convert extracted loads to cable sizing format
+                df = st.session_state.extracted_loads
                 new_loads = []
                 
-                # Look for power column
-                power_col = None
-                for col in df.columns:
-                    if 'power' in str(col).lower() or 'kw' in str(col).lower() or 'motor' in str(col).lower():
-                        power_col = col
-                        break
-                
-                # Look for voltage column
-                voltage_col = None
-                for col in df.columns:
-                    if 'voltage' in str(col).lower() or 'v' in str(col).lower():
-                        voltage_col = col
-                        break
-                
-                # Create basic loads
                 for idx, row in df.iterrows():
-                    power = row[power_col] if power_col else 0
-                    voltage = row[voltage_col] if voltage_col else 415
-                    
                     new_loads.append({
-                        'Load Name': f"Load {idx+1}",
-                        'Power (kW)': float(power) if pd.notna(power) else 0,
-                        'Voltage (V)': float(voltage) if pd.notna(voltage) else 415,
-                        'Phase': '3-phase' if float(voltage) > 300 else '1-phase',
-                        'Power Factor': 0.85,
-                        'Length (m)': 50
+                        'Load Name': row['Load Name'],
+                        'Power (kW)': row['Power (kW)'],
+                        'Voltage (V)': row['Voltage (V)'],
+                        'Phase': row['Phase'],
+                        'Load Type': row['Load Type'],
+                        'Power Factor': row.get('Power Factor', 0.85),
+                        'Length (m)': row.get('Length (m)', 50)
                     })
                 
-                if len(new_loads) > 0:
-                    st.session_state.loads_df = pd.DataFrame(new_loads)
-                    st.success(f"✅ Imported {len(new_loads)} loads successfully!")
-                else:
-                    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Power Factor', 'Length (m)'])
-                    st.warning("No valid load data found in uploaded file.")
+                st.session_state.loads_df = pd.DataFrame(new_loads)
+                st.success(f"✅ Imported {len(new_loads)} loads successfully!")
                 st.rerun()
             else:
-                st.error("No data in LOAD LIST. Please upload an Excel file first.")
+                st.error("No extracted loads found. Please go to LOAD LIST tab and extract loads first.")
         
         st.markdown("### Current Cable Sizing Loads")
         if st.session_state.loads_df.empty:
-            st.info("No loads imported yet. Click 'Import from LOAD LIST' to load data.")
+            st.info("No loads imported yet. Click 'Import Extracted Loads' to load data.")
         else:
             edited_df = st.data_editor(
                 st.session_state.loads_df,
@@ -2371,6 +2699,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                     "Power (kW)": st.column_config.NumberColumn("Power (kW)", min_value=0.0, max_value=10000.0, step=1.0),
                     "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", min_value=0, max_value=11000, step=1),
                     "Phase": st.column_config.SelectboxColumn("Phase", options=['1-phase', '3-phase', 'DC']),
+                    "Load Type": st.column_config.SelectboxColumn("Load Type", options=['Continuous', 'Intermittent', 'Standby']),
                     "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
                     "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=1.0, max_value=5000.0, step=1.0)
                 }
@@ -2475,6 +2804,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             }
         )
         
+        # ===== FIXED CALCULATION BUTTON WITH PROPER VALIDATION =====
         if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
             with st.spinner("Calculating..."):
                 cable_type = st.session_state.cable_type
@@ -2492,12 +2822,86 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 cable_results = []
                 detailed_calcs = []
                 
+                # Track loads with issues
+                skipped_loads = 0
+                warning_messages = []
+                
                 for idx, load in st.session_state.loads_df.iterrows():
-                    cable_category, cable_db = cable_calc.get_cable_type(load['Voltage (V)'])
+                    # ===== VALIDATE ALL INPUT VALUES =====
+                    load_name = load['Load Name'] if pd.notna(load['Load Name']) else f"Load {idx+1}"
+                    
+                    # Validate Power
+                    power = load['Power (kW)']
+                    if pd.isna(power) or power is None:
+                        warning_messages.append(f"⚠️ Load '{load_name}' has missing power value. Skipping.")
+                        skipped_loads += 1
+                        continue
+                    try:
+                        power = float(power)
+                        if power <= 0:
+                            warning_messages.append(f"⚠️ Load '{load_name}' has invalid power ({power} kW). Skipping.")
+                            skipped_loads += 1
+                            continue
+                    except (ValueError, TypeError):
+                        warning_messages.append(f"⚠️ Load '{load_name}' has non-numeric power value. Skipping.")
+                        skipped_loads += 1
+                        continue
+                    
+                    # Validate Voltage
+                    voltage = load['Voltage (V)']
+                    if pd.isna(voltage) or voltage is None:
+                        warning_messages.append(f"⚠️ Load '{load_name}' has missing voltage. Using default 415V.")
+                        voltage = 415
+                    else:
+                        try:
+                            voltage = float(voltage)
+                            if voltage <= 0:
+                                warning_messages.append(f"⚠️ Load '{load_name}' has invalid voltage ({voltage}V). Using default 415V.")
+                                voltage = 415
+                        except (ValueError, TypeError):
+                            warning_messages.append(f"⚠️ Load '{load_name}' has non-numeric voltage. Using default 415V.")
+                            voltage = 415
+                    
+                    # Validate Power Factor
+                    pf = load['Power Factor']
+                    if pd.isna(pf) or pf is None:
+                        pf = 0.85  # Default
+                    else:
+                        try:
+                            pf = float(pf)
+                            if pf <= 0 or pf > 1:
+                                pf = 0.85
+                        except (ValueError, TypeError):
+                            pf = 0.85
+                    
+                    # Validate Length
+                    length = load['Length (m)']
+                    if pd.isna(length) or length is None:
+                        length = 50  # Default
+                    else:
+                        try:
+                            length = float(length)
+                            if length <= 0:
+                                length = 50
+                        except (ValueError, TypeError):
+                            length = 50
+                    
+                    # Validate Phase
+                    phase = load['Phase']
+                    if pd.isna(phase) or phase is None:
+                        phase = '3-phase'  # Default
+                    
+                    # Get Load Type
+                    load_type = load.get('Load Type', 'Continuous')
+                    if pd.isna(load_type) or load_type is None:
+                        load_type = 'Continuous'
+                    
+                    # ===== PROCEED WITH CALCULATIONS =====
+                    cable_category, cable_db = cable_calc.get_cable_type(voltage)
                     db = cable_db[cable_type]
                     
                     current = cable_calc.calculate_load_current(
-                        load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
+                        power, voltage, pf, 1.0, phase
                     )
                     
                     found = False
@@ -2517,27 +2921,28 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         derated = data['ampacity'] * total_k
                         if derated >= current:
                             vd_v, vd_pct = cable_calc.calculate_voltage_drop(
-                                current, load['Length (m)'], data['R'], data['X'],
-                                load['Power Factor'], load['Voltage (V)'], load['Phase']
+                                current, length, data['R'], data['X'],
+                                pf, voltage, phase
                             )
                             
                             isc = cable_calc.calculate_short_circuit(size, 1.0)
                             
-                            if load['Phase'] == '3-phase':
-                                input_power = 1.732 * load['Voltage (V)'] * current / 1000
-                            elif load['Phase'] == '1-phase':
-                                input_power = load['Voltage (V)'] * current / 1000
+                            if phase == '3-phase':
+                                input_power = 1.732 * voltage * current / 1000
+                            elif phase == '1-phase':
+                                input_power = voltage * current / 1000
                             else:
-                                input_power = load['Voltage (V)'] * current / 1000
-                            efficiency = (load['Power (kW)'] / input_power) * 100 if input_power > 0 else 0
+                                input_power = voltage * current / 1000
+                            efficiency = (power / input_power) * 100 if input_power > 0 else 0
                             
                             cable_results.append({
-                                'Load Name': load['Load Name'],
-                                'Power (kW)': load['Power (kW)'],
-                                'Voltage (V)': load['Voltage (V)'],
-                                'Phase': load['Phase'],
-                                'PF': load['Power Factor'],
-                                'Length (m)': load['Length (m)'],
+                                'Load Name': load_name,
+                                'Power (kW)': power,
+                                'Voltage (V)': voltage,
+                                'Phase': phase,
+                                'Load Type': load_type,
+                                'PF': pf,
+                                'Length (m)': length,
                                 'Cable Category': cable_category,
                                 'Cable Type': f'{cable_type} copper',
                                 'Size (mm²)': size,
@@ -2552,12 +2957,13 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             })
                             
                             detailed_calcs.append({
-                                'load_name': load['Load Name'],
-                                'power': load['Power (kW)'],
-                                'voltage': load['Voltage (V)'],
-                                'phase': load['Phase'],
-                                'pf': load['Power Factor'],
-                                'length': load['Length (m)'],
+                                'load_name': load_name,
+                                'load_type': load_type,
+                                'power': power,
+                                'voltage': voltage,
+                                'phase': phase,
+                                'pf': pf,
+                                'length': length,
                                 'current': current,
                                 'size': size,
                                 'cable_category': cable_category,
@@ -2585,7 +2991,17 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             found = True
                     
                     if not found:
-                        st.warning(f"No cable found for {load['Load Name']}")
+                        warning_messages.append(f"⚠️ No cable found for '{load_name}' with current {current:.1f}A")
+                        skipped_loads += 1
+                
+                # Show warnings if any
+                if warning_messages:
+                    with st.expander(f"⚠️ {len(warning_messages)} Warnings during calculation"):
+                        for msg in warning_messages:
+                            st.warning(msg)
+                
+                if skipped_loads > 0:
+                    st.info(f"ℹ️ Skipped {skipped_loads} loads due to data issues. {len(cable_results)} loads calculated successfully.")
                 
                 st.session_state.cable_results_df = pd.DataFrame(cable_results)
                 st.session_state.detailed_calcs = detailed_calcs
@@ -2601,7 +3017,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.session_state.cb_details = cb_details
                 st.session_state.main_cb = main_cb
                 
-                st.success("✅ Calculations complete! Check all tabs for results.")
+                if len(cable_results) > 0:
+                    st.success(f"✅ Calculations complete! {len(cable_results)} loads processed successfully.")
+                else:
+                    st.error("❌ No loads could be calculated. Please check your data.")
     
     # TAB 2: DERATING FACTORS
     with cable_tabs[1]:
@@ -2627,7 +3046,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
             st.markdown("### 📋 DETAILED CALCULATIONS")
             
             for calc in st.session_state.detailed_calcs:
-                with st.expander(f"🔍 {calc['load_name']}"):
+                with st.expander(f"🔍 {calc['load_name']} ({calc.get('load_type', 'Continuous')})"):
                     st.markdown(f"""
 **STEP 1: LOAD CURRENT [IEC 60364-5-52]**  
 I = {calc['power']} x 1000 / (1.732 x {calc['voltage']} x {calc['pf']}) = **{calc['current']:.1f} A**
@@ -2691,7 +3110,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
         st.markdown("""
         ### 🔍 Circuit Breaker Selection Criteria [IEC 60898 / IEC 60947-2]
         
-        **Design Factor:** 1.25 (25% safety margin for continuous loads)
+        **Design Factor:** 1.25 (Same 25% safety margin for ALL load types)
         
         **Breaker Types:**
         - **MCB** (≤125A): Miniature Circuit Breaker - For final circuits
@@ -2710,6 +3129,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
             cb_df = pd.DataFrame([{
                 'Load': r['Load'],
                 'Power (kW)': r['Power (kW)'],
+                'Load Type': r['Load Type'],
                 'Current (A)': f"{r['Current (A)']:.1f}",
                 'Required (A)': f"{r['Required CB (A)']:.1f}",
                 'Selected (A)': r['Selected CB (A)'],
@@ -2738,15 +3158,15 @@ Efficiency = **{calc['efficiency']:.1f}%**
             
             st.markdown("### 📋 Individual Breaker Selection Reasons")
             for detail in st.session_state.cb_details:
-                with st.expander(f"Load: {detail['load_name']}"):
+                with st.expander(f"Load: {detail['load_name']} ({detail['load_type']})"):
                     st.markdown(f"""
 **STEP 1: LOAD ANALYSIS**
-- Load Type: {detail['phase_desc']}
+- Load Type: {detail['phase_desc']} ({detail['load_type']})
 - Load Current: {detail['current']:.2f} A
 
 **STEP 2: RATING CALCULATION [IEC 60364]**
-- Design Factor: {detail['design_factor']} (25% safety margin)
-- Required Rating = {detail['current']:.2f} x {detail['design_factor']} = {detail['required']:.2f} A
+- Design Factor: 1.25 (same for all load types)
+- Required Rating = {detail['current']:.2f} x 1.25 = {detail['required']:.2f} A
 - Selected Standard Rating (IEC 60898/IEC 60947-2): {detail['selected']} A
 
 **STEP 3: BREAKER TYPE SELECTION**
@@ -2806,7 +3226,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
                         if st.session_state.cb_results and st.session_state.main_cb:
                             pdf.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
                         
-                        pdf_output = pdf.output(dest='S')
+                        pdf_output = pdf.output(dest='S').encode('latin1')
                         b64 = base64.b64encode(pdf_output).decode()
                         filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
                         st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
@@ -2863,8 +3283,8 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown("""
     <div class="info-box">
-        <h4>📌 Using loads from LOAD LIST</h4>
-        <p>Upload your load data in the LOAD LIST tab first.</p>
+        <h4>📌 Using loads from extracted data</h4>
+        <p>First extract loads in the LOAD LIST tab.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2877,27 +3297,16 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_calc = SimpleTransformerCalculator()
     
-    # Convert uploaded loads to transformer format
+    # Convert extracted loads to transformer format
     transformer_loads = pd.DataFrame()
-    if st.session_state.uploaded_data is not None:
-        # Try to find power column
-        power_col = None
-        for col in st.session_state.uploaded_data.columns:
-            col_lower = str(col).lower()
-            if 'power' in col_lower or 'kw' in col_lower or 'motor' in col_lower or 'load' in col_lower:
-                power_col = col
-                break
-        
-        if power_col:
-            transformer_loads = pd.DataFrame({
-                'Load Description': [f"Load {i+1}" for i in range(len(st.session_state.uploaded_data))],
-                'Quantity': [1] * len(st.session_state.uploaded_data),
-                'Rating (kW)': pd.to_numeric(st.session_state.uploaded_data[power_col], errors='coerce').fillna(0).values,
-                'Power Factor': [0.85] * len(st.session_state.uploaded_data),
-                'Diversity Factor': [0.8] * len(st.session_state.uploaded_data)
-            })
-        else:
-            st.warning("No power column found in uploaded data. Please ensure your Excel file has a column with 'power', 'kw', or 'motor' in its name.")
+    if st.session_state.extracted_loads is not None:
+        transformer_loads = pd.DataFrame({
+            'Load Description': st.session_state.extracted_loads['Load Name'],
+            'Quantity': [1] * len(st.session_state.extracted_loads),
+            'Rating (kW)': st.session_state.extracted_loads['Power (kW)'].values,
+            'Power Factor': st.session_state.extracted_loads.get('Power Factor', 0.85),
+            'Diversity Factor': [0.8] * len(st.session_state.extracted_loads)
+        })
     
     # TAB 1: LOAD ANALYSIS
     with tx_main_tabs[0]:
@@ -2949,7 +3358,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 st.session_state.total_p = total_p
                 st.session_state.total_q = total_q
             else:
-                st.info("No load data available. Please upload an Excel file in LOAD LIST tab with a power column.")
+                st.info("No load data available. Please extract loads in LOAD LIST tab first.")
         
         with load_sub_tabs[1]:
             st.markdown("### 📊 Load Summary Table")
@@ -2976,7 +3385,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 summary_df = pd.DataFrame(summary_data)
                 st.dataframe(summary_df, use_container_width=True, hide_index=True)
             else:
-                st.info("No load data available. Please upload an Excel file in LOAD LIST tab.")
+                st.info("No load data available. Please extract loads in LOAD LIST tab.")
     
     # TAB 2: LARGEST EQUIPMENT ANALYSIS
     with tx_main_tabs[1]:
@@ -3046,7 +3455,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 's': s_largest
             }
         else:
-            st.info("No load data available. Please upload an Excel file in LOAD LIST tab.")
+            st.info("No load data available. Please extract loads in LOAD LIST tab.")
     
     # TAB 3: DOWNLOAD REPORT
     with tx_main_tabs[2]:
@@ -3143,4 +3552,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 85.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 89.0 | {datetime.now().strftime('%Y%m%d_%H%M')}</div>", unsafe_allow_html=True)
