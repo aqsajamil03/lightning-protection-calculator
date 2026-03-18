@@ -20,7 +20,7 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS ==========
+# ========== CUSTOM CSS - CHANGED YELLOW TO EMERALD GREEN ==========
 st.markdown("""
 <style>
     /* Main Theme Colors */
@@ -28,7 +28,7 @@ st.markdown("""
         --primary: #1E3A8A;
         --primary-light: #3B5BA6;
         --primary-dark: #0D1B4A;
-        --secondary: #00A86B;
+        --secondary: #00A86B;  /* Changed from #FFA500 to Emerald Green */
         --success: #28A745;
         --danger: #DC3545;
         --warning: #FFC107;
@@ -55,7 +55,7 @@ st.markdown("""
         font-size: 28px;
         font-weight: bold;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-bottom: 4px solid var(--secondary);
+        border-bottom: 4px solid var(--secondary);  /* Changed to green */
     }
     
     /* Section Headers */
@@ -65,7 +65,7 @@ st.markdown("""
         font-weight: 600;
         margin: 20px 0 15px 0;
         padding-bottom: 10px;
-        border-bottom: 3px solid var(--secondary);
+        border-bottom: 3px solid var(--secondary);  /* Changed to green */
     }
     
     /* Card Style */
@@ -83,7 +83,7 @@ st.markdown("""
         background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 100%);
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid var(--secondary);
+        border-left: 6px solid var(--secondary);  /* Changed to green */
         margin: 15px 0;
         font-family: 'Courier New', monospace;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -147,12 +147,12 @@ st.markdown("""
         color: #856404 !important;
     }
     
-    /* Calculation Step */
+    /* Calculation Step - FIXED COLORS */
     .calc-step {
         background-color: #FFFFFF;
         padding: 15px;
         border-radius: 8px;
-        border-left: 5px solid #00A86B;
+        border-left: 5px solid #00A86B;  /* Changed from #FFA500 to Emerald Green */
         margin: 10px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid #DEE2E6;
@@ -175,21 +175,21 @@ st.markdown("""
     
     /* Largest Equipment Highlight */
     .largest-equipment {
-        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);  /* Light green gradient */
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid #00A86B;
+        border-left: 6px solid #00A86B;  /* Changed to green */
         margin: 15px 0;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .largest-equipment h3 {
-        color: #006B3C !important;
+        color: #006B3C !important;  /* Dark green */
         margin-top: 0;
     }
     .largest-equipment .value {
         font-size: 24px;
         font-weight: bold;
-        color: #006B3C;
+        color: #006B3C;  /* Dark green */
     }
     
     /* Metric Cards */
@@ -226,7 +226,7 @@ st.markdown("""
     }
     .result-card h3 {
         color: white !important;
-        border-bottom: 2px solid #00A86B;
+        border-bottom: 2px solid #00A86B;  /* Changed to green */
         padding-bottom: 10px;
     }
     
@@ -336,23 +336,6 @@ st.markdown("""
     }
     .load-detail {
         color: #000000 !important;
-    }
-    
-    /* Motor Details Table Styling */
-    .motor-details {
-        font-size: 12px;
-        line-height: 1.4;
-    }
-    .motor-details td {
-        padding: 4px 8px;
-    }
-    .motor-category {
-        background-color: #E8F5E9;
-        padding: 5px 10px;
-        border-radius: 5px;
-        margin: 5px 0;
-        font-weight: bold;
-        color: #006B3C;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -2042,44 +2025,25 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== SIMPLIFIED LOAD LIST ==========
+# ========== UNIVERSAL LOAD SHEET ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
-        'SR. NO.': [1, 2, 3, 4],
-        'CONSUMER ID': ['MTR-01', 'MTR-02', 'LTG-01', 'HVAC-01'],
-        'DESCRIPTION': ['Motor 1 - Cooling Tower', 'Motor 2 - Pump', 'Lighting Panel', 'HVAC Unit'],
-        'CONNECTED FROM SWBRD.': ['MCC-01', 'MCC-01', 'DB-03', 'MCC-02'],
-        'MOTOR OUTPUT [kW]': [75, 50, 25, 40],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'VOLTAGE [V]': [415, 415, 230, 415],
-        'CURRENT [A]': [130, 85, 108, 70],
-        '': ['', '', '', ''],  # Empty column as per format
-        'STARTING OF MOTOR': ['DOL', 'Star-Delta', 'MCB', 'Soft Start'],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'RUNNING [kW]': [75, 50, 25, 40],
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        '': ['', '', '', ''],  # Empty column as per format
-        'METHOD OF CONTROL': ['Auto/Manual', 'Manual', 'Manual', 'Auto'],
-        '': ['', '', '', ''],  # Empty column as per format
-        'IP - INGRESS PROTECTION': ['IP55', 'IP54', 'IP20', 'IP54'],
-        'EXPLOSION PROTECTION Eex': ['Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous', 'Non-Hazardous'],
-        'TYPE OF MOTOR/LOAD': ['Induction Motor', 'Induction Motor', 'Lighting', 'Compressor'],
-        'CONTROL DIAGRAM': ['DW-101', 'DW-102', 'DW-103', 'DW-104'],
-        'REMARKS': ['New Installation', 'Existing', 'LED Lighting', 'Spare']
+        'Load Description': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
+        'Quantity': [2, 1, 1, 2],
+        'Rating (kW)': [75, 50, 25, 40],
+        'Power Factor': [0.85, 0.85, 0.95, 0.80],
+        'Diversity Factor': [0.8, 0.8, 1.0, 0.7]
     })
 
-# Cable sizing loads (simplified version for cable calculator)
+# Cable sizing loads
 if 'loads_df' not in st.session_state:
     st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
-        'Power (kW)': [75, 50, 25, 40],
-        'Voltage (V)': [415, 415, 230, 415],
-        'Phase': ['3-phase', '3-phase', '1-phase', '3-phase'],
-        'Power Factor': [0.85, 0.85, 0.95, 0.80],
-        'Length (m)': [50, 60, 30, 45]
+        'Load Name': ['Load 1'],
+        'Power (kW)': [5.0],
+        'Voltage (V)': [400],
+        'Phase': ['3-phase'],
+        'Power Factor': [0.85],
+        'Length (m)': [50]
     })
 
 if 'cable_results_df' not in st.session_state:
@@ -2104,10 +2068,10 @@ with st.sidebar:
     st.markdown('<div class="sidebar-nav"><h2>⚡ CES-Electrical</h2></div>', unsafe_allow_html=True)
     
     if 'selected_calculator' not in st.session_state:
-        st.session_state.selected_calculator = "📋 LOAD LIST"
+        st.session_state.selected_calculator = "📋 LOAD SHEET"
     
     calculators = [
-        "📋 LOAD LIST",
+        "📋 LOAD SHEET",
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
         "⚙️ Transformer Sizing",
@@ -2121,43 +2085,43 @@ with st.sidebar:
             st.rerun()
 
 # ========== MAIN CONTENT ==========
-# FIXED: Removed "Calculator" word completely
-st.title(st.session_state.selected_calculator)
+st.title(f"{st.session_state.selected_calculator} Calculator")
 
-# ========== TAB 1: SIMPLIFIED LOAD LIST ==========
-if st.session_state.selected_calculator == "📋 LOAD LIST":
+# ========== TAB 1: UNIVERSAL LOAD SHEET ==========
+if st.session_state.selected_calculator == "📋 LOAD SHEET":
     
-    st.markdown('<div class="report-header">📋 LOAD LIST</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">📋 UNIVERSAL LOAD SHEET</div>', unsafe_allow_html=True)
     
-    # Only Add/Delete buttons - NO DESCRIPTION
+    st.markdown("""
+    <div class="info-box">
+        <h4>📌 This load sheet is used by all calculators</h4>
+        <p>Any changes made here will reflect in Lightning Protection, Cable Sizing, and Transformer Sizing calculators.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # tan(acos(PF)) Reference Table
+    with st.expander("📊 tan(acos(PF)) Reference Table", expanded=False):
+        tan_data = {
+            'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
+            'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
+            'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
+                       'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
+                       'PF=0.70 → Q=1.02×P']
+        }
+        tan_df = pd.DataFrame(tan_data)
+        st.dataframe(tan_df, use_container_width=True, hide_index=True)
+        st.caption("Formula: Q = P × tan(acos(PF)) as per document")
+    
+    # Add and Delete buttons
     col1, col2 = st.columns([1, 1])
     with col1:
-        if st.button("➕ Add New Load", key="add_load_main", use_container_width=True):
+        if st.button("➕ Add Load", key="add_load_main", use_container_width=True):
             new_row = pd.DataFrame({
-                'SR. NO.': [len(st.session_state.universal_loads) + 1],
-                'CONSUMER ID': [f'MTR-{len(st.session_state.universal_loads) + 1:02d}'],
-                'DESCRIPTION': [f'Load {len(st.session_state.universal_loads) + 1}'],
-                'CONNECTED FROM SWBRD.': ['MCC-01'],
-                'MOTOR OUTPUT [kW]': [50.0],
-                '': [''],
-                '': [''],
-                'VOLTAGE [V]': [415],
-                'CURRENT [A]': [85],
-                '': [''],
-                'STARTING OF MOTOR': ['DOL'],
-                '': [''],
-                '': [''],
-                'RUNNING [kW]': [50],
-                '': [''],
-                '': [''],
-                '': [''],
-                'METHOD OF CONTROL': ['Manual'],
-                '': [''],
-                'IP - INGRESS PROTECTION': ['IP55'],
-                'EXPLOSION PROTECTION Eex': ['Non-Hazardous'],
-                'TYPE OF MOTOR/LOAD': ['Induction Motor'],
-                'CONTROL DIAGRAM': [f'DW-{100 + len(st.session_state.universal_loads) + 1}'],
-                'REMARKS': ['New']
+                'Load Description': [f'Load {len(st.session_state.universal_loads) + 1}'],
+                'Quantity': [1],
+                'Rating (kW)': [50.0],
+                'Power Factor': [0.85],
+                'Diversity Factor': [0.8]
             })
             st.session_state.universal_loads = pd.concat([st.session_state.universal_loads, new_row], ignore_index=True)
             st.rerun()
@@ -2170,53 +2134,61 @@ if st.session_state.selected_calculator == "📋 LOAD LIST":
             else:
                 st.warning("At least one row required")
     
-    # Full data editor - Just the table, no description
-    st.markdown("### 📋 Load Data")
-    st.markdown("*Scroll horizontally to see all columns*")
+    # Display current loads
+    st.markdown("### 📋 Current Loads")
+    
+    for idx, load in st.session_state.universal_loads.iterrows():
+        st.markdown(f"""
+        <div class="calc-step">
+            <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
+            <p><b>Quantity:</b> {load['Quantity']} | <b>Rating:</b> {load['Rating (kW)']} kW | <b>PF:</b> {load['Power Factor']} | <b>Diversity:</b> {load['Diversity Factor']}</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     edited_loads = st.data_editor(
         st.session_state.universal_loads,
         num_rows="fixed",
         use_container_width=True,
         column_config={
-            "SR. NO.": st.column_config.NumberColumn("SR. NO.", disabled=True),
-            "CONSUMER ID": st.column_config.TextColumn("CONSUMER ID", width="small"),
-            "DESCRIPTION": st.column_config.TextColumn("DESCRIPTION", width="medium"),
-            "CONNECTED FROM SWBRD.": st.column_config.TextColumn("CONNECTED FROM SWBRD.", width="small"),
-            "MOTOR OUTPUT [kW]": st.column_config.NumberColumn("MOTOR OUTPUT [kW]", min_value=0.0, max_value=10000.0, step=1.0),
-            "": st.column_config.TextColumn(" ", width="small", disabled=True),
-            "": st.column_config.TextColumn("  ", width="small", disabled=True),
-            "VOLTAGE [V]": st.column_config.NumberColumn("VOLTAGE [V]", min_value=0, max_value=11000, step=1),
-            "CURRENT [A]": st.column_config.NumberColumn("CURRENT [A]", min_value=0.0, max_value=10000.0, step=1.0),
-            "": st.column_config.TextColumn("   ", width="small", disabled=True),
-            "STARTING OF MOTOR": st.column_config.TextColumn("STARTING OF MOTOR", width="small"),
-            "": st.column_config.TextColumn("    ", width="small", disabled=True),
-            "": st.column_config.TextColumn("     ", width="small", disabled=True),
-            "RUNNING [kW]": st.column_config.NumberColumn("RUNNING [kW]", min_value=0.0, max_value=10000.0),
-            "": st.column_config.TextColumn("      ", width="small", disabled=True),
-            "": st.column_config.TextColumn("       ", width="small", disabled=True),
-            "": st.column_config.TextColumn("        ", width="small", disabled=True),
-            "METHOD OF CONTROL": st.column_config.SelectboxColumn("METHOD OF CONTROL", options=['Auto/Manual', 'Manual', 'Auto']),
-            "": st.column_config.TextColumn("         ", width="small", disabled=True),
-            "IP - INGRESS PROTECTION": st.column_config.TextColumn("IP - INGRESS PROTECTION", width="small"),
-            "EXPLOSION PROTECTION Eex": st.column_config.TextColumn("EXPLOSION PROTECTION Eex", width="small"),
-            "TYPE OF MOTOR/LOAD": st.column_config.TextColumn("TYPE OF MOTOR/LOAD", width="medium"),
-            "CONTROL DIAGRAM": st.column_config.TextColumn("CONTROL DIAGRAM", width="small"),
-            "REMARKS": st.column_config.TextColumn("REMARKS", width="medium")
+            "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
+            "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
+            "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+            "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+            "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
         }
     )
     st.session_state.universal_loads = edited_loads
     
-    # Simple summary
-    st.markdown("### 📊 Summary")
+    # Quick summary
+    total_connected = 0
+    total_p = 0
+    
+    st.markdown("### 📊 Load Summary")
+    
+    summary_data = []
+    for idx, load in st.session_state.universal_loads.iterrows():
+        connected = load['Rating (kW)'] * load['Quantity']
+        p = connected * load['Diversity Factor']
+        total_connected += connected
+        total_p += p
+        
+        summary_data.append({
+            'Load': load['Load Description'],
+            'Connected (kW)': f"{connected:.0f}",
+            'Demand (kW)': f"{p:.0f}",
+            'PF': f"{load['Power Factor']:.2f}"
+        })
+    
+    summary_df = pd.DataFrame(summary_data)
+    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+    
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Loads", len(st.session_state.universal_loads))
+        st.metric("Total Connected Load", f"{total_connected:.0f} kW")
     with col2:
-        total_power = st.session_state.universal_loads['MOTOR OUTPUT [kW]'].sum()
-        st.metric("Total Power", f"{total_power:.0f} kW")
+        st.metric("Total Demand (with diversity)", f"{total_p:.0f} kW")
 
-# ========== TAB 2: LIGHTNING PROTECTION ==========
+# ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
 elif st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
@@ -2419,27 +2391,25 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using loads from LOAD LIST</h4>
-        <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import motor data.</p>
+        <h4>📌 Using loads from Universal Load Sheet</h4>
+        <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("📥 Import Motor Loads from LOAD LIST", use_container_width=True):
-        # Convert universal loads to cable sizing format (using motor output as power)
+    if st.button("📥 Import Loads from Load Sheet", use_container_width=True):
+        # Convert universal loads to cable sizing format
         new_loads = []
         for idx, load in st.session_state.universal_loads.iterrows():
-            # Use motor output as power, and set phase based on voltage
-            phase = '3-phase' if load['VOLTAGE [V]'] > 300 else '1-phase'
             new_loads.append({
-                'Load Name': load['DESCRIPTION'],
-                'Power (kW)': load['MOTOR OUTPUT [kW]'],
-                'Voltage (V)': load['VOLTAGE [V]'],
-                'Phase': phase,
-                'Power Factor': 0.85,  # Default for motors
-                'Length (m)': 50  # Default length
+                'Load Name': load['Load Description'],
+                'Power (kW)': load['Rating (kW)'] * load['Quantity'] * load['Diversity Factor'],
+                'Voltage (V)': 400,
+                'Phase': '3-phase',
+                'Power Factor': load['Power Factor'],
+                'Length (m)': 50
             })
         st.session_state.loads_df = pd.DataFrame(new_loads)
-        st.success("✅ Motor loads imported successfully!")
+        st.success("✅ Loads imported successfully!")
         st.rerun()
     
     cable_tabs = st.tabs([
@@ -2453,10 +2423,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     # TAB 1: LOADS INPUT
     with cable_tabs[0]:
-        st.markdown("### 📋 Load Details (Imported from LOAD LIST)")
+        st.markdown("### 📋 Load Details (Imported from Load Sheet)")
         st.markdown("""
         <div class="info-box">
-            <p>To add or modify loads, please go to the main <b>📋 LOAD LIST</b> tab.</p>
+            <p>To add or modify loads, please go to the main <b>📋 LOAD SHEET</b> tab.</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2954,15 +2924,15 @@ Efficiency = **{calc['efficiency']:.1f}%**
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== TAB 4: TRANSFORMER SIZING ==========
+# ========== TAB 4: TRANSFORMER SIZING WITH DOWNLOADABLE REPORTS ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class="info-box">
-        <h4>📌 Using motor loads from LOAD LIST</h4>
-        <p>Total {len(st.session_state.universal_loads)} motor loads available. Calculations use MOTOR OUTPUT [kW] with appropriate diversity.</p>
+        <h4>📌 Using loads from Universal Load Sheet</h4>
+        <p>Total {len(st.session_state.universal_loads)} loads available. Calculations below use these loads.</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2975,18 +2945,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_calc = SimpleTransformerCalculator()
     
-    # Convert motor loads to transformer format
-    transformer_loads = pd.DataFrame()
-    if len(st.session_state.universal_loads) > 0:
-        transformer_loads = pd.DataFrame({
-            'Load Description': st.session_state.universal_loads['DESCRIPTION'],
-            'Quantity': [1] * len(st.session_state.universal_loads),  # Each motor is one unit
-            'Rating (kW)': st.session_state.universal_loads['MOTOR OUTPUT [kW]'],
-            'Power Factor': [0.85] * len(st.session_state.universal_loads),  # Default for motors
-            'Diversity Factor': [0.8] * len(st.session_state.universal_loads)  # Default diversity
-        })
-    
-    # TAB 1: LOAD ANALYSIS
+    # TAB 1: LOAD ANALYSIS (with sub-tabs)
     with tx_main_tabs[0]:
         load_sub_tabs = st.tabs([
             "📋 Step-by-Step P, Q, S",
@@ -2994,12 +2953,12 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         ])
         
         with load_sub_tabs[0]:
-            st.markdown("### 📋 Step-by-Step Calculations for Each Motor")
+            st.markdown("### 📋 Step-by-Step Calculations for Each Load")
             
             total_p = 0
             total_q = 0
             
-            for idx, load in transformer_loads.iterrows():
+            for idx, load in st.session_state.universal_loads.iterrows():
                 # Calculate connected power
                 connected = load['Rating (kW)'] * load['Quantity']
                 
@@ -3018,14 +2977,15 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 
                 st.markdown(f"""
                 <div class="calc-step">
-                    <h4>📌 Motor {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
-                    <p><b>Motor Output:</b> {load['Rating (kW)']:.0f} kW, PF = {load['Power Factor']}, Diversity = {load['Diversity Factor']}</p>
-                    <p><b>Step 1 - Connected Power:</b> {load['Rating (kW)']:.0f} kW × 1 = <b>{connected:.0f} kW</b></p>
+                    <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
+                    <p><b>Input Parameters:</b> Rating = {load['Rating (kW)']:.0f} kW, Quantity = {load['Quantity']}, PF = {load['Power Factor']}, Diversity = {load['Diversity Factor']}</p>
+                    <p><b>Step 1 - Connected Power:</b> {load['Rating (kW)']:.0f} kW × {load['Quantity']} = <b>{connected:.0f} kW</b></p>
                     <p><b>Step 2 - Demand Power (P):</b> {connected:.0f} kW × {load['Diversity Factor']} = <b>{p:.1f} kW</b></p>
                     <p><b>Step 3 - Angle φ:</b> acos({load['Power Factor']}) = <b>{math.degrees(phi):.1f}°</b></p>
                     <p><b>Step 4 - tan(φ):</b> tan({math.degrees(phi):.1f}°) = <b>{tan_phi:.3f}</b></p>
                     <p><b>Step 5 - Reactive Power (Q):</b> {p:.1f} kW × {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
                     <p><b>Step 6 - Apparent Power (S):</b> √({p:.1f}² + {q:.1f}²) = <b>{s:.1f} kVA</b></p>
+                    <p><b>Power Factor Check:</b> PF = {p:.1f} / {s:.1f} = <b>{p/s:.3f}</b> (should equal {load['Power Factor']})</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -3036,17 +2996,18 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             st.session_state.total_q = total_q
         
         with load_sub_tabs[1]:
-            st.markdown("### 📊 Motor Load Summary Table")
+            st.markdown("### 📊 Load Summary Table")
             
             summary_data = []
-            for idx, load in transformer_loads.iterrows():
+            for idx, load in st.session_state.universal_loads.iterrows():
                 connected = load['Rating (kW)'] * load['Quantity']
                 p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
                 q = tx_calc.calculate_q(p, load['Power Factor'])
                 s = tx_calc.calculate_s(p, q)
                 
                 summary_data.append({
-                    'Motor': load['Load Description'],
+                    'Load': load['Load Description'],
+                    'Qty': load['Quantity'],
                     'Rating (kW)': load['Rating (kW)'],
                     'Connected (kW)': f"{connected:.0f}",
                     'Diversity': load['Diversity Factor'],
@@ -3058,50 +3019,73 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             
             summary_df = pd.DataFrame(summary_data)
             st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            
+            # Formula explanation
+            st.markdown("""
+            <div class="formula-box">
+                <h4>📐 Formulas Used:</h4>
+                <p><b>Connected Power = Rating × Quantity</b></p>
+                <p><b>P = Connected Power × Diversity Factor</b> (Real Power)</p>
+                <p><b>Q = P × tan(acos(PF))</b> (Reactive Power)</p>
+                <p><b>S = √(P² + Q²)</b> (Apparent Power)</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     # TAB 2: LARGEST EQUIPMENT ANALYSIS
     with tx_main_tabs[1]:
-        st.markdown("### 🏭 Largest Motor Analysis")
+        st.markdown("### 🏭 Largest Equipment Analysis")
         
-        # Find largest motor
-        if len(transformer_loads) > 0:
-            max_power_idx = transformer_loads['Rating (kW)'].idxmax()
-            largest_motor = transformer_loads.loc[max_power_idx]
-            
-            # Calculate for largest motor
-            p_largest = tx_calc.calculate_p(largest_motor['Rating (kW)'], largest_motor['Quantity'], largest_motor['Diversity Factor'])
-            q_largest = tx_calc.calculate_q(p_largest, largest_motor['Power Factor'])
+        # Find largest equipment
+        largest_idx, largest_load, largest_connected = tx_calc.find_largest_equipment(st.session_state.universal_loads)
+        
+        if largest_load is not None:
+            # Calculate for largest equipment
+            p_largest = tx_calc.calculate_p(largest_load['Rating (kW)'], largest_load['Quantity'], largest_load['Diversity Factor'])
+            q_largest = tx_calc.calculate_q(p_largest, largest_load['Power Factor'])
             s_largest = tx_calc.calculate_s(p_largest, q_largest)
             
-            # Calculate totals
+            # Calculate totals for all loads
             total_p = 0
             total_q = 0
-            for idx, load in transformer_loads.iterrows():
+            all_loads_data = []
+            
+            for idx, load in st.session_state.universal_loads.iterrows():
                 p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
                 q = tx_calc.calculate_q(p, load['Power Factor'])
+                s = tx_calc.calculate_s(p, q)
+                
                 total_p += p
                 total_q += q
+                
+                all_loads_data.append({
+                    'load': load['Load Description'],
+                    'p': p,
+                    'q': q,
+                    's': s,
+                    'is_largest': (idx == largest_idx)
+                })
             
             total_s = math.sqrt(total_p**2 + total_q**2)
             
-            # Largest Motor Highlight
+            # Largest Equipment Highlight
             st.markdown(f"""
             <div class="largest-equipment">
-                <h3>🏆 Largest Motor: {largest_motor['Load Description']}</h3>
+                <h3>🏆 Largest Equipment: {largest_load['Load Description']}</h3>
                 <table style="width:100%; border-collapse: collapse;">
                     <tr>
-                        <td style="padding: 10px; font-weight: bold;">Motor Output:</td>
-                        <td style="padding: 10px;"><span class="value">{largest_motor['Rating (kW)']:.0f} kW</span></td>
+                        <td style="padding: 10px; font-weight: bold;">Connected Power:</td>
+                        <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span></td>
+                        <td style="padding: 10px;">({largest_load['Rating (kW)']:.0f} kW × {largest_load['Quantity']})</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; font-weight: bold;">Demand Power (P):</td>
                         <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span></td>
-                        <td style="padding: 10px;">(after diversity)</td>
+                        <td style="padding: 10px;">(after diversity factor {largest_load['Diversity Factor']})</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; font-weight: bold;">Reactive Power (Q):</td>
                         <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span></td>
-                        <td style="padding: 10px;">(PF = {largest_motor['Power Factor']})</td>
+                        <td style="padding: 10px;">(PF = {largest_load['Power Factor']})</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; font-weight: bold;">Apparent Power (S):</td>
@@ -3115,28 +3099,66 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             # Impact Analysis
             st.markdown("### 📊 Impact on Total System")
             
-            p_pct = (p_largest / total_p) * 100 if total_p > 0 else 0
-            s_pct = (s_largest / total_s) * 100 if total_s > 0 else 0
+            impact_data = []
+            for data in all_loads_data:
+                p_pct = (data['p'] / total_p) * 100 if total_p > 0 else 0
+                s_pct = (data['s'] / total_s) * 100 if total_s > 0 else 0
+                
+                impact_data.append({
+                    'Load': data['load'],
+                    'P (kW)': f"{data['p']:.1f}",
+                    '% of Total P': f"{p_pct:.1f}%",
+                    'S (kVA)': f"{data['s']:.1f}",
+                    '% of Total S': f"{s_pct:.1f}%",
+                    'Highlight': '🏆 Largest' if data['is_largest'] else ''
+                })
+            
+            impact_df = pd.DataFrame(impact_data)
+            st.dataframe(impact_df, use_container_width=True, hide_index=True)
+            
+            # Cumulative effect
+            st.markdown("### 📈 Cumulative Effect Analysis")
+            
+            # Sort by P descending
+            sorted_loads = sorted(all_loads_data, key=lambda x: x['p'], reverse=True)
+            
+            cumulative_p = 0
+            cumulative_data = []
+            
+            for i, data in enumerate(sorted_loads):
+                cumulative_p += data['p']
+                p_pct = (cumulative_p / total_p) * 100
+                
+                cumulative_data.append({
+                    'Rank': i+1,
+                    'Load': data['load'],
+                    'Individual P (kW)': f"{data['p']:.1f}",
+                    'Cumulative P (kW)': f"{cumulative_p:.1f}",
+                    '% of Total': f"{p_pct:.1f}%"
+                })
+            
+            cumulative_df = pd.DataFrame(cumulative_data)
+            st.dataframe(cumulative_df, use_container_width=True, hide_index=True)
             
             st.markdown(f"""
             <div class="info-box">
-                <h4>Impact Analysis:</h4>
-                <p>• Largest motor contributes <b>{p_pct:.1f}%</b> of total real power</p>
-                <p>• Contributes <b>{s_pct:.1f}%</b> of total apparent power</p>
-                <p>• Starting this motor would cause approx. <b>{s_pct:.1f}%</b> voltage dip</p>
-                <p>• Recommended starting method: <b>Star-Delta or Soft Starter</b></p>
+                <h4>📌 Key Observations:</h4>
+                <p>• The largest equipment (<b>{largest_load['Load Description']}</b>) contributes <b>{p_largest/total_p*100:.1f}%</b> of total real power.</p>
+                <p>• The top 2 loads account for <b>{cumulative_data[1]['% of Total']}</b> of total power.</p>
+                <p>• Starting this largest motor would cause a voltage dip of approximately <b>{p_largest/total_s*100:.1f}%</b> of transformer capacity.</p>
             </div>
             """, unsafe_allow_html=True)
             
             # Store for report
             st.session_state.tx_largest_data = {
-                'load': largest_motor,
+                'load': largest_load,
+                'connected': largest_connected,
                 'p': p_largest,
                 'q': q_largest,
                 's': s_largest
             }
     
-    # TAB 3: DOWNLOAD REPORT
+    # TAB 3: DOWNLOAD REPORT (Now with working downloads)
     with tx_main_tabs[2]:
         st.markdown("### ⚙️ Future Expansion")
         future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
@@ -3149,39 +3171,62 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             with_future = total_s * (1 + future_expansion/100)
             selected_kva = tx_calc.get_standard_rating(with_future)
             
-            # Display totals
+            # Display totals in metric cards
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Total P (kW)", f"{total_p:.0f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_p:.0f}</div>
+                    <div class="label">Total P (kW)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col2:
-                st.metric("Total Q (kVAR)", f"{total_q:.0f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_q:.0f}</div>
+                    <div class="label">Total Q (kVAR)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col3:
-                st.metric("Total S (kVA)", f"{total_s:.0f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{total_s:.0f}</div>
+                    <div class="label">Total S (kVA)</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             with col4:
-                st.metric("With Future", f"{with_future:.0f}")
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="value">{with_future:.0f}</div>
+                    <div class="label">With {future_expansion}% Future</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             # Final selection
             st.markdown(f"""
             <div class="result-card">
-                <h3>✅ Final Transformer Selection</h3>
-                <p><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
-                <p><b>With {future_expansion}% future = {with_future:.0f} kVA</b></p>
-                <p style="font-size: 24px;"><b>Selected: {selected_kva} kVA [IEC 60076]</b></p>
+                <h3 style="margin-top:0;">✅ Final Transformer Selection</h3>
+                <p style="font-size: 18px;"><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
+                <p style="font-size: 18px;"><b>With {future_expansion}% future expansion = {total_s:.0f} × 1.{future_expansion/100:.0f} = {with_future:.0f} kVA</b></p>
+                <p style="font-size: 24px; margin: 15px 0;"><b>Selected Standard Rating [IEC 60076]: {selected_kva} kVA</b></p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Download buttons
+            # Download buttons - NOW WORKING
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
-                    with st.spinner("Generating PDF..."):
+                    with st.spinner("Generating PDF report..."):
                         pdf = TransformerPDFReport()
                         pdf.add_title()
-                        pdf.add_load_analysis(transformer_loads, tx_calc)
-                        pdf.add_step_by_step(transformer_loads, tx_calc)
+                        pdf.add_load_analysis(st.session_state.universal_loads, tx_calc)
+                        pdf.add_step_by_step(st.session_state.universal_loads, tx_calc)
                         
                         if 'tx_largest_data' in st.session_state:
-                            pdf.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
+                            pdf.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
                         
                         pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
                         
@@ -3189,19 +3234,19 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                         b64 = base64.b64encode(pdf_output).decode()
                         filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
                         st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated!")
+                        st.success("✅ PDF generated successfully!")
             
             with col2:
                 if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
-                    with st.spinner("Generating Word..."):
+                    with st.spinner("Generating Word report..."):
                         word = TransformerWordReport()
                         word.add_title()
-                        word.add_load_analysis(transformer_loads)
+                        total_p_calc = word.add_load_analysis(st.session_state.universal_loads)
                         
-                        total_p_step, total_q_step = word.add_step_by_step(transformer_loads, tx_calc)
+                        total_p_step, total_q_step = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
                         
                         if 'tx_largest_data' in st.session_state:
-                            word.add_largest_equipment(transformer_loads, tx_calc, total_p, total_s)
+                            word.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
                         
                         word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
                         
@@ -3213,11 +3258,11 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                         filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
                         os.remove(word_path)
                         st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated!")
+                        st.success("✅ Word generated successfully!")
         else:
-            st.warning("⚠️ Please go to Load Analysis tab first.")
+            st.warning("⚠️ Please go to Load Analysis tab first to calculate totals.")
 
-# ========== OTHER CALCULATORS ==========
+# ========== OTHER CALCULATORS (Placeholders) ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
     st.markdown('<div class="report-header">⚡ GENERATOR SIZING</div>', unsafe_allow_html=True)
     st.info("⚡ Coming soon!")
@@ -3228,4 +3273,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 82.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 75.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
