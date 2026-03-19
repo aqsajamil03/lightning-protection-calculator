@@ -20,7 +20,25 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
-# ========== CUSTOM CSS - CHANGED YELLOW TO EMERALD GREEN ==========
+# ========== SAFE PDF ENCODING FUNCTION ==========
+def generate_safe_pdf(pdf_object):
+    """Generate PDF with safe encoding that preserves all data"""
+    try:
+        # Get PDF as string
+        pdf_str = pdf_object.output(dest='S')
+        
+        # Try UTF-8 first (preserves all characters)
+        try:
+            return pdf_str.encode('utf-8')
+        except:
+            # If UTF-8 fails, try latin1 with replacement
+            return pdf_str.encode('latin1', errors='replace')
+    except Exception as e:
+        st.error(f"PDF generation error: {str(e)}")
+        # Return empty bytes as fallback
+        return b''
+
+# ========== CUSTOM CSS WITH INCREASED FONT SIZES ==========
 st.markdown("""
 <style>
     /* Main Theme Colors */
@@ -28,7 +46,7 @@ st.markdown("""
         --primary: #1E3A8A;
         --primary-light: #3B5BA6;
         --primary-dark: #0D1B4A;
-        --secondary: #00A86B;  /* Changed from #FFA500 to Emerald Green */
+        --secondary: #00A86B;
         --success: #28A745;
         --danger: #DC3545;
         --warning: #FFC107;
@@ -44,6 +62,11 @@ st.markdown("""
         --gray-600: #6C757D;
     }
     
+    /* Global font size increase */
+    html, body, .stApp {
+        font-size: 18px !important;
+    }
+    
     /* Report Header */
     .report-header {
         background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
@@ -52,20 +75,20 @@ st.markdown("""
         border-radius: 12px;
         text-align: center;
         margin-bottom: 25px;
-        font-size: 28px;
+        font-size: 32px !important;
         font-weight: bold;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-bottom: 4px solid var(--secondary);  /* Changed to green */
+        border-bottom: 4px solid var(--secondary);
     }
     
     /* Section Headers */
     .section-header {
         color: var(--primary);
-        font-size: 22px;
+        font-size: 26px !important;
         font-weight: 600;
         margin: 20px 0 15px 0;
         padding-bottom: 10px;
-        border-bottom: 3px solid var(--secondary);  /* Changed to green */
+        border-bottom: 3px solid var(--secondary);
     }
     
     /* Card Style */
@@ -76,6 +99,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid var(--gray-300);
         margin-bottom: 20px;
+        font-size: 18px !important;
     }
     
     /* Formula Box */
@@ -83,28 +107,16 @@ st.markdown("""
         background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 100%);
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid var(--secondary);  /* Changed to green */
+        border-left: 6px solid var(--secondary);
         margin: 15px 0;
         font-family: 'Courier New', monospace;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         color: #000000 !important;
+        font-size: 18px !important;
     }
     .formula-box * {
         color: #000000 !important;
-    }
-    
-    /* Reference Box */
-    .reference-box {
-        background-color: #E7F3FF;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 6px solid var(--primary);
-        margin: 15px 0;
-        border: 1px solid #B8DAFF;
-        color: #000000 !important;
-    }
-    .reference-box * {
-        color: #000000 !important;
+        font-size: 18px !important;
     }
     
     /* Info Box */
@@ -115,9 +127,11 @@ st.markdown("""
         border-radius: 8px;
         border-left: 5px solid var(--primary);
         margin: 10px 0;
+        font-size: 18px !important;
     }
     .info-box * {
         color: #004085 !important;
+        font-size: 18px !important;
     }
     
     /* Success Box */
@@ -129,9 +143,11 @@ st.markdown("""
         border-left: 6px solid var(--success);
         margin: 20px 0;
         border: 1px solid #C3E6CB;
+        font-size: 18px !important;
     }
     .success-box * {
         color: #155724 !important;
+        font-size: 18px !important;
     }
     
     /* Warning Box */
@@ -142,54 +158,64 @@ st.markdown("""
         border-radius: 8px;
         border-left: 5px solid var(--warning);
         margin: 10px 0;
+        font-size: 18px !important;
     }
     .warning-box * {
         color: #856404 !important;
+        font-size: 18px !important;
     }
     
-    /* Calculation Step - FIXED COLORS */
+    /* Calculation Step */
     .calc-step {
         background-color: #FFFFFF;
         padding: 15px;
         border-radius: 8px;
-        border-left: 5px solid #00A86B;  /* Changed from #FFA500 to Emerald Green */
+        border-left: 5px solid #00A86B;
         margin: 10px 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid #DEE2E6;
         color: #000000 !important;
+        font-size: 18px !important;
     }
     .calc-step h4 {
         color: #1E3A8A !important;
         margin-top: 0;
         margin-bottom: 10px;
-        font-size: 18px;
+        font-size: 22px !important;
     }
     .calc-step p {
         color: #000000 !important;
         margin: 5px 0;
-        font-size: 14px;
+        font-size: 18px !important;
     }
     .calc-step b {
         color: #1E3A8A !important;
+        font-size: 18px !important;
     }
     
     /* Largest Equipment Highlight */
     .largest-equipment {
-        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);  /* Light green gradient */
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
         padding: 20px;
         border-radius: 10px;
-        border-left: 6px solid #00A86B;  /* Changed to green */
+        border-left: 6px solid #00A86B;
         margin: 15px 0;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        color: #000000 !important;
+        font-size: 18px !important;
+    }
+    .largest-equipment * {
+        color: #000000 !important;
     }
     .largest-equipment h3 {
-        color: #006B3C !important;  /* Dark green */
+        color: #006B3C !important;
         margin-top: 0;
+        font-size: 24px !important;
     }
     .largest-equipment .value {
-        font-size: 24px;
+        font-size: 28px !important;
         font-weight: bold;
-        color: #006B3C;  /* Dark green */
+        color: #006B3C !important;
     }
     
     /* Metric Cards */
@@ -200,34 +226,38 @@ st.markdown("""
         text-align: center;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid #DEE2E6;
+        color: #000000 !important;
+        font-size: 18px !important;
     }
     .metric-card .value {
-        font-size: 32px;
+        font-size: 36px !important;
         font-weight: bold;
         color: #1E3A8A !important;
     }
     .metric-card .label {
-        font-size: 14px;
+        font-size: 18px !important;
         color: #6C757D !important;
         margin-top: 5px;
     }
     
-    /* Result Card */
+    /* Result Card - FIXED: Black text for transformer section */
     .result-card {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
-        color: white !important;
+        color: #000000 !important;
         padding: 25px;
         border-radius: 12px;
         margin: 20px 0;
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     .result-card * {
-        color: white !important;
+        color: #000000 !important;
+        font-size: 18px !important;
     }
     .result-card h3 {
-        color: white !important;
-        border-bottom: 2px solid #00A86B;  /* Changed to green */
+        color: #000000 !important;
+        border-bottom: 2px solid #00A86B;
         padding-bottom: 10px;
+        font-size: 24px !important;
     }
     
     /* Tabs Styling */
@@ -242,7 +272,7 @@ st.markdown("""
         padding: 12px 25px !important;
         background-color: white !important;
         border-radius: 8px !important;
-        font-size: 16px !important;
+        font-size: 20px !important;
         font-weight: 600 !important;
         color: #1E3A8A !important;
         border: 1px solid #DEE2E6 !important;
@@ -262,21 +292,25 @@ st.markdown("""
     /* DataFrame Styling */
     .stDataFrame {
         color: #000000 !important;
+        font-size: 16px !important;
     }
     .stDataFrame table {
         color: #000000 !important;
         border: 2px solid #1E3A8A !important;
+        font-size: 16px !important;
     }
     .stDataFrame th {
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%) !important;
         color: white !important;
         font-weight: 600 !important;
         padding: 12px !important;
+        font-size: 16px !important;
     }
     .stDataFrame td {
         color: #000000 !important;
         padding: 10px !important;
         background-color: white !important;
+        font-size: 16px !important;
     }
     .stDataFrame tr:nth-child(even) td {
         background-color: #F8F9FA !important;
@@ -299,6 +333,7 @@ st.markdown("""
     .sidebar-nav h2 {
         color: white !important;
         margin: 0;
+        font-size: 24px !important;
     }
     
     /* Download Buttons */
@@ -309,7 +344,7 @@ st.markdown("""
         color: white !important;
         text-decoration: none;
         border-radius: 8px;
-        font-size: 16px;
+        font-size: 20px !important;
         font-weight: bold;
         transition: all 0.3s;
         text-align: center;
@@ -328,14 +363,49 @@ st.markdown("""
         background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%);
     }
     
-    /* Load Name Styling */
-    .load-name {
-        color: #1E3A8A !important;
-        font-weight: 600;
+    /* Load Type Badges */
+    .load-type-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 12px;
+        font-size: 16px !important;
+        font-weight: bold;
+        color: white;
+    }
+    .continuous-badge {
+        background-color: #00A86B;
+    }
+    .intermittent-badge {
+        background-color: #FFC107;
+        color: black;
+    }
+    .standby-badge {
+        background-color: #DC3545;
+    }
+    
+    /* Main title font size */
+    h1, h2, h3, h4 {
+        font-size: 1.5em !important;
+    }
+    
+    /* Streamlit text elements */
+    .stMarkdown, .stText, p, div {
         font-size: 16px;
     }
-    .load-detail {
-        color: #000000 !important;
+    
+    /* Buttons */
+    .stButton button {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        padding: 10px 20px !important;
+    }
+    
+    /* Metric labels */
+    .stMetric label {
+        font-size: 18px !important;
+    }
+    .stMetric div {
+        font-size: 32px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -367,7 +437,30 @@ MANUFACTURERS = {
     }
 }
 
-# ========== CABLE DATABASE ==========
+# ========== LOAD TYPE FACTORS - UPDATED ==========
+# Continuous = 100% (1.0), Intermittent = 30% (0.3), Standby = 10% (0.1)
+LOAD_TYPE_FACTORS = {
+    'Continuous': {
+        'diversity': 1.0,  # 100%
+        'description': 'Continuous (100%) - Full time operation',
+        'cb_factor': 1.25,
+        'color': '#00A86B'  # Green
+    },
+    'Intermittent': {
+        'diversity': 0.3,  # 30% - FIXED
+        'description': 'Intermittent (30%) - Cyclic operation',
+        'cb_factor': 1.25,
+        'color': '#FFC107'  # Yellow
+    },
+    'Standby': {
+        'diversity': 0.1,  # 10% - FIXED
+        'description': 'Stand-by (10%) - Emergency/backup only',
+        'cb_factor': 1.25,
+        'color': '#DC3545'  # Red
+    }
+}
+
+# ========== LV CABLE DATABASE ==========
 LV_CABLE_DATA = {
     'unarmoured': {
         1.5: {'R': 12.1, 'X': 0.093, 'ampacity': 22, 'diameter': 2.9},
@@ -407,30 +500,58 @@ LV_CABLE_DATA = {
     }
 }
 
-MV_CABLE_DATA = {
+# ========== MV CABLE DATABASE (FIXED FOR DIFFERENT VOLTAGES) ==========
+MV_CABLE_DATA_33KV = {
     'unarmoured': {
-        25: {'R': 0.727, 'X': 0.120, 'ampacity': 145, 'diameter': 18.5},
-        35: {'R': 0.524, 'X': 0.115, 'ampacity': 175, 'diameter': 20.0},
-        50: {'R': 0.387, 'X': 0.110, 'ampacity': 210, 'diameter': 22.0},
-        70: {'R': 0.268, 'X': 0.105, 'ampacity': 265, 'diameter': 24.5},
-        95: {'R': 0.193, 'X': 0.100, 'ampacity': 320, 'diameter': 27.0},
-        120: {'R': 0.153, 'X': 0.095, 'ampacity': 370, 'diameter': 29.5},
-        150: {'R': 0.124, 'X': 0.092, 'ampacity': 420, 'diameter': 32.0},
-        185: {'R': 0.0991, 'X': 0.090, 'ampacity': 475, 'diameter': 34.5},
-        240: {'R': 0.0754, 'X': 0.088, 'ampacity': 560, 'diameter': 38.0},
-        300: {'R': 0.0601, 'X': 0.086, 'ampacity': 645, 'diameter': 42.0},
+        25: {'R': 0.727, 'X': 0.120, 'ampacity': 133, 'diameter': 12.0},
+        35: {'R': 0.524, 'X': 0.115, 'ampacity': 164, 'diameter': 13.3},
+        50: {'R': 0.387, 'X': 0.110, 'ampacity': 198, 'diameter': 14.3},
+        70: {'R': 0.268, 'X': 0.105, 'ampacity': 253, 'diameter': 16.4},
+        95: {'R': 0.193, 'X': 0.100, 'ampacity': 306, 'diameter': 18.4},
+        120: {'R': 0.153, 'X': 0.095, 'ampacity': 354, 'diameter': 20.3},
+        150: {'R': 0.124, 'X': 0.092, 'ampacity': 406, 'diameter': 22.3},
+        185: {'R': 0.0991, 'X': 0.090, 'ampacity': 463, 'diameter': 24.5},
+        240: {'R': 0.0754, 'X': 0.088, 'ampacity': 546, 'diameter': 27.3},
+        300: {'R': 0.0601, 'X': 0.086, 'ampacity': 629, 'diameter': 30.0},
     },
     'armoured': {
-        25: {'R': 0.727, 'X': 0.135, 'ampacity': 155, 'diameter': 21.0},
-        35: {'R': 0.524, 'X': 0.130, 'ampacity': 188, 'diameter': 23.0},
-        50: {'R': 0.387, 'X': 0.125, 'ampacity': 225, 'diameter': 25.0},
-        70: {'R': 0.268, 'X': 0.120, 'ampacity': 285, 'diameter': 27.5},
-        95: {'R': 0.193, 'X': 0.115, 'ampacity': 345, 'diameter': 30.0},
-        120: {'R': 0.153, 'X': 0.110, 'ampacity': 398, 'diameter': 33.0},
-        150: {'R': 0.124, 'X': 0.107, 'ampacity': 452, 'diameter': 36.0},
-        185: {'R': 0.0991, 'X': 0.105, 'ampacity': 512, 'diameter': 39.0},
-        240: {'R': 0.0754, 'X': 0.102, 'ampacity': 605, 'diameter': 43.0},
-        300: {'R': 0.0601, 'X': 0.100, 'ampacity': 695, 'diameter': 47.0},
+        25: {'R': 0.727, 'X': 0.135, 'ampacity': 125, 'diameter': 15.0},
+        35: {'R': 0.524, 'X': 0.130, 'ampacity': 155, 'diameter': 16.5},
+        50: {'R': 0.387, 'X': 0.125, 'ampacity': 188, 'diameter': 18.0},
+        70: {'R': 0.268, 'X': 0.120, 'ampacity': 240, 'diameter': 20.0},
+        95: {'R': 0.193, 'X': 0.115, 'ampacity': 291, 'diameter': 22.0},
+        120: {'R': 0.153, 'X': 0.110, 'ampacity': 336, 'diameter': 24.0},
+        150: {'R': 0.124, 'X': 0.107, 'ampacity': 386, 'diameter': 26.0},
+        185: {'R': 0.0991, 'X': 0.105, 'ampacity': 440, 'diameter': 28.5},
+        240: {'R': 0.0754, 'X': 0.102, 'ampacity': 519, 'diameter': 31.5},
+        300: {'R': 0.0601, 'X': 0.100, 'ampacity': 598, 'diameter': 34.5},
+    }
+}
+
+MV_CABLE_DATA_11KV = {
+    'unarmoured': {
+        25: {'R': 0.727, 'X': 0.130, 'ampacity': 120, 'diameter': 15.0},
+        35: {'R': 0.524, 'X': 0.125, 'ampacity': 150, 'diameter': 16.5},
+        50: {'R': 0.387, 'X': 0.120, 'ampacity': 185, 'diameter': 18.0},
+        70: {'R': 0.268, 'X': 0.115, 'ampacity': 235, 'diameter': 20.0},
+        95: {'R': 0.193, 'X': 0.110, 'ampacity': 285, 'diameter': 22.5},
+        120: {'R': 0.153, 'X': 0.105, 'ampacity': 330, 'diameter': 25.0},
+        150: {'R': 0.124, 'X': 0.102, 'ampacity': 380, 'diameter': 27.5},
+        185: {'R': 0.0991, 'X': 0.100, 'ampacity': 430, 'diameter': 30.0},
+        240: {'R': 0.0754, 'X': 0.098, 'ampacity': 500, 'diameter': 33.0},
+        300: {'R': 0.0601, 'X': 0.096, 'ampacity': 580, 'diameter': 36.0},
+    },
+    'armoured': {
+        25: {'R': 0.727, 'X': 0.145, 'ampacity': 110, 'diameter': 18.0},
+        35: {'R': 0.524, 'X': 0.140, 'ampacity': 140, 'diameter': 19.5},
+        50: {'R': 0.387, 'X': 0.135, 'ampacity': 170, 'diameter': 21.0},
+        70: {'R': 0.268, 'X': 0.130, 'ampacity': 215, 'diameter': 23.5},
+        95: {'R': 0.193, 'X': 0.125, 'ampacity': 260, 'diameter': 26.0},
+        120: {'R': 0.153, 'X': 0.120, 'ampacity': 300, 'diameter': 28.5},
+        150: {'R': 0.124, 'X': 0.117, 'ampacity': 350, 'diameter': 31.0},
+        185: {'R': 0.0991, 'X': 0.115, 'ampacity': 400, 'diameter': 34.0},
+        240: {'R': 0.0754, 'X': 0.112, 'ampacity': 460, 'diameter': 37.0},
+        300: {'R': 0.0601, 'X': 0.110, 'ampacity': 530, 'diameter': 40.0},
     }
 }
 
@@ -807,11 +928,17 @@ class CableSizingCalculator:
         Isc = K * size_mm2 / math.sqrt(duration_s)
         return Isc
     
+    # ===== FIXED: Proper MV/LV differentiation =====
     def get_cable_type(self, voltage_v):
+        """Differentiate between LV and MV based on voltage"""
         if voltage_v <= 1000:
             return 'LV (0.6/1kV)', LV_CABLE_DATA
+        elif voltage_v <= 3300:
+            return 'MV (3.3kV)', MV_CABLE_DATA_33KV
+        elif voltage_v <= 6600:
+            return 'MV (6.6kV)', MV_CABLE_DATA_33KV  # Use same DB for now
         else:
-            return 'MV (3.6/6kV - 12/20kV)', MV_CABLE_DATA
+            return 'MV (11kV)', MV_CABLE_DATA_11KV
 
 # ========== CIRCUIT BREAKER CALCULATOR CLASS ==========
 class CircuitBreakerCalculator:
@@ -874,6 +1001,7 @@ class CircuitBreakerCalculator:
                 'Power (kW)': load['Power (kW)'],
                 'Voltage (V)': load['Voltage (V)'],
                 'Phase': load['Phase'],
+                'Load Type': load.get('Load Type', 'Continuous'),
                 'Current (A)': current,
                 'Required CB (A)': required,
                 'Selected CB (A)': rating,
@@ -955,7 +1083,7 @@ FINAL SELECTION: {rating} A {breaker_type} {poles}
             'detailed_reason': detailed_reason
         }
 
-# ========== PDF REPORT CLASSES ==========
+# ========== PDF REPORT CLASSES - FIXED ==========
 class CablePDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -994,7 +1122,7 @@ class CablePDFReport(FPDF):
         self.set_text_color(0, 0, 0)
         for key, value in params.items():
             self.cell(50, 7, key + ':', 0, 0)
-            self.cell(0, 7, value, 0, 1)
+            self.cell(0, 7, str(value), 0, 1)
         self.ln(10)
     
     def add_derating_factors(self, factors):
@@ -1037,18 +1165,20 @@ class CablePDFReport(FPDF):
         self.cell(35, 8, 'Load Name', 1, 0, 'C', 1)
         self.cell(20, 8, 'Power', 1, 0, 'C', 1)
         self.cell(20, 8, 'Voltage', 1, 0, 'C', 1)
-        self.cell(20, 8, 'Phase', 1, 0, 'C', 1)
+        self.cell(15, 8, 'Type', 1, 0, 'C', 1)
         self.cell(15, 8, 'PF', 1, 0, 'C', 1)
+        self.cell(15, 8, 'Eff', 1, 0, 'C', 1)
         self.cell(20, 8, 'Length', 1, 1, 'C', 1)
         
         self.set_font('Arial', '', 8)
         fill = False
         for idx, load in loads_df.iterrows():
-            self.cell(35, 6, load['Load Name'][:20], 1, 0, 'L', fill)
+            self.cell(35, 6, str(load['Load Name'])[:20], 1, 0, 'L', fill)
             self.cell(20, 6, f"{load['Power (kW)']:.1f} kW", 1, 0, 'R', fill)
             self.cell(20, 6, f"{load['Voltage (V)']:.0f} V", 1, 0, 'R', fill)
-            self.cell(20, 6, load['Phase'], 1, 0, 'C', fill)
+            self.cell(15, 6, str(load.get('Load Type', 'Continuous'))[:8], 1, 0, 'C', fill)
             self.cell(15, 6, f"{load['Power Factor']:.2f}", 1, 0, 'R', fill)
+            self.cell(15, 6, f"{load.get('Efficiency', 1.0)*100:.0f}%", 1, 0, 'R', fill)
             self.cell(20, 6, f"{load['Length (m)']:.0f} m", 1, 1, 'R', fill)
             fill = not fill
         self.ln(10)
@@ -1061,8 +1191,8 @@ class CablePDFReport(FPDF):
         
         self.set_font('Arial', 'B', 7)
         self.set_fill_color(240, 240, 240)
-        headers = ['Load', 'Size', 'Type', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
-        widths = [25, 12, 12, 15, 15, 12, 12, 12, 15]
+        headers = ['Load', 'Type', 'Cable Type', 'Size', 'Base A', 'Derated', 'VD %', 'SC kA', 'Status']
+        widths = [25, 10, 15, 10, 12, 15, 12, 12, 12]
         
         for i, header in enumerate(headers):
             self.cell(widths[i], 8, header, 1, 0, 'C', 1)
@@ -1072,19 +1202,19 @@ class CablePDFReport(FPDF):
         fill = False
         for idx, row in cable_df.iterrows():
             data = [
-                row['Load Name'][:15],
+                str(row['Load Name'])[:15],
+                str(row.get('Load Type', 'Continuous'))[:5],
+                str(row['Cable Category'])[:10],
                 str(row['Size (mm²)']),
-                'Cu',
                 str(row['Base Ampacity (A)']),
                 str(row['Derated Ampacity (A)']).replace(' A', ''),
                 str(row['Voltage Drop (%)']).replace('%', ''),
                 str(row['Short Circuit (kA)']).replace(' kA', ''),
-                str(row['Efficiency (%)']).replace('%', ''),
-                row['Status']
+                str(row['Status'])
             ]
             
             for i, value in enumerate(data):
-                align = 'R' if i > 2 else 'L'
+                align = 'R' if i > 4 else 'L'
                 self.cell(widths[i], 5, value, 1, 0, align, fill)
             self.ln()
             fill = not fill
@@ -1103,7 +1233,7 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 14)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 10, f'LOAD {i+1}: {calc["load_name"]}', 0, 1)
+            self.cell(0, 10, f'LOAD {i+1}: {calc["load_name"]} ({calc.get("load_type", "Continuous")})', 0, 1)
             self.ln(2)
             
             self.set_font('Arial', 'B', 12)
@@ -1112,16 +1242,24 @@ class CablePDFReport(FPDF):
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'Reference: IEC 60364-5-52 Section 523', 0, 1)
-            self.cell(0, 6, 'Formula: I = P x 1000 / (1.732 x V x PF) for 3-phase', 0, 1)
-            self.cell(0, 6, f'P = {calc["power"]} kW, V = {calc["voltage"]} V, PF = {calc["pf"]}', 0, 1)
-            self.cell(0, 6, f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]})', 0, 1)
+            self.cell(0, 6, 'Formula: I = P x 1000 / (1.732 x V x PF x Eff) for 3-phase', 0, 1)
+            self.cell(0, 6, f'P = {calc["power"]} kW, V = {calc["voltage"]} V, PF = {calc["pf"]}, Eff = {calc.get("efficiency", 1.0)*100:.0f}%', 0, 1)
+            self.cell(0, 6, f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]} x {calc.get("efficiency", 1.0):.2f})', 0, 1)
             self.set_font('Arial', 'B', 10)
             self.cell(0, 6, f'LOAD CURRENT = {calc["current"]:.1f} A', 0, 1)
             self.ln(3)
             
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 8, 'STEP 2: DERATING FACTORS CALCULATION', 0, 1)
+            self.cell(0, 8, 'STEP 2: CABLE TYPE SELECTION', 0, 1)
+            self.set_font('Arial', '', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(0, 6, f'Based on voltage {calc["voltage"]}V -> {calc["cable_category"]} cables selected', 0, 1)
+            self.ln(3)
+            
+            self.set_font('Arial', 'B', 12)
+            self.set_text_color(0, 51, 102)
+            self.cell(0, 8, 'STEP 3: DERATING FACTORS CALCULATION', 0, 1)
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'Reference: IEC 60502-2 Tables B.10-B.22', 0, 1)
@@ -1137,7 +1275,7 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 8, 'STEP 3: CABLE SELECTION', 0, 1)
+            self.cell(0, 8, 'STEP 4: CABLE SELECTION', 0, 1)
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, f'Cable Category: {calc["cable_category"]}', 0, 1)
@@ -1153,7 +1291,7 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 8, 'STEP 4: VOLTAGE DROP CALCULATION', 0, 1)
+            self.cell(0, 8, 'STEP 5: VOLTAGE DROP CALCULATION', 0, 1)
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'Reference: IEC 60364-5-52 Section 525', 0, 1)
@@ -1167,7 +1305,7 @@ class CablePDFReport(FPDF):
             
             self.set_font('Arial', 'B', 12)
             self.set_text_color(0, 51, 102)
-            self.cell(0, 8, 'STEP 5: SHORT CIRCUIT CALCULATION', 0, 1)
+            self.cell(0, 8, 'STEP 6: SHORT CIRCUIT CALCULATION', 0, 1)
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
             self.cell(0, 6, 'Reference: IEC 60949', 0, 1)
@@ -1179,24 +1317,13 @@ class CablePDFReport(FPDF):
             self.cell(0, 6, f'SHORT CIRCUIT CAPACITY = {calc["sc"]:.2f} kA', 0, 1)
             self.ln(3)
             
-            self.set_font('Arial', 'B', 12)
-            self.set_text_color(0, 51, 102)
-            self.cell(0, 8, 'STEP 6: EFFICIENCY CALCULATION', 0, 1)
-            self.set_font('Arial', '', 10)
-            self.set_text_color(0, 0, 0)
-            self.cell(0, 6, f'Input Power = 1.732 x V x I = 1.732 x {calc["voltage"]} x {calc["current"]:.1f} / 1000 = {calc["input_power"]:.1f} kW', 0, 1)
-            self.cell(0, 6, f'Output Power = {calc["power"]} kW', 0, 1)
-            self.set_font('Arial', 'B', 10)
-            self.cell(0, 6, f'EFFICIENCY = {calc["efficiency"]:.1f}%', 0, 1)
-            self.ln(3)
-            
             self.set_font('Arial', 'B', 14)
             if calc['status'] == 'PASS':
                 self.set_text_color(0, 128, 0)
-                self.cell(0, 8, f'FINAL STATUS: PASS', 0, 1)
+                self.cell(0, 8, 'FINAL STATUS: PASS', 0, 1)
             else:
                 self.set_text_color(255, 0, 0)
-                self.cell(0, 8, f'FINAL STATUS: FAIL', 0, 1)
+                self.cell(0, 8, 'FINAL STATUS: FAIL', 0, 1)
             self.set_text_color(0, 0, 0)
             
             self.ln(5)
@@ -1363,10 +1490,10 @@ class CableWordReport:
         heading = self.doc.add_heading('3. LOAD DETAILS', level=1)
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
-        table = self.doc.add_table(rows=1, cols=6)
+        table = self.doc.add_table(rows=1, cols=7)
         table.style = 'Light Grid Accent 1'
         
-        headers = ['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'PF', 'Length (m)']
+        headers = ['Load Name', 'Power (kW)', 'Voltage (V)', 'Load Type', 'Phase', 'PF', 'Length (m)']
         for i, header in enumerate(headers):
             table.rows[0].cells[i].text = header
             table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
@@ -1376,9 +1503,10 @@ class CableWordReport:
             row[0].text = load['Load Name']
             row[1].text = f"{load['Power (kW)']:.1f}"
             row[2].text = f"{load['Voltage (V)']:.0f}"
-            row[3].text = load['Phase']
-            row[4].text = f"{load['Power Factor']:.2f}"
-            row[5].text = f"{load['Length (m)']:.0f}"
+            row[3].text = load.get('Load Type', 'Continuous')
+            row[4].text = load['Phase']
+            row[5].text = f"{load['Power Factor']:.2f}"
+            row[6].text = f"{load['Length (m)']:.0f}"
         
         self.doc.add_paragraph()
     
@@ -1389,7 +1517,7 @@ class CableWordReport:
         table = self.doc.add_table(rows=1, cols=9)
         table.style = 'Light Grid Accent 1'
         
-        headers = ['Load', 'Size', 'Type', 'Base A', 'Derated', 'VD %', 'SC kA', 'Eff%', 'Status']
+        headers = ['Load', 'Type', 'Cable Type', 'Size', 'Base A', 'Derated', 'VD %', 'SC kA', 'Status']
         for i, header in enumerate(headers):
             table.rows[0].cells[i].text = header
             table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
@@ -1397,13 +1525,13 @@ class CableWordReport:
         for idx, row in cable_df.iterrows():
             new_row = table.add_row().cells
             new_row[0].text = row['Load Name']
-            new_row[1].text = str(row['Size (mm²)'])
-            new_row[2].text = 'Cu'
-            new_row[3].text = str(row['Base Ampacity (A)'])
-            new_row[4].text = str(row['Derated Ampacity (A)']).replace(' A', '')
-            new_row[5].text = str(row['Voltage Drop (%)']).replace('%', '')
-            new_row[6].text = str(row['Short Circuit (kA)']).replace(' kA', '')
-            new_row[7].text = str(row['Efficiency (%)']).replace('%', '')
+            new_row[1].text = row.get('Load Type', 'Continuous')
+            new_row[2].text = row['Cable Category']
+            new_row[3].text = str(row['Size (mm²)'])
+            new_row[4].text = str(row['Base Ampacity (A)'])
+            new_row[5].text = str(row['Derated Ampacity (A)']).replace(' A', '')
+            new_row[6].text = str(row['Voltage Drop (%)']).replace('%', '')
+            new_row[7].text = str(row['Short Circuit (kA)']).replace(' kA', '')
             new_row[8].text = row['Status']
         
         self.doc.add_paragraph()
@@ -1415,17 +1543,21 @@ class CableWordReport:
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
         
         for i, calc in enumerate(detailed_calcs):
-            self.doc.add_heading(f'LOAD {i+1}: {calc["load_name"]}', level=2)
+            self.doc.add_heading(f'LOAD {i+1}: {calc["load_name"]} ({calc.get("load_type", "Continuous")})', level=2)
             
             self.doc.add_heading('STEP 1: LOAD CURRENT CALCULATION [IEC 60364-5-52 Section 523]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Formula: ').bold = True
-            p.add_run('I = P x 1000 / (1.732 x V x PF) for 3-phase')
+            p.add_run('I = P x 1000 / (1.732 x V x PF x Eff) for 3-phase')
             p = self.doc.add_paragraph()
             p.add_run('Calculation: ').bold = True
-            p.add_run(f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A')
+            p.add_run(f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]} x {calc.get("efficiency", 1.0):.2f}) = {calc["current"]:.1f} A')
             
-            self.doc.add_heading('STEP 2: DERATING FACTORS [IEC 60502-2 Tables B.10-B.22]', level=3)
+            self.doc.add_heading('STEP 2: CABLE TYPE SELECTION', level=3)
+            p = self.doc.add_paragraph()
+            p.add_run(f'Based on voltage {calc["voltage"]}V -> {calc["cable_category"]} cables selected')
+            
+            self.doc.add_heading('STEP 3: DERATING FACTORS [IEC 60502-2 Tables B.10-B.22]', level=3)
             self.doc.add_paragraph(f'k1 (Temperature Correction): {calc["k1"]:.3f} - Table B.10 at {calc["ambient_temp"]}°C')
             self.doc.add_paragraph(f'k2 (Grouping/Spacing)      : {calc["k2"]:.3f} - {calc["arrangement"]}, spacing={calc["spacing"]}mm')
             self.doc.add_paragraph(f'k_formation (Formation)    : {calc["k_formation"]:.3f} - {calc["formation"]} formation')
@@ -1436,7 +1568,7 @@ class CableWordReport:
             p.add_run('Total K = ').bold = True
             p.add_run(f'{calc["total_k"]:.3f}')
             
-            self.doc.add_heading('STEP 3: CABLE SELECTION', level=3)
+            self.doc.add_heading('STEP 4: CABLE SELECTION', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Selected Cable: ').bold = True
             p.add_run(f'{calc["size"]} mm² {calc["cable_type"]} copper ({calc["cable_category"]})')
@@ -1455,7 +1587,7 @@ class CableWordReport:
             else:
                 check.font.color.rgb = RGBColor(255, 0, 0)
             
-            self.doc.add_heading('STEP 4: VOLTAGE DROP [IEC 60364-5-52 Section 525]', level=3)
+            self.doc.add_heading('STEP 5: VOLTAGE DROP [IEC 60364-5-52 Section 525]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Voltage Drop: ').bold = True
             p.add_run(f'{calc["vd_pct"]:.3f}%')
@@ -1471,18 +1603,13 @@ class CableWordReport:
             else:
                 check.font.color.rgb = RGBColor(255, 0, 0)
             
-            self.doc.add_heading('STEP 5: SHORT CIRCUIT [IEC 60949]', level=3)
+            self.doc.add_heading('STEP 6: SHORT CIRCUIT [IEC 60949]', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Formula: ').bold = True
             p.add_run('Isc = K x S / sqrt(t)')
             p = self.doc.add_paragraph()
             p.add_run('Calculation: ').bold = True
             p.add_run(f'Isc = 143 x {calc["size"]} / sqrt(1.0) = {calc["sc"]:.2f} kA')
-            
-            self.doc.add_heading('STEP 6: EFFICIENCY', level=3)
-            p = self.doc.add_paragraph()
-            p.add_run('Efficiency: ').bold = True
-            p.add_run(f'{calc["efficiency"]:.1f}%')
             
             self.doc.add_heading('FINAL STATUS', level=3)
             p = self.doc.add_paragraph()
@@ -1546,7 +1673,7 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-# ========== TRANSFORMER PDF REPORT CLASS ==========
+# ========== TRANSFORMER PDF REPORT CLASS - FIXED ==========
 class TransformerPDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -1598,14 +1725,16 @@ class TransformerPDFReport(FPDF):
         
         for idx, load in loads_df.iterrows():
             connected = load['Rating (kW)'] * load['Quantity']
-            p = load['Rating (kW)'] * load['Quantity'] * load['Diversity Factor']
+            # Use load type diversity factor
+            load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+            p = load['Rating (kW)'] * load['Quantity'] * load_type_diversity
             total_p += p
             
-            self.cell(50, 6, load['Load Description'][:20], 1, 0, 'L', fill)
+            self.cell(50, 6, str(load['Load Description'])[:20], 1, 0, 'L', fill)
             self.cell(20, 6, str(load['Quantity']), 1, 0, 'C', fill)
             self.cell(25, 6, f"{load['Rating (kW)']:.0f}", 1, 0, 'R', fill)
             self.cell(25, 6, f"{connected:.0f} kW", 1, 0, 'R', fill)
-            self.cell(25, 6, f"{load['Diversity Factor']:.1f}", 1, 0, 'C', fill)
+            self.cell(25, 6, f"{load_type_diversity:.1f}", 1, 0, 'C', fill)
             self.cell(25, 6, f"{p:.1f}", 1, 1, 'R', fill)
             fill = not fill
         
@@ -1632,7 +1761,8 @@ class TransformerPDFReport(FPDF):
                 self.add_page()
             
             connected = load['Rating (kW)'] * load['Quantity']
-            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+            load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+            p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_type_diversity)
             phi = math.acos(load['Power Factor'])
             tan_phi = math.tan(phi)
             q = tx_calc.calculate_q(p, load['Power Factor'])
@@ -1645,11 +1775,11 @@ class TransformerPDFReport(FPDF):
             
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
-            self.cell(0, 5, f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW × {load["Quantity"]} = {connected:.0f} kW', 0, 1)
-            self.cell(0, 5, f'Step 2 - Demand Power (P): {connected:.0f} kW × {load["Diversity Factor"]} = {p:.1f} kW', 0, 1)
+            self.cell(0, 5, f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW x {load["Quantity"]} = {connected:.0f} kW', 0, 1)
+            self.cell(0, 5, f'Step 2 - Demand Power (P): {connected:.0f} kW x {load_type_diversity:.1f} = {p:.1f} kW', 0, 1)
             self.cell(0, 5, f'Step 3 - Angle φ: acos({load["Power Factor"]}) = {math.degrees(phi):.1f}°', 0, 1)
             self.cell(0, 5, f'Step 4 - tan(φ): tan({math.degrees(phi):.1f}°) = {tan_phi:.3f}', 0, 1)
-            self.cell(0, 5, f'Step 5 - Reactive Power (Q): {p:.1f} kW × {tan_phi:.3f} = {q:.1f} kVAR', 0, 1)
+            self.cell(0, 5, f'Step 5 - Reactive Power (Q): {p:.1f} kW x {tan_phi:.3f} = {q:.1f} kVAR', 0, 1)
             self.set_font('Arial', 'B', 10)
             self.cell(0, 5, f'Step 6 - Apparent Power (S): √({p:.1f}² + {q:.1f}²) = {s:.1f} kVA', 0, 1)
             self.ln(3)
@@ -1684,7 +1814,8 @@ class TransformerPDFReport(FPDF):
                 max_idx = idx
         
         if max_load is not None:
-            p_largest = tx_calc.calculate_p(max_load['Rating (kW)'], max_load['Quantity'], max_load['Diversity Factor'])
+            load_type_diversity = LOAD_TYPE_FACTORS[max_load['Load Type']]['diversity']
+            p_largest = tx_calc.calculate_p(max_load['Rating (kW)'], max_load['Quantity'], load_type_diversity)
             q_largest = tx_calc.calculate_q(p_largest, max_load['Power Factor'])
             s_largest = tx_calc.calculate_s(p_largest, q_largest)
             
@@ -1695,8 +1826,8 @@ class TransformerPDFReport(FPDF):
             
             self.set_font('Arial', '', 10)
             self.set_text_color(0, 0, 0)
-            self.cell(0, 6, f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW × {max_load["Quantity"]})', 0, 1)
-            self.cell(0, 6, f'Demand Power (P): {p_largest:.1f} kW (after diversity factor {max_load["Diversity Factor"]})', 0, 1)
+            self.cell(0, 6, f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW x {max_load["Quantity"]})', 0, 1)
+            self.cell(0, 6, f'Demand Power (P): {p_largest:.1f} kW (after {load_type_diversity*100:.0f}% factor)', 0, 1)
             self.cell(0, 6, f'Reactive Power (Q): {q_largest:.1f} kVAR (PF = {max_load["Power Factor"]})', 0, 1)
             self.set_font('Arial', 'B', 10)
             self.cell(0, 6, f'Apparent Power (S): {s_largest:.1f} kVA', 0, 1)
@@ -1729,14 +1860,15 @@ class TransformerPDFReport(FPDF):
             self.set_font('Arial', '', 9)
             fill = False
             for idx, load in loads_df.iterrows():
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                load_div = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_div)
                 q = tx_calc.calculate_q(p, load['Power Factor'])
                 s = tx_calc.calculate_s(p, q)
                 
                 p_pct = (p / total_p) * 100 if total_p > 0 else 0
                 s_pct = (s / total_s) * 100 if total_s > 0 else 0
                 
-                self.cell(60, 6, load['Load Description'][:15], 1, 0, 'L', fill)
+                self.cell(60, 6, str(load['Load Description'])[:15], 1, 0, 'L', fill)
                 self.cell(30, 6, f"{p:.1f}", 1, 0, 'R', fill)
                 self.cell(30, 6, f"{p_pct:.1f}%", 1, 0, 'R', fill)
                 self.cell(30, 6, f"{s:.1f}", 1, 0, 'R', fill)
@@ -1760,7 +1892,7 @@ class TransformerPDFReport(FPDF):
         
         self.set_font('Arial', '', 10)
         self.cell(0, 7, f'Future Expansion: +{future_expansion}%', 0, 1)
-        self.cell(0, 7, f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA', 0, 1)
+        self.cell(0, 7, f'Required with future = {total_s:.1f} x {1 + future_expansion/100:.2f} = {with_future:.1f} kVA', 0, 1)
         self.ln(3)
         
         self.set_font('Arial', 'B', 12)
@@ -1774,8 +1906,9 @@ class TransformerPDFReport(FPDF):
         self.multi_cell(0, 5, ratings_str)
         self.ln(3)
         
+        # FIXED: Black text for transformer selection
         self.set_fill_color(0, 51, 102)
-        self.set_text_color(255, 255, 255)
+        self.set_text_color(0, 0, 0)  # Black text
         self.set_font('Arial', 'B', 14)
         self.cell(0, 12, f'SELECTED TRANSFORMER: {selected_kva} kVA', 0, 1, 'C', 1)
 
@@ -1862,11 +1995,11 @@ class TransformerWordReport:
             q = tx_calc.calculate_q(p, load['Power Factor'])
             s = tx_calc.calculate_s(p, q)
             
-            self.doc.add_paragraph(f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW × {load["Quantity"]} = {connected:.0f} kW')
-            self.doc.add_paragraph(f'Step 2 - Demand Power (P): {connected:.0f} kW × {load["Diversity Factor"]} = {p:.1f} kW')
+            self.doc.add_paragraph(f'Step 1 - Connected Power: {load["Rating (kW)"]:.0f} kW x {load["Quantity"]} = {connected:.0f} kW')
+            self.doc.add_paragraph(f'Step 2 - Demand Power (P): {connected:.0f} kW x {load["Diversity Factor"]} = {p:.1f} kW')
             self.doc.add_paragraph(f'Step 3 - Angle φ: acos({load["Power Factor"]}) = {math.degrees(phi):.1f}°')
             self.doc.add_paragraph(f'Step 4 - tan(φ): tan({math.degrees(phi):.1f}°) = {tan_phi:.3f}')
-            self.doc.add_paragraph(f'Step 5 - Reactive Power (Q): {p:.1f} kW × {tan_phi:.3f} = {q:.1f} kVAR')
+            self.doc.add_paragraph(f'Step 5 - Reactive Power (Q): {p:.1f} kW x {tan_phi:.3f} = {q:.1f} kVAR')
             p_step = self.doc.add_paragraph()
             p_step.add_run('Step 6 - Apparent Power (S): ').bold = True
             p_step.add_run(f'√({p:.1f}² + {q:.1f}²) = {s:.1f} kVA')
@@ -1903,7 +2036,7 @@ class TransformerWordReport:
             
             self.doc.add_heading(f'Largest Equipment: {max_load["Load Description"]}', level=2)
             
-            self.doc.add_paragraph(f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW × {max_load["Quantity"]})')
+            self.doc.add_paragraph(f'Connected Power: {max_p:.0f} kW ({max_load["Rating (kW)"]:.0f} kW x {max_load["Quantity"]})')
             self.doc.add_paragraph(f'Demand Power (P): {p_largest:.1f} kW (after diversity factor {max_load["Diversity Factor"]})')
             self.doc.add_paragraph(f'Reactive Power (Q): {q_largest:.1f} kVAR (PF = {max_load["Power Factor"]})')
             p = self.doc.add_paragraph()
@@ -1958,7 +2091,7 @@ class TransformerWordReport:
         
         self.doc.add_paragraph()
         self.doc.add_paragraph(f'Future Expansion: +{future_expansion}%')
-        self.doc.add_paragraph(f'Required with future = {total_s:.1f} × 1.{future_expansion/100:.0f} = {with_future:.1f} kVA')
+        self.doc.add_paragraph(f'Required with future = {total_s:.1f} x {1 + future_expansion/100:.2f} = {with_future:.1f} kVA')
         self.doc.add_paragraph()
         
         self.doc.add_heading('Standard Ratings [IEC 60076]:', level=3)
@@ -2025,33 +2158,28 @@ class SimpleTransformerCalculator:
         
         return max_idx, max_load, max_p
 
-# ========== UNIVERSAL LOAD SHEET ==========
+# ========== UNIVERSAL LOAD SHEET - WITH ONLY 2 EXAMPLES ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
-        'Load Description': ['Motor 1', 'Motor 2', 'Lighting', 'HVAC'],
-        'Quantity': [2, 1, 1, 2],
-        'Rating (kW)': [75, 50, 25, 40],
-        'Power Factor': [0.85, 0.85, 0.95, 0.80],
-        'Diversity Factor': [0.8, 0.8, 1.0, 0.7]
+        'Load Description': ['LV Motor', 'MV Motor'],
+        'Quantity': [1, 1],
+        'Rating (kW)': [75, 500],
+        'Voltage (V)': [415, 3300],
+        'Power Factor': [0.85, 0.85],
+        'Load Type': ['Continuous', 'Continuous'],
+        'Diversity Factor': [0.8, 0.8]
     })
 
-# Cable sizing loads
+# Cable sizing loads - EMPTY by default, will be populated from load sheet
 if 'loads_df' not in st.session_state:
-    st.session_state.loads_df = pd.DataFrame({
-        'Load Name': ['Load 1'],
-        'Power (kW)': [5.0],
-        'Voltage (V)': [400],
-        'Phase': ['3-phase'],
-        'Power Factor': [0.85],
-        'Length (m)': [50]
-    })
+    st.session_state.loads_df = pd.DataFrame(columns=['Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Load Type', 'Power Factor', 'Efficiency', 'Length (m)'])
 
 if 'cable_results_df' not in st.session_state:
     st.session_state.cable_results_df = pd.DataFrame()
 if 'detailed_calcs' not in st.session_state:
     st.session_state.detailed_calcs = []
-if 'derating_factors' not in st.session_state:
-    st.session_state.derating_factors = None
+if 'all_derating_factors' not in st.session_state:
+    st.session_state.all_derating_factors = {}
 if 'cb_results' not in st.session_state:
     st.session_state.cb_results = []
 if 'cb_details' not in st.session_state:
@@ -2062,6 +2190,12 @@ if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
 if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
+if 'total_p' not in st.session_state:
+    st.session_state.total_p = 0
+if 'total_q' not in st.session_state:
+    st.session_state.total_q = 0
+if 'tx_largest_data' not in st.session_state:
+    st.session_state.tx_largest_data = None
 
 # ========== SIDEBAR NAVIGATION ==========
 with st.sidebar:
@@ -2095,7 +2229,10 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     st.markdown("""
     <div class="info-box">
         <h4>📌 This load sheet is used by all calculators</h4>
-        <p>Any changes made here will reflect in Lightning Protection, Cable Sizing, and Transformer Sizing calculators.</p>
+        <p>Two example loads provided: LV Motor (415V) and MV Motor (3300V). Load Type determines diversity factor:</p>
+        <p><span class="load-type-badge continuous-badge">Continuous</span> = 100% (1.0) | 
+           <span class="load-type-badge intermittent-badge">Intermittent</span> = 30% (0.3) | 
+           <span class="load-type-badge standby-badge">Standby</span> = 10% (0.1)</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2104,13 +2241,13 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
         tan_data = {
             'Power Factor': [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70],
             'tan(acos(PF))': [0.00, 0.33, 0.48, 0.62, 0.75, 0.88, 1.02],
-            'Example': ['PF=1.0 → Q=0', 'PF=0.95 → Q=0.33×P', 'PF=0.90 → Q=0.48×P', 
-                       'PF=0.85 → Q=0.62×P', 'PF=0.80 → Q=0.75×P', 'PF=0.75 → Q=0.88×P', 
-                       'PF=0.70 → Q=1.02×P']
+            'Example': ['PF=1.0 -> Q=0', 'PF=0.95 -> Q=0.33xP', 'PF=0.90 -> Q=0.48xP', 
+                       'PF=0.85 -> Q=0.62xP', 'PF=0.80 -> Q=0.75xP', 'PF=0.75 -> Q=0.88xP', 
+                       'PF=0.70 -> Q=1.02xP']
         }
         tan_df = pd.DataFrame(tan_data)
         st.dataframe(tan_df, use_container_width=True, hide_index=True)
-        st.caption("Formula: Q = P × tan(acos(PF)) as per document")
+        st.caption("Formula: Q = P x tan(acos(PF)) as per document")
     
     # Add and Delete buttons
     col1, col2 = st.columns([1, 1])
@@ -2120,7 +2257,9 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
                 'Load Description': [f'Load {len(st.session_state.universal_loads) + 1}'],
                 'Quantity': [1],
                 'Rating (kW)': [50.0],
+                'Voltage (V)': [415],
                 'Power Factor': [0.85],
+                'Load Type': ['Continuous'],
                 'Diversity Factor': [0.8]
             })
             st.session_state.universal_loads = pd.concat([st.session_state.universal_loads, new_row], ignore_index=True)
@@ -2134,14 +2273,21 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
             else:
                 st.warning("At least one row required")
     
-    # Display current loads
+    # Display current loads with updated diversity factor explanation
     st.markdown("### 📋 Current Loads")
     
     for idx, load in st.session_state.universal_loads.iterrows():
+        # Get the correct diversity factor based on load type
+        load_type_factor = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+        
+        badge_color = "continuous-badge" if load['Load Type'] == 'Continuous' else "intermittent-badge" if load['Load Type'] == 'Intermittent' else "standby-badge"
+        cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
+        
         st.markdown(f"""
         <div class="calc-step">
             <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
-            <p><b>Quantity:</b> {load['Quantity']} | <b>Rating:</b> {load['Rating (kW)']} kW | <b>PF:</b> {load['Power Factor']} | <b>Diversity:</b> {load['Diversity Factor']}</p>
+            <p><b>Quantity:</b> {load['Quantity']} | <b>Rating:</b> {load['Rating (kW)']} kW | <b>Voltage:</b> {load['Voltage (V)']}V ({cable_type})</p>
+            <p><b>PF:</b> {load['Power Factor']} | <b>Load Type:</b> <span class="load-type-badge {badge_color}">{load['Load Type']} ({load_type_factor*100:.0f}%)</span> | <b>Diversity:</b> {load['Diversity Factor']}</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -2153,7 +2299,9 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
             "Load Description": st.column_config.TextColumn("Load Description", width="medium"),
             "Quantity": st.column_config.NumberColumn("Qty", min_value=1, max_value=100, step=1),
             "Rating (kW)": st.column_config.NumberColumn("Rating (kW)", min_value=0.0, max_value=10000.0, step=1.0),
+            "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", min_value=0, max_value=11000, step=100),
             "Power Factor": st.column_config.NumberColumn("PF", min_value=0.5, max_value=1.0, step=0.05),
+            "Load Type": st.column_config.SelectboxColumn("Load Type", options=['Continuous', 'Intermittent', 'Standby']),
             "Diversity Factor": st.column_config.NumberColumn("Diversity", min_value=0.0, max_value=1.0, step=0.05)
         }
     )
@@ -2162,33 +2310,46 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     # Quick summary
     total_connected = 0
     total_p = 0
-    
-    st.markdown("### 📊 Load Summary")
+    lv_count = 0
+    mv_count = 0
     
     summary_data = []
     for idx, load in st.session_state.universal_loads.iterrows():
+        # Get correct diversity factor based on load type
+        load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+        
         connected = load['Rating (kW)'] * load['Quantity']
-        p = connected * load['Diversity Factor']
+        p = connected * load_type_diversity  # Use load type diversity, not manual diversity
         total_connected += connected
         total_p += p
+        
+        if load['Voltage (V)'] <= 1000:
+            lv_count += 1
+        else:
+            mv_count += 1
         
         summary_data.append({
             'Load': load['Load Description'],
             'Connected (kW)': f"{connected:.0f}",
-            'Demand (kW)': f"{p:.0f}",
-            'PF': f"{load['Power Factor']:.2f}"
+            'Demand (kW)': f"{p:.0f} ({load['Load Type']} {load_type_diversity*100:.0f}%)",
+            'PF': f"{load['Power Factor']:.2f}",
+            'Type': load['Load Type']
         })
     
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Connected Load", f"{total_connected:.0f} kW")
+        st.metric("Total Connected", f"{total_connected:.0f} kW")
     with col2:
-        st.metric("Total Demand (with diversity)", f"{total_p:.0f} kW")
+        st.metric("Total Demand", f"{total_p:.0f} kW")
+    with col3:
+        st.metric("LV Loads", lv_count)
+    with col4:
+        st.metric("MV Loads", mv_count)
 
-# ========== TAB 2: LIGHTNING PROTECTION (UNCHANGED) ==========
+# ========== TAB 2: LIGHTNING PROTECTION ==========
 elif st.session_state.selected_calculator == "⚡ Lightning Protection":
     
     lp_tabs = st.tabs(["📊 Risk Assessment", "🔧 Protection Design", "📋 Calculations", "📥 Download Report"])
@@ -2226,7 +2387,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
             
             st.markdown("**IEC 62305-2 Table A.1:**")
             st.markdown("• Surrounded: **0.25** • Similar: **0.5** • Isolated: **1.0** • Hilltop: **2.0**")
-            st.success(f"**Selected: {environment} → CD = {cd}**")
+            st.success(f"**Selected: {environment} -> CD = {cd}**")
             
             if structure_type == "Column 4-C01":
                 c2, c3, c4, c5 = 0.5, 2.0, 3.0, 10.0
@@ -2330,17 +2491,17 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
             inputs = st.session_state.input_values
             
             with st.expander("1. Collection Area (Ad)", expanded=True):
-                st.markdown("**Formula:** Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²")
+                st.markdown("**Formula:** Ad = L x W + 2 x (3H) x (L + W) + π x (3H)²")
                 st.markdown("**Reference:** IEC 62305-2 Annex A.2.1.1")
                 st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
             
             with st.expander("2. Near Strike Collection Area (Am)", expanded=True):
-                st.markdown("**Formula:** Am = 2 × 500 × (L + W) + π × 500²")
+                st.markdown("**Formula:** Am = 2 x 500 x (L + W) + π x 500²")
                 st.markdown("**Reference:** IEC 62305-2 Annex A.3")
                 st.markdown(f"**Result:** Am = **{results['am']:.2f} m²**")
             
             with st.expander("3. Environmental Factor (CD)"):
-                st.markdown(f"**Selected:** {inputs.get('environment', 'Isolated')} → **{inputs.get('cd', 1)}**")
+                st.markdown(f"**Selected:** {inputs.get('environment', 'Isolated')} -> **{inputs.get('cd', 1)}**")
             
             with st.expander("4. Lightning Density (NG)"):
                 st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
@@ -2362,29 +2523,39 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
             with col1:
                 if st.button("📥 Generate PDF", key="lp_pdf", use_container_width=True):
                     with st.spinner("Generating PDF..."):
-                        pdf = LightningPDFReport()
-                        pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
-                        pdf_output = pdf.output(dest='S')
-                        b64 = base64.b64encode(pdf_output).decode()
-                        filename = f"Lightning_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated!")
+                        try:
+                            pdf = LightningPDFReport()
+                            pdf.add_calculations(st.session_state.calc_results, st.session_state.input_values)
+                            # Use safe encoding function
+                            pdf_bytes = generate_safe_pdf(pdf)
+                            if pdf_bytes:
+                                b64 = base64.b64encode(pdf_bytes).decode()
+                                filename = f"Lightning_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                                st.markdown(f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Click here to download PDF</a>', unsafe_allow_html=True)
+                                st.success("✅ PDF generated! Click the button above to download.")
+                            else:
+                                st.error("Failed to generate PDF")
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {str(e)}")
             with col2:
                 if st.button("📥 Generate Word", key="lp_word", use_container_width=True):
                     with st.spinner("Generating Word..."):
-                        word = LightningWordReport()
-                        word.add_calculations(st.session_state.calc_results, st.session_state.input_values)
-                        word_path = "temp_lightning.docx"
-                        word.save(word_path)
-                        with open(word_path, "rb") as f:
-                            word_bytes = f.read()
-                        b64 = base64.b64encode(word_bytes).decode()
-                        filename = f"Lightning_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
-                        os.remove(word_path)
-                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated!")
+                        try:
+                            word = LightningWordReport()
+                            word.add_calculations(st.session_state.calc_results, st.session_state.input_values)
+                            word_path = "temp_lightning.docx"
+                            word.save(word_path)
+                            with open(word_path, "rb") as f:
+                                word_bytes = f.read()
+                            b64 = base64.b64encode(word_bytes).decode()
+                            filename = f"Lightning_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                            os.remove(word_path)
+                            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click here to download Word</a>', unsafe_allow_html=True)
+                            st.success("✅ Word generated! Click the button above to download.")
+                        except Exception as e:
+                            st.error(f"Error generating Word document: {str(e)}")
 
-# ========== TAB 3: CABLE SIZING ==========
+# ========== TAB 3: CABLE SIZING (UPDATED WITH PER-LOAD DERATING FACTORS) ==========
 elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     
     st.markdown('<div class="report-header">🔌 CABLE SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2393,181 +2564,145 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
     <div class="info-box">
         <h4>📌 Using loads from Universal Load Sheet</h4>
         <p>Total {len(st.session_state.universal_loads)} loads available. Click below to import.</p>
+        <p><b>Efficiency:</b> Default 1.0 (100%). Adjust below if needed.</p>
+        <p><b>Load Type Factors:</b> Continuous=100%, Intermittent=30%, Standby=10%</p>
+        <p><b>Common Parameters for all loads:</b> System Type, Ambient Temperature</p>
+        <p><b>Per-Load Parameters:</b> Cable Type, Installation Method, Cables in Group, Arrangement, Spacing, Formation, Soil Resistivity, Burial Depth</p>
     </div>
     """, unsafe_allow_html=True)
     
+    # Common parameters for the whole project
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        efficiency_value = st.number_input("Motor Efficiency", value=1.0, min_value=0.5, max_value=1.0, step=0.05, format="%.2f")
+        st.caption("1.0 = 100%, 0.95 = 95%")
+    with col2:
+        system_type = st.selectbox("System Type (Common for all loads)", 
+                                  ['TN-S', 'TN-C', 'TN-C-S', 'TT'], 
+                                  key="system_type_global")
+        st.info("Applies to all loads")
+    with col3:
+        ambient_temp = st.number_input("Ambient Temperature (°C) - Common for all loads", 
+                                      value=30.0, min_value=10.0, max_value=80.0, step=5.0,
+                                      key="ambient_temp_global")
+        st.info("Same for all cables")
+    
     if st.button("📥 Import Loads from Load Sheet", use_container_width=True):
-        # Convert universal loads to cable sizing format
+        # Convert universal loads to cable sizing format with default derating parameters
         new_loads = []
         for idx, load in st.session_state.universal_loads.iterrows():
+            # Determine phase based on voltage
+            if load['Voltage (V)'] > 300:
+                phase = '3-phase'
+            else:
+                phase = '1-phase'
+            
+            # Use load type diversity factor from LOAD_TYPE_FACTORS
+            load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+            
+            # Default derating parameters for each load (ambient temp is now common)
             new_loads.append({
                 'Load Name': load['Load Description'],
-                'Power (kW)': load['Rating (kW)'] * load['Quantity'] * load['Diversity Factor'],
-                'Voltage (V)': 400,
-                'Phase': '3-phase',
+                'Power (kW)': load['Rating (kW)'] * load['Quantity'] * load_type_diversity,
+                'Voltage (V)': load['Voltage (V)'],
+                'Phase': phase,
+                'Load Type': load['Load Type'],
                 'Power Factor': load['Power Factor'],
-                'Length (m)': 50
+                'Efficiency': efficiency_value,
+                'Length (m)': 50,  # Default length
+                # Derating parameters - each load gets its own (except ambient temp)
+                'Cable Type': 'armoured',
+                'Installation Method': 'air',
+                'Cables in Group': 3,
+                'Cable Arrangement': 'touching',
+                'Spacing (mm)': 0.0,
+                'Cable Formation': 'flat',
+                'Soil Resistivity (K.m/W)': 1.5,
+                'Burial Depth (m)': 0.8
             })
         st.session_state.loads_df = pd.DataFrame(new_loads)
-        st.success("✅ Loads imported successfully!")
+        st.success("✅ Loads imported successfully! Now configure per-load derating parameters.")
         st.rerun()
     
+    # Cable sizing tabs
     cable_tabs = st.tabs([
-        "📥 Loads Input", 
-        "📊 Derating Factors", 
+        "📥 Loads & Derating Input", 
+        "📊 Derating Factors Summary", 
         "🔌 Cable Selection",
         "🔧 Short Circuit",
         "⚡ Circuit Breakers",
         "📥 Download Report"
     ])
     
-    # TAB 1: LOADS INPUT
+    # TAB 1: LOADS & DERATING INPUT
     with cable_tabs[0]:
-        st.markdown("### 📋 Load Details (Imported from Load Sheet)")
-        st.markdown("""
+        st.markdown("### 📋 Load Details with Per-Load Derating Parameters")
+        st.markdown(f"""
         <div class="info-box">
-            <p>To add or modify loads, please go to the main <b>📋 LOAD SHEET</b> tab.</p>
+            <p><b>Common Parameters:</b> System Type = {system_type}, Ambient Temperature = {ambient_temp}°C</p>
+            <p><b>Per-Load Parameters:</b> Configure below for each load individually.</p>
         </div>
         """, unsafe_allow_html=True)
         
-        edited_df = st.data_editor(
-            st.session_state.loads_df,
-            num_rows="fixed",
-            use_container_width=True,
-            disabled=True,
-            column_config={
-                "Load Name": st.column_config.TextColumn("Load Name", disabled=True),
-                "Power (kW)": st.column_config.NumberColumn("Power (kW)", disabled=True),
-                "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", disabled=True),
-                "Phase": st.column_config.TextColumn("Phase", disabled=True),
-                "Power Factor": st.column_config.NumberColumn("PF", disabled=True),
-                "Length (m)": st.column_config.NumberColumn("Length (m)", disabled=True)
-            }
-        )
+        if st.session_state.loads_df.empty:
+            st.info("No loads imported yet. Click 'Import Loads from Load Sheet' above.")
+        else:
+            # Create a data editor with all per-load parameters
+            edited_df = st.data_editor(
+                st.session_state.loads_df,
+                num_rows="fixed",
+                use_container_width=True,
+                column_config={
+                    "Load Name": st.column_config.TextColumn("Load Name", disabled=True),
+                    "Power (kW)": st.column_config.NumberColumn("Power (kW)", disabled=True),
+                    "Voltage (V)": st.column_config.NumberColumn("Voltage (V)", disabled=True),
+                    "Phase": st.column_config.TextColumn("Phase", disabled=True),
+                    "Load Type": st.column_config.TextColumn("Load Type", disabled=True),
+                    "Power Factor": st.column_config.NumberColumn("PF", disabled=True),
+                    "Efficiency": st.column_config.NumberColumn("Efficiency", disabled=True),
+                    "Length (m)": st.column_config.NumberColumn("Length (m)", min_value=1.0, max_value=5000.0, step=1.0),
+                    
+                    # Derating parameters - all editable per load
+                    "Cable Type": st.column_config.SelectboxColumn("Cable Type", options=['armoured', 'unarmoured']),
+                    "Installation Method": st.column_config.SelectboxColumn("Installation Method", 
+                        options=['air', 'surface', 'tray', 'ladder', 'trench', 'buried', 'duct', 'conduit']),
+                    "Cables in Group": st.column_config.NumberColumn("Cables in Group", min_value=1, max_value=18, step=1),
+                    "Cable Arrangement": st.column_config.SelectboxColumn("Arrangement", options=['touching', 'spaced', 'cleated']),
+                    "Spacing (mm)": st.column_config.NumberColumn("Spacing (mm)", min_value=0.0, max_value=500.0, step=5.0),
+                    "Cable Formation": st.column_config.SelectboxColumn("Formation", options=['flat', 'trefoil', 'single']),
+                    "Soil Resistivity (K.m/W)": st.column_config.NumberColumn("Soil Resistivity", min_value=0.5, max_value=3.0, step=0.1),
+                    "Burial Depth (m)": st.column_config.NumberColumn("Burial Depth (m)", min_value=0.3, max_value=2.0, step=0.1)
+                }
+            )
+            st.session_state.loads_df = edited_df
         
-        st.markdown("### ⚙️ Installation Parameters")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### 📦 Cable Parameters")
-            cable_type = st.selectbox("Cable Type", ['armoured', 'unarmoured'], key="cable_type_select")
-            ambient_temp = st.number_input("Ambient Temp (°C)", value=30.0, step=5.0, key="ambient_temp_input")
-            
-            st.markdown("#### 📐 Arrangement & Spacing")
-            arrangement = st.selectbox("Cable Arrangement", 
-                                      ['touching', 'spaced', 'cleated'], 
-                                      key="arrangement_select",
-                                      help="How cables are arranged relative to each other")
-            
-            spacing_mm = st.number_input("Spacing Between Cables (mm)", 
-                                        value=0.0, step=5.0, min_value=0.0, max_value=500.0,
-                                        key="spacing_input",
-                                        help="Center-to-center distance between cables")
-            
-            formation = st.selectbox("Cable Formation", 
-                                    ['flat', 'trefoil', 'single'], 
-                                    key="formation_select",
-                                    help="Flat = side by side, Trefoil = triangular")
-        
-        with col2:
-            st.markdown("#### 🏗️ Installation Environment")
-            installation = st.selectbox("Installation Method", 
-                                       ['air', 'surface', 'tray', 'ladder', 'trench', 'buried', 'duct', 'conduit'], 
-                                       key="installation_select",
-                                       help="How and where cables are installed")
-            
-            num_cables = st.number_input("Number of Cables in Group", 
-                                        value=3, min_value=1, max_value=18, 
-                                        key="num_cables_input")
-            
-            st.markdown("#### 🌍 Soil & Depth")
-            soil_res = st.number_input("Soil Resistivity (K.m/W)", 
-                                      value=1.5, step=0.5, min_value=0.5, max_value=3.0, 
-                                      key="soil_res_input")
-            
-            depth = st.number_input("Burial Depth (m)", 
-                                   value=0.8, step=0.1, min_value=0.3, max_value=2.0, 
-                                   key="depth_input")
-            
-            system_type = st.selectbox("System Type", 
-                                      ['TN-S', 'TN-C', 'TN-C-S', 'TT'], 
-                                      key="system_type_select")
-        
-        st.session_state.cable_type = cable_type
-        st.session_state.ambient_temp = ambient_temp
-        st.session_state.num_cables = num_cables
-        st.session_state.arrangement = arrangement
-        st.session_state.spacing_mm = spacing_mm
-        st.session_state.formation = formation
-        st.session_state.installation = installation
-        st.session_state.soil_res = soil_res
-        st.session_state.depth = depth
-        st.session_state.system_type = system_type
-        
-        st.markdown("### 📊 Current Installation Settings")
-        
-        settings_data = {
-            'Category': [
-                'Cable Parameters', 'Cable Parameters',
-                'Arrangement & Spacing', 'Arrangement & Spacing', 'Arrangement & Spacing',
-                'Installation Environment', 'Installation Environment',
-                'Soil & Depth', 'Soil & Depth',
-                'Electrical System'
-            ],
-            'Parameter': [
-                'Cable Type', 'Ambient Temperature',
-                'Cable Arrangement', 'Spacing Between Cables', 'Cable Formation',
-                'Installation Method', 'Number of Cables in Group',
-                'Soil Resistivity', 'Burial Depth',
-                'System Type'
-            ],
-            'Value': [
-                f'{cable_type} copper', f'{ambient_temp} °C',
-                arrangement, f'{spacing_mm} mm', formation,
-                installation, str(num_cables),
-                f'{soil_res} K.m/W', f'{depth} m',
-                system_type
-            ]
-        }
-        
-        settings_df = pd.DataFrame(settings_data)
-        
-        st.dataframe(
-            settings_df[['Category', 'Parameter', 'Value']],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Category": st.column_config.TextColumn("Category", width="small"),
-                "Parameter": st.column_config.TextColumn("Parameter", width="medium"),
-                "Value": st.column_config.TextColumn("Value", width="medium")
-            }
-        )
-        
-        if st.button("🔧 CALCULATE", type="primary", use_container_width=True):
-            with st.spinner("Calculating..."):
-                cable_type = st.session_state.cable_type
-                ambient_temp = st.session_state.ambient_temp
-                num_cables = st.session_state.num_cables
-                arrangement = st.session_state.arrangement
-                spacing_mm = st.session_state.spacing_mm
-                formation = st.session_state.formation
-                installation = st.session_state.installation
-                soil_res = st.session_state.soil_res
-                depth = st.session_state.depth
-                system_type = st.session_state.system_type
-                
+        # Add a button to calculate with per-load derating factors
+        if st.button("🔧 CALCULATE with Per-Load Derating Factors", type="primary", use_container_width=True):
+            with st.spinner("Calculating with per-load derating factors..."):
                 cable_calc = CableSizingCalculator()
                 cable_results = []
                 detailed_calcs = []
+                all_factors = {}  # Store derating factors for each load
                 
                 for idx, load in st.session_state.loads_df.iterrows():
+                    # Get cable database based on voltage
                     cable_category, cable_db = cable_calc.get_cable_type(load['Voltage (V)'])
-                    db = cable_db[cable_type]
                     
+                    # Select appropriate database based on voltage
+                    if load['Voltage (V)'] <= 1000:
+                        db = LV_CABLE_DATA[load['Cable Type']]
+                    elif load['Voltage (V)'] <= 3300:
+                        db = MV_CABLE_DATA_33KV[load['Cable Type']]
+                    else:
+                        db = MV_CABLE_DATA_11KV[load['Cable Type']]
+                    
+                    # Calculate load current
                     current = cable_calc.calculate_load_current(
-                        load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 1.0, load['Phase']
+                        load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 
+                        load['Efficiency'], load['Phase']
                     )
                     
+                    # Find appropriate cable size
                     found = False
                     for size, data in db.items():
                         if found:
@@ -2575,12 +2710,22 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         
                         cable_diameter = data['diameter']
                         
+                        # Calculate derating factors for this specific load
+                        # Using common ambient temperature
                         total_k, factors = cable_calc.get_all_derating_factors(
-                            ambient_temp, 90, num_cables, arrangement, spacing_mm, cable_diameter,
-                            formation, installation, soil_res, depth
+                            ambient_temp, 90,  # Common ambient temperature
+                            load['Cables in Group'], 
+                            load['Cable Arrangement'], 
+                            load['Spacing (mm)'], 
+                            cable_diameter,
+                            load['Cable Formation'], 
+                            load['Installation Method'], 
+                            load['Soil Resistivity (K.m/W)'], 
+                            load['Burial Depth (m)']
                         )
                         
-                        st.session_state.derating_factors = factors
+                        # Store factors for this load
+                        all_factors[load['Load Name']] = factors
                         
                         derated = data['ampacity'] * total_k
                         if derated >= current:
@@ -2601,13 +2746,15 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             
                             cable_results.append({
                                 'Load Name': load['Load Name'],
+                                'Load Type': load.get('Load Type', 'Continuous'),
                                 'Power (kW)': load['Power (kW)'],
                                 'Voltage (V)': load['Voltage (V)'],
                                 'Phase': load['Phase'],
                                 'PF': load['Power Factor'],
+                                'Efficiency': f"{load['Efficiency']*100:.0f}%",
                                 'Length (m)': load['Length (m)'],
                                 'Cable Category': cable_category,
-                                'Cable Type': f'{cable_type} copper',
+                                'Cable Type': f"{load['Cable Type']} copper",
                                 'Size (mm²)': size,
                                 'Load Current (A)': f"{current:.1f}",
                                 'Base Ampacity (A)': data['ampacity'],
@@ -2621,15 +2768,17 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             
                             detailed_calcs.append({
                                 'load_name': load['Load Name'],
+                                'load_type': load.get('Load Type', 'Continuous'),
                                 'power': load['Power (kW)'],
                                 'voltage': load['Voltage (V)'],
                                 'phase': load['Phase'],
                                 'pf': load['Power Factor'],
+                                'efficiency': load['Efficiency'],
                                 'length': load['Length (m)'],
                                 'current': current,
                                 'size': size,
                                 'cable_category': cable_category,
-                                'cable_type': cable_type,
+                                'cable_type': load['Cable Type'],
                                 'base_amp': data['ampacity'],
                                 'derated_amp': derated,
                                 'vd_pct': vd_pct,
@@ -2643,11 +2792,14 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 'k3': factors['k3 (Soil Resistivity)']['value'],
                                 'k4': factors['k4 (Depth)']['value'],
                                 'total_k': total_k,
-                                'ambient_temp': ambient_temp,
-                                'arrangement': arrangement,
-                                'spacing': spacing_mm,
-                                'formation': formation,
-                                'installation': installation,
+                                'ambient_temp': ambient_temp,  # Common ambient temperature
+                                'arrangement': load['Cable Arrangement'],
+                                'spacing': load['Spacing (mm)'],
+                                'formation': load['Cable Formation'],
+                                'installation': load['Installation Method'],
+                                'soil_res': load['Soil Resistivity (K.m/W)'],
+                                'depth': load['Burial Depth (m)'],
+                                'num_cables': load['Cables in Group'],
                                 'status': 'PASS' if vd_pct <= 2.5 and derated >= current else 'FAIL'
                             })
                             found = True
@@ -2657,7 +2809,9 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 
                 st.session_state.cable_results_df = pd.DataFrame(cable_results)
                 st.session_state.detailed_calcs = detailed_calcs
+                st.session_state.all_derating_factors = all_factors
                 
+                # Calculate circuit breakers (using common system_type)
                 cb_calc = CircuitBreakerCalculator()
                 manufacturer = 'Schneider Electric'
                 cb_results, cb_details = cb_calc.calculate_cb_size(
@@ -2669,21 +2823,52 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 st.session_state.cb_details = cb_details
                 st.session_state.main_cb = main_cb
                 
-                st.success("✅ Calculations complete! Check all tabs for results.")
+                st.success("✅ Calculations complete with per-load derating factors! Check all tabs for results.")
     
-    # TAB 2: DERATING FACTORS
+    # TAB 2: DERATING FACTORS SUMMARY
     with cable_tabs[1]:
-        st.markdown('<div class="report-header">ALL DERATING FACTORS (IEC 60502-2)</div>', unsafe_allow_html=True)
-        if st.session_state.derating_factors:
-            factors = st.session_state.derating_factors
-            factors_html = "<table class='parameter-table'><tr><th>Factor</th><th>Value</th><th>Reference</th></tr>"
-            for key, data in factors.items():
-                if key != 'total':
-                    factors_html += f"<tr><td>{key}</td><td>{data['value']:.3f}</td><td>{data['reference']}</td></tr>"
-            factors_html += f"<tr style='background-color: #1E3A8A; color: white;'><td colspan='3'><strong>Total K = {factors['total']:.3f}</strong></td></tr></table>"
-            st.markdown(factors_html, unsafe_allow_html=True)
+        st.markdown('<div class="report-header">PER-LOAD DERATING FACTORS (IEC 60502-2)</div>', unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="info-box">
+            <p><b>Common Parameters:</b> Ambient Temperature = {ambient_temp}°C (applies to all loads)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if hasattr(st.session_state, 'all_derating_factors') and st.session_state.all_derating_factors:
+            for load_name, factors in st.session_state.all_derating_factors.items():
+                with st.expander(f"📊 {load_name} - Derating Factors"):
+                    factors_html = "<table class='parameter-table' style='width:100%; border-collapse: collapse;'>"
+                    factors_html += "<tr><th style='background-color: #1E3A8A; color: white; padding: 8px;'>Factor</th>"
+                    factors_html += "<th style='background-color: #1E3A8A; color: white; padding: 8px;'>Value</th>"
+                    factors_html += "<th style='background-color: #1E3A8A; color: white; padding: 8px;'>Reference</th></tr>"
+                    
+                    for key, data in factors.items():
+                        if key != 'total':
+                            factors_html += f"<tr><td style='padding: 5px; border: 1px solid #ddd;'>{key}</td>"
+                            factors_html += f"<td style='padding: 5px; border: 1px solid #ddd;'>{data['value']:.3f}</td>"
+                            factors_html += f"<td style='padding: 5px; border: 1px solid #ddd;'>{data['reference']}</td></tr>"
+                    
+                    factors_html += f"<tr style='background-color: #1E3A8A; color: white;'>"
+                    factors_html += f"<td colspan='3' style='padding: 8px;'><strong>Total K = {factors['total']:.3f}</strong></td></tr></table>"
+                    st.markdown(factors_html, unsafe_allow_html=True)
+                    
+                    # Show input parameters for this load
+                    for calc in st.session_state.detailed_calcs:
+                        if calc['load_name'] == load_name:
+                            st.markdown(f"""
+                            **Per-Load Installation Parameters:**
+                            - Cable Type: {calc['cable_type']}
+                            - Installation Method: {calc['installation']}
+                            - Cables in Group: {calc['num_cables']}
+                            - Cable Arrangement: {calc['arrangement']}
+                            - Spacing: {calc['spacing']} mm
+                            - Cable Formation: {calc['formation']}
+                            - Soil Resistivity: {calc['soil_res']} K.m/W
+                            - Burial Depth: {calc['depth']} m
+                            """)
         else:
-            st.info("👈 Calculate loads first")
+            st.info("👈 Calculate loads first to see per-load derating factors")
     
     # TAB 3: CABLE SELECTION
     with cable_tabs[2]:
@@ -2692,37 +2877,52 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         
         if not st.session_state.cable_results_df.empty:
             st.dataframe(st.session_state.cable_results_df, use_container_width=True, hide_index=True)
-            st.markdown("### 📋 DETAILED CALCULATIONS")
+            st.markdown("### 📋 DETAILED CALCULATIONS WITH PER-LOAD PARAMETERS")
             
             for calc in st.session_state.detailed_calcs:
-                with st.expander(f"🔍 {calc['load_name']}"):
+                with st.expander(f"🔍 {calc['load_name']} ({calc.get('load_type', 'Continuous')})"):
                     st.markdown(f"""
 **STEP 1: LOAD CURRENT [IEC 60364-5-52]**  
-I = {calc['power']} x 1000 / (1.732 x {calc['voltage']} x {calc['pf']}) = **{calc['current']:.1f} A**
+I = {calc['power']} x 1000 / (1.732 x {calc['voltage']} x {calc['pf']} x {calc.get('efficiency', 1.0):.2f}) = **{calc['current']:.1f} A**
 
-**STEP 2: DERATING FACTORS [IEC 60502-2]**  
-k1 (Temperature): {calc['k1']:.3f}  
-k2 (Grouping/Spacing): {calc['k2']:.3f} ({calc['arrangement']}, spacing={calc['spacing']}mm)  
-k_formation (Formation): {calc['k_formation']:.3f} ({calc['formation']})  
-k_install (Installation): {calc['k_install']:.3f} ({calc['installation']})  
-k3 (Soil Resistivity): {calc['k3']:.3f}  
-k4 (Depth): {calc['k4']:.3f}  
-Total K = **{calc['total_k']:.3f}**
+**STEP 2: CABLE TYPE SELECTION**  
+Voltage {calc['voltage']}V -> {calc['cable_category']}
 
-**STEP 3: CABLE SELECTION**  
+**STEP 3: DERATING FACTORS [IEC 60502-2] (Per-Load Configuration)**
+- **Common Parameters:**
+  - Ambient Temperature: {calc['ambient_temp']}°C (same for all loads)
+
+- **Per-Load Installation Parameters:**
+  - Cable Type: {calc['cable_type']}
+  - Installation Method: {calc['installation']}
+  - Cables in Group: {calc['num_cables']}
+  - Cable Arrangement: {calc['arrangement']}
+  - Spacing: {calc['spacing']} mm
+  - Cable Formation: {calc['formation']}
+  - Soil Resistivity: {calc['soil_res']} K.m/W
+  - Burial Depth: {calc['depth']} m
+
+- **Calculated Factors:**
+  - k1 (Temperature): {calc['k1']:.3f}
+  - k2 (Grouping/Spacing): {calc['k2']:.3f}
+  - k_formation (Formation): {calc['k_formation']:.3f}
+  - k_install (Installation): {calc['k_install']:.3f}
+  - k3 (Soil Resistivity): {calc['k3']:.3f}
+  - k4 (Depth): {calc['k4']:.3f}
+  - **Total K = {calc['total_k']:.3f}**
+
+**STEP 4: CABLE SELECTION**  
 Selected: {calc['size']} mm² {calc['cable_type']}  
+Base Ampacity: {calc['base_amp']} A  
 Derated Ampacity = {calc['base_amp']} x {calc['total_k']:.3f} = **{calc['derated_amp']:.1f} A**  
-Check: {calc['derated_amp']:.1f} A >= {calc['current']:.1f} A → **{'PASS' if calc['derated_amp'] >= calc['current'] else 'FAIL'}**
+Check: {calc['derated_amp']:.1f} A >= {calc['current']:.1f} A -> **{'PASS' if calc['derated_amp'] >= calc['current'] else 'FAIL'}**
 
-**STEP 4: VOLTAGE DROP [IEC 60364-5-52]**  
+**STEP 5: VOLTAGE DROP [IEC 60364-5-52]**  
 VD = **{calc['vd_pct']:.3f}%** (Limit: 2.5%)  
-Check: {calc['vd_pct']:.3f}% <= 2.5% → **{'PASS' if calc['vd_pct'] <= 2.5 else 'FAIL'}**
+Check: {calc['vd_pct']:.3f}% <= 2.5% -> **{'PASS' if calc['vd_pct'] <= 2.5 else 'FAIL'}**
 
-**STEP 5: SHORT CIRCUIT [IEC 60949]**  
+**STEP 6: SHORT CIRCUIT [IEC 60949]**  
 Isc = **{calc['sc']:.2f} kA**
-
-**STEP 6: EFFICIENCY**  
-Efficiency = **{calc['efficiency']:.1f}%**
 
 **FINAL STATUS: {'PASS' if calc['status'] == 'PASS' else 'FAIL'}**
 """)
@@ -2756,21 +2956,16 @@ Efficiency = **{calc['efficiency']:.1f}%**
     with cable_tabs[4]:
         st.markdown('<div class="report-header">⚡ CIRCUIT BREAKER SIZING</div>', unsafe_allow_html=True)
         
-        st.markdown("""
+        st.markdown(f"""
         ### 🔍 Circuit Breaker Selection Criteria [IEC 60898 / IEC 60947-2]
         
-        **Design Factor:** 1.25 (25% safety margin for continuous loads)
+        **Design Factor:** 1.25 (25% safety margin for all loads)
+        **Common System Type:** {system_type} (applies to all loads)
         
         **Breaker Types:**
         - **MCB** (≤125A): Miniature Circuit Breaker - For final circuits
         - **MCCB** (125A-1600A): Moulded Case Circuit Breaker - For distribution
         - **ACB** (≥1600A): Air Circuit Breaker - For main incomers
-        
-        **Pole Selection [IEC 60364-5-53]:**
-        - **1P:** Phase only - For IT systems only
-        - **2P:** Phase + Neutral - Required for single-phase TN/TT systems
-        - **3P:** Three Pole - For 3-wire systems
-        - **4P:** Four Pole - For 4-wire systems with neutral protection
         """)
         
         if st.session_state.cb_results:
@@ -2822,7 +3017,7 @@ Efficiency = **{calc['efficiency']:.1f}%**
 - Application: {BREAKER_TYPES[detail['breaker_type']]['application']}
 
 **STEP 4: POLE SELECTION [IEC 60364-5-53]**
-- System Type: {detail['system_type']}
+- System Type: {detail['system_type']} (Common for all loads)
 - Selected Poles: {detail['poles']}
 - Reason: {detail['pole_reason']}
 
@@ -2845,86 +3040,83 @@ Efficiency = **{calc['efficiency']:.1f}%**
             with col1:
                 if st.button("📥 Generate PDF Report", key="cable_pdf", use_container_width=True):
                     with st.spinner("Generating PDF with COMPLETE detailed calculations..."):
-                        pdf = CablePDFReport()
-                        pdf.add_title()
-                        
-                        params = {
-                            'Cable Type': f'{st.session_state.cable_type} copper',
-                            'Ambient Temperature': f'{st.session_state.ambient_temp}°C',
-                            'Cable Arrangement': st.session_state.arrangement,
-                            'Spacing': f'{st.session_state.spacing_mm} mm',
-                            'Cable Formation': st.session_state.formation,
-                            'Installation Method': st.session_state.installation,
-                            'Cables in Group': str(st.session_state.num_cables),
-                            'Soil Resistivity': f'{st.session_state.soil_res} K.m/W',
-                            'Burial Depth': f'{st.session_state.depth} m',
-                            'System Type': st.session_state.system_type
-                        }
-                        pdf.add_installation_parameters(params)
-                        
-                        if st.session_state.derating_factors:
-                            pdf.add_derating_factors(st.session_state.derating_factors)
-                        
-                        pdf.add_load_details(st.session_state.loads_df)
-                        pdf.add_cable_results(st.session_state.cable_results_df)
-                        
-                        if st.session_state.detailed_calcs:
-                            pdf.add_detailed_cable_calculations(st.session_state.detailed_calcs)
-                        
-                        if st.session_state.cb_results and st.session_state.main_cb:
-                            pdf.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
-                        
-                        pdf_output = pdf.output(dest='S')
-                        b64 = base64.b64encode(pdf_output).decode()
-                        filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated with COMPLETE detailed calculations!")
+                        try:
+                            pdf = CablePDFReport()
+                            pdf.add_title()
+                            
+                            # Add common parameters
+                            pdf.add_page()
+                            pdf.set_font('Arial', 'B', 14)
+                            pdf.set_text_color(0, 51, 102)
+                            pdf.cell(0, 10, 'COMMON PARAMETERS FOR ALL LOADS', 0, 1, 'C')
+                            pdf.ln(5)
+                            pdf.set_font('Arial', '', 11)
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.cell(0, 7, f'System Type: {system_type}', 0, 1)
+                            pdf.cell(0, 7, f'Ambient Temperature: {ambient_temp}°C', 0, 1)
+                            pdf.ln(10)
+                            
+                            pdf.add_load_details(st.session_state.loads_df)
+                            pdf.add_cable_results(st.session_state.cable_results_df)
+                            
+                            if st.session_state.detailed_calcs:
+                                pdf.add_detailed_cable_calculations(st.session_state.detailed_calcs)
+                            
+                            if st.session_state.cb_results and st.session_state.main_cb:
+                                pdf.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
+                            
+                            # Use safe encoding function
+                            pdf_bytes = generate_safe_pdf(pdf)
+                            if pdf_bytes:
+                                b64 = base64.b64encode(pdf_bytes).decode()
+                                filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                                href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Click here to download PDF</a>'
+                                st.markdown(href, unsafe_allow_html=True)
+                                st.success("✅ PDF generated successfully! Click the button above to download.")
+                            else:
+                                st.error("Failed to generate PDF")
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {str(e)}")
             
             with col2:
                 if st.button("📥 Generate Word Report", key="cable_word", use_container_width=True):
                     with st.spinner("Generating Word with COMPLETE detailed calculations..."):
-                        word = CableWordReport()
-                        word.add_title()
-                        
-                        params = {
-                            'Cable Type': f'{st.session_state.cable_type} copper',
-                            'Ambient Temperature': f'{st.session_state.ambient_temp}°C',
-                            'Cable Arrangement': st.session_state.arrangement,
-                            'Spacing': f'{st.session_state.spacing_mm} mm',
-                            'Cable Formation': st.session_state.formation,
-                            'Installation Method': st.session_state.installation,
-                            'Cables in Group': str(st.session_state.num_cables),
-                            'Soil Resistivity': f'{st.session_state.soil_res} K.m/W',
-                            'Burial Depth': f'{st.session_state.depth} m',
-                            'System Type': st.session_state.system_type
-                        }
-                        word.add_installation_parameters(params)
-                        
-                        if st.session_state.derating_factors:
-                            word.add_derating_factors(st.session_state.derating_factors)
-                        
-                        word.add_load_details(st.session_state.loads_df)
-                        word.add_cable_results(st.session_state.cable_results_df)
-                        
-                        if st.session_state.detailed_calcs:
-                            word.add_detailed_cable_calculations(st.session_state.detailed_calcs)
-                        
-                        if st.session_state.cb_results and st.session_state.main_cb:
-                            word.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
-                        
-                        word_path = "temp_cable_report.docx"
-                        word.save(word_path)
-                        with open(word_path, "rb") as f:
-                            word_bytes = f.read()
-                        b64 = base64.b64encode(word_bytes).decode()
-                        filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
-                        os.remove(word_path)
-                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated with COMPLETE detailed calculations!")
+                        try:
+                            word = CableWordReport()
+                            word.add_title()
+                            
+                            # Add common parameters
+                            word.doc.add_heading('COMMON PARAMETERS FOR ALL LOADS', level=1)
+                            word.doc.add_paragraph(f'System Type: {system_type}')
+                            word.doc.add_paragraph(f'Ambient Temperature: {ambient_temp}°C')
+                            word.doc.add_paragraph()
+                            
+                            word.add_load_details(st.session_state.loads_df)
+                            word.add_cable_results(st.session_state.cable_results_df)
+                            
+                            if st.session_state.detailed_calcs:
+                                word.add_detailed_cable_calculations(st.session_state.detailed_calcs)
+                            
+                            if st.session_state.cb_results and st.session_state.main_cb:
+                                word.add_detailed_cb_calculations(st.session_state.cb_details, st.session_state.main_cb)
+                            
+                            word_path = "temp_cable_report.docx"
+                            word.save(word_path)
+                            with open(word_path, "rb") as f:
+                                word_bytes = f.read()
+                            b64 = base64.b64encode(word_bytes).decode()
+                            filename = f"Cable_CB_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                            os.remove(word_path)
+                            
+                            href = f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click here to download Word</a>'
+                            st.markdown(href, unsafe_allow_html=True)
+                            st.success("✅ Word generated successfully! Click the button above to download.")
+                        except Exception as e:
+                            st.error(f"Error generating Word document: {str(e)}")
         else:
             st.info("👈 Calculate cable sizes first to generate report")
 
-# ========== TAB 4: TRANSFORMER SIZING WITH DOWNLOADABLE REPORTS ==========
+# ========== TAB 4: TRANSFORMER SIZING ==========
 elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
@@ -2945,7 +3137,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
     
     tx_calc = SimpleTransformerCalculator()
     
-    # TAB 1: LOAD ANALYSIS (with sub-tabs)
+    # TAB 1: LOAD ANALYSIS
     with tx_main_tabs[0]:
         load_sub_tabs = st.tabs([
             "📋 Step-by-Step P, Q, S",
@@ -2962,8 +3154,11 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 # Calculate connected power
                 connected = load['Rating (kW)'] * load['Quantity']
                 
+                # Use load type diversity factor
+                load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+                
                 # Step 1: Calculate P (Real Power) with diversity
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_type_diversity)
                 
                 # Step 2: Calculate tan(acos(PF))
                 phi = math.acos(load['Power Factor'])
@@ -2975,17 +3170,18 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 # Step 4: Calculate S (Apparent Power)
                 s = tx_calc.calculate_s(p, q)
                 
+                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
+                
                 st.markdown(f"""
                 <div class="calc-step">
-                    <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span></h4>
-                    <p><b>Input Parameters:</b> Rating = {load['Rating (kW)']:.0f} kW, Quantity = {load['Quantity']}, PF = {load['Power Factor']}, Diversity = {load['Diversity Factor']}</p>
-                    <p><b>Step 1 - Connected Power:</b> {load['Rating (kW)']:.0f} kW × {load['Quantity']} = <b>{connected:.0f} kW</b></p>
-                    <p><b>Step 2 - Demand Power (P):</b> {connected:.0f} kW × {load['Diversity Factor']} = <b>{p:.1f} kW</b></p>
+                    <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span> ({load['Load Type']}, {cable_type})</h4>
+                    <p><b>Input Parameters:</b> Rating = {load['Rating (kW)']:.0f} kW, Quantity = {load['Quantity']}, PF = {load['Power Factor']}, Load Type = {load['Load Type']} ({load_type_diversity*100:.0f}%)</p>
+                    <p><b>Step 1 - Connected Power:</b> {load['Rating (kW)']:.0f} kW x {load['Quantity']} = <b>{connected:.0f} kW</b></p>
+                    <p><b>Step 2 - Demand Power (P):</b> {connected:.0f} kW x {load_type_diversity:.1f} = <b>{p:.1f} kW</b></p>
                     <p><b>Step 3 - Angle φ:</b> acos({load['Power Factor']}) = <b>{math.degrees(phi):.1f}°</b></p>
                     <p><b>Step 4 - tan(φ):</b> tan({math.degrees(phi):.1f}°) = <b>{tan_phi:.3f}</b></p>
-                    <p><b>Step 5 - Reactive Power (Q):</b> {p:.1f} kW × {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
+                    <p><b>Step 5 - Reactive Power (Q):</b> {p:.1f} kW x {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
                     <p><b>Step 6 - Apparent Power (S):</b> √({p:.1f}² + {q:.1f}²) = <b>{s:.1f} kVA</b></p>
-                    <p><b>Power Factor Check:</b> PF = {p:.1f} / {s:.1f} = <b>{p/s:.3f}</b> (should equal {load['Power Factor']})</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -3000,17 +3196,22 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             
             summary_data = []
             for idx, load in st.session_state.universal_loads.iterrows():
+                load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
                 connected = load['Rating (kW)'] * load['Quantity']
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_type_diversity)
                 q = tx_calc.calculate_q(p, load['Power Factor'])
                 s = tx_calc.calculate_s(p, q)
                 
+                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
+                
                 summary_data.append({
                     'Load': load['Load Description'],
+                    'Type': load['Load Type'],
+                    'Cable': cable_type,
                     'Qty': load['Quantity'],
                     'Rating (kW)': load['Rating (kW)'],
                     'Connected (kW)': f"{connected:.0f}",
-                    'Diversity': load['Diversity Factor'],
+                    'Load Factor': f"{load_type_diversity*100:.0f}%",
                     'P (kW)': f"{p:.1f}",
                     'PF': load['Power Factor'],
                     'Q (kVAR)': f"{q:.1f}",
@@ -3020,14 +3221,14 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             summary_df = pd.DataFrame(summary_data)
             st.dataframe(summary_df, use_container_width=True, hide_index=True)
             
-            # Formula explanation
             st.markdown("""
             <div class="formula-box">
                 <h4>📐 Formulas Used:</h4>
-                <p><b>Connected Power = Rating × Quantity</b></p>
-                <p><b>P = Connected Power × Diversity Factor</b> (Real Power)</p>
-                <p><b>Q = P × tan(acos(PF))</b> (Reactive Power)</p>
+                <p><b>Connected Power = Rating x Quantity</b></p>
+                <p><b>P = Connected Power x Load Type Factor</b> (Real Power)</p>
+                <p><b>Q = P x tan(acos(PF))</b> (Reactive Power)</p>
                 <p><b>S = √(P² + Q²)</b> (Apparent Power)</p>
+                <p><b>Load Type Factors:</b> Continuous=100%, Intermittent=30%, Standby=10%</p>
             </div>
             """, unsafe_allow_html=True)
     
@@ -3040,7 +3241,8 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         
         if largest_load is not None:
             # Calculate for largest equipment
-            p_largest = tx_calc.calculate_p(largest_load['Rating (kW)'], largest_load['Quantity'], largest_load['Diversity Factor'])
+            load_type_diversity = LOAD_TYPE_FACTORS[largest_load['Load Type']]['diversity']
+            p_largest = tx_calc.calculate_p(largest_load['Rating (kW)'], largest_load['Quantity'], load_type_diversity)
             q_largest = tx_calc.calculate_q(p_largest, largest_load['Power Factor'])
             s_largest = tx_calc.calculate_s(p_largest, q_largest)
             
@@ -3050,22 +3252,27 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             all_loads_data = []
             
             for idx, load in st.session_state.universal_loads.iterrows():
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load['Diversity Factor'])
+                load_div = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
+                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_div)
                 q = tx_calc.calculate_q(p, load['Power Factor'])
                 s = tx_calc.calculate_s(p, q)
                 
                 total_p += p
                 total_q += q
                 
+                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
+                
                 all_loads_data.append({
                     'load': load['Load Description'],
+                    'type': load['Load Type'],
+                    'cable': cable_type,
                     'p': p,
                     'q': q,
                     's': s,
                     'is_largest': (idx == largest_idx)
                 })
             
-            total_s = math.sqrt(total_p**2 + total_q**2)
+            total_s = math.sqrt(total_p**2 + total_q**2) if (total_p**2 + total_q**2) > 0 else 0
             
             # Largest Equipment Highlight
             st.markdown(f"""
@@ -3073,14 +3280,18 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 <h3>🏆 Largest Equipment: {largest_load['Load Description']}</h3>
                 <table style="width:100%; border-collapse: collapse;">
                     <tr>
+                        <td style="padding: 10px; font-weight: bold;">Load Type:</td>
+                        <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></td>
+                    </tr>
+                    <tr>
                         <td style="padding: 10px; font-weight: bold;">Connected Power:</td>
                         <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span></td>
-                        <td style="padding: 10px;">({largest_load['Rating (kW)']:.0f} kW × {largest_load['Quantity']})</td>
+                        <td style="padding: 10px;">({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; font-weight: bold;">Demand Power (P):</td>
                         <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span></td>
-                        <td style="padding: 10px;">(after diversity factor {largest_load['Diversity Factor']})</td>
+                        <td style="padding: 10px;">(after {load_type_diversity*100:.0f}% factor)</td>
                     </tr>
                     <tr>
                         <td style="padding: 10px; font-weight: bold;">Reactive Power (Q):</td>
@@ -3106,6 +3317,8 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 
                 impact_data.append({
                     'Load': data['load'],
+                    'Type': data['type'],
+                    'Cable': data['cable'],
                     'P (kW)': f"{data['p']:.1f}",
                     '% of Total P': f"{p_pct:.1f}%",
                     'S (kVA)': f"{data['s']:.1f}",
@@ -3127,11 +3340,12 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             
             for i, data in enumerate(sorted_loads):
                 cumulative_p += data['p']
-                p_pct = (cumulative_p / total_p) * 100
+                p_pct = (cumulative_p / total_p) * 100 if total_p > 0 else 0
                 
                 cumulative_data.append({
                     'Rank': i+1,
                     'Load': data['load'],
+                    'Type': data['type'],
                     'Individual P (kW)': f"{data['p']:.1f}",
                     'Cumulative P (kW)': f"{cumulative_p:.1f}",
                     '% of Total': f"{p_pct:.1f}%"
@@ -3140,16 +3354,6 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             cumulative_df = pd.DataFrame(cumulative_data)
             st.dataframe(cumulative_df, use_container_width=True, hide_index=True)
             
-            st.markdown(f"""
-            <div class="info-box">
-                <h4>📌 Key Observations:</h4>
-                <p>• The largest equipment (<b>{largest_load['Load Description']}</b>) contributes <b>{p_largest/total_p*100:.1f}%</b> of total real power.</p>
-                <p>• The top 2 loads account for <b>{cumulative_data[1]['% of Total']}</b> of total power.</p>
-                <p>• Starting this largest motor would cause a voltage dip of approximately <b>{p_largest/total_s*100:.1f}%</b> of transformer capacity.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Store for report
             st.session_state.tx_largest_data = {
                 'load': largest_load,
                 'connected': largest_connected,
@@ -3158,10 +3362,10 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                 's': s_largest
             }
     
-    # TAB 3: DOWNLOAD REPORT (Now with working downloads)
+    # TAB 3: DOWNLOAD REPORT
     with tx_main_tabs[2]:
         st.markdown("### ⚙️ Future Expansion")
-        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=50, step=5)
+        future_expansion = st.number_input("Future Expansion (%)", value=20, min_value=0, max_value=100, step=5)
         
         if 'total_p' in st.session_state and 'total_q' in st.session_state:
             total_p = st.session_state.total_p
@@ -3171,98 +3375,84 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             with_future = total_s * (1 + future_expansion/100)
             selected_kva = tx_calc.get_standard_rating(with_future)
             
-            # Display totals in metric cards
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="value">{total_p:.0f}</div>
-                    <div class="label">Total P (kW)</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
+                st.metric("Total P", f"{total_p:.0f} kW")
             with col2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="value">{total_q:.0f}</div>
-                    <div class="label">Total Q (kVAR)</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
+                st.metric("Total Q", f"{total_q:.0f} kVAR")
             with col3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="value">{total_s:.0f}</div>
-                    <div class="label">Total S (kVA)</div>
-                </div>
-                """, unsafe_allow_html=True)
-            
+                st.metric("Total S", f"{total_s:.0f} kVA")
             with col4:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="value">{with_future:.0f}</div>
-                    <div class="label">With {future_expansion}% Future</div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.metric("With Future", f"{with_future:.0f} kVA")
             
-            # Final selection
             st.markdown(f"""
             <div class="result-card">
-                <h3 style="margin-top:0;">✅ Final Transformer Selection</h3>
-                <p style="font-size: 18px;"><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
-                <p style="font-size: 18px;"><b>With {future_expansion}% future expansion = {total_s:.0f} × 1.{future_expansion/100:.0f} = {with_future:.0f} kVA</b></p>
-                <p style="font-size: 24px; margin: 15px 0;"><b>Selected Standard Rating [IEC 60076]: {selected_kva} kVA</b></p>
+                <h3>✅ Final Transformer Selection</h3>
+                <p><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
+                <p><b>With {future_expansion}% future = {total_s:.0f} x 1.{future_expansion/100:.0f} = {with_future:.0f} kVA</b></p>
+                <p style="font-size: 24px;"><b>Selected: {selected_kva} kVA [IEC 60076]</b></p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Download buttons - NOW WORKING
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("📥 Download PDF Report", key="tx_pdf", use_container_width=True):
-                    with st.spinner("Generating PDF report..."):
-                        pdf = TransformerPDFReport()
-                        pdf.add_title()
-                        pdf.add_load_analysis(st.session_state.universal_loads, tx_calc)
-                        pdf.add_step_by_step(st.session_state.universal_loads, tx_calc)
-                        
-                        if 'tx_largest_data' in st.session_state:
-                            pdf.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
-                        
-                        pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
-                        
-                        pdf_output = pdf.output(dest='S')
-                        b64 = base64.b64encode(pdf_output).decode()
-                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-                        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Download PDF</a>', unsafe_allow_html=True)
-                        st.success("✅ PDF generated successfully!")
+                    with st.spinner("Generating PDF Report..."):
+                        try:
+                            pdf = TransformerPDFReport()
+                            pdf.add_title()
+                            pdf.add_load_analysis(st.session_state.universal_loads, tx_calc)
+                            pdf.add_step_by_step(st.session_state.universal_loads, tx_calc)
+                            
+                            if 'tx_largest_data' in st.session_state and st.session_state.tx_largest_data:
+                                pdf.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
+                            
+                            pdf.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                            
+                            # Use safe encoding function
+                            pdf_bytes = generate_safe_pdf(pdf)
+                            if pdf_bytes:
+                                b64 = base64.b64encode(pdf_bytes).decode()
+                                filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                                href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}" class="download-btn pdf-btn">📥 Click here to download PDF</a>'
+                                st.markdown(href, unsafe_allow_html=True)
+                                st.success("✅ PDF generated successfully! Click the button above to download.")
+                            else:
+                                st.error("Failed to generate PDF")
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {e}")
             
             with col2:
                 if st.button("📥 Download Word Report", key="tx_word", use_container_width=True):
-                    with st.spinner("Generating Word report..."):
-                        word = TransformerWordReport()
-                        word.add_title()
-                        total_p_calc = word.add_load_analysis(st.session_state.universal_loads)
-                        
-                        total_p_step, total_q_step = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
-                        
-                        if 'tx_largest_data' in st.session_state:
-                            word.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
-                        
-                        word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
-                        
-                        word_path = "temp_transformer_report.docx"
-                        word.save(word_path)
-                        with open(word_path, "rb") as f:
-                            word_bytes = f.read()
-                        b64 = base64.b64encode(word_bytes).decode()
-                        filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
-                        os.remove(word_path)
-                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Download Word</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated successfully!")
+                    with st.spinner("Generating Word Report..."):
+                        try:
+                            word = TransformerWordReport()
+                            word.add_title()
+                            word.add_load_analysis(st.session_state.universal_loads)
+                            
+                            total_p_step, total_q_step = word.add_step_by_step(st.session_state.universal_loads, tx_calc)
+                            
+                            if 'tx_largest_data' in st.session_state and st.session_state.tx_largest_data:
+                                word.add_largest_equipment(st.session_state.universal_loads, tx_calc, total_p, total_s)
+                            
+                            word.add_transformer_selection(total_p, total_q, future_expansion, selected_kva, with_future, total_s)
+                            
+                            word_path = "temp_transformer_report.docx"
+                            word.save(word_path)
+                            with open(word_path, "rb") as f:
+                                word_bytes = f.read()
+                            b64 = base64.b64encode(word_bytes).decode()
+                            filename = f"Transformer_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.docx"
+                            os.remove(word_path)
+                            href = f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn">📥 Click here to download Word</a>'
+                            st.markdown(href, unsafe_allow_html=True)
+                            st.success("✅ Word generated successfully! Click the button above to download.")
+                        except Exception as e:
+                            st.error(f"Error generating Word document: {e}")
         else:
             st.warning("⚠️ Please go to Load Analysis tab first to calculate totals.")
 
-# ========== OTHER CALCULATORS (Placeholders) ==========
+# ========== OTHER CALCULATORS ==========
 elif st.session_state.selected_calculator == "⚡ Generator Sizing":
     st.markdown('<div class="report-header">⚡ GENERATOR SIZING</div>', unsafe_allow_html=True)
     st.info("⚡ Coming soon!")
@@ -3273,4 +3463,4 @@ elif st.session_state.selected_calculator == "🌍 Earthing System Design":
 
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray;'>🔌 CES-Electrical | Version 75.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray; font-size: 16px;'>🔌 CES-Electrical | Version 76.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)

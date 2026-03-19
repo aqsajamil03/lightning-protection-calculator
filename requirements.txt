@@ -1,8 +1,7 @@
 streamlit
-fpdf2
-python-docx
+pandas
 pillow
+fpdf
 PyPDF2
 img2pdf
-openpyxl
-pandas
+python-docx
