@@ -1,4 +1,3 @@
-# Version: 2.0 - Updated with corrected IEC cable database
 import streamlit as st
 import math
 import datetime
@@ -1776,7 +1775,9 @@ with st.sidebar:
         "📋 LOAD SHEET",
         "⚡ Lightning Protection",
         "🔌 Cable Sizing",
-        "⚙️ Transformer Sizing"
+        "⚙️ Transformer Sizing",
+        "🔄 Generator Sizing",
+        "⏚ Earthing"
     ]
     
     for calc in calculators:
@@ -2973,6 +2974,108 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
         else:
             st.warning("⚠️ Please go to load analysis tab first to calculate totals.")
 
+# ========== GENERATOR SIZING (PLACEHOLDER) ==========
+elif st.session_state.selected_calculator == "🔄 Generator Sizing":
+    
+    st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <h4>🚧 Coming Soon!</h4>
+        <p>Generator sizing calculator is currently under development.</p>
+        <p>Features to be included:</p>
+        <ul>
+            <li>Load analysis and kVA calculation</li>
+            <li>Motor starting analysis (DOL, Star-Delta, Soft Starter, VFD)</li>
+            <li>Fuel consumption calculation</li>
+            <li>Generator set selection from standard ratings</li>
+            <li>Voltage drop calculation for generator cables</li>
+            <li>Automatic transfer switch (ATS) sizing</li>
+            <li>Parallel generator operation analysis</li>
+        </ul>
+        <p style="margin-top: 15px;"><b>Expected release:</b> Coming soon in the next update!</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Show a simple preview of what's coming
+    with st.expander("📊 Preview - Generator Sizing Methodology", expanded=False):
+        st.markdown("""
+        **Generator Sizing Steps:**
+        
+        1. **Calculate Total Load (kVA)**
+           - Sum of all continuous loads
+           - Add largest motor starting kVA
+        
+        2. **Apply Diversity Factors**
+           - Based on load types (Continuous, Intermittent, Standby)
+        
+        3. **Consider Future Expansion**
+           - Add 20-30% for future growth
+        
+        4. **Select Standard Rating**
+           - Choose next standard generator size
+        
+        5. **Verify Starting Requirements**
+           - Check voltage dip during motor starting
+           - Ensure generator can handle starting current
+        
+        6. **Fuel Consumption Calculation**
+           - At 100%, 75%, 50% load
+           - Tank size recommendation
+        """)
+
+# ========== EARTHING (PLACEHOLDER) ==========
+elif st.session_state.selected_calculator == "⏚ Earthing":
+    
+    st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="info-box">
+        <h4>🚧 Coming Soon!</h4>
+        <p>Earthing system calculator is currently under development.</p>
+        <p>Features to be included:</p>
+        <ul>
+            <li>Soil resistivity analysis based on soil type</li>
+            <li>Rod, plate, and strip earthing calculations</li>
+            <li>Step and touch potential analysis (IEEE Std 80)</li>
+            <li>IEC 62305 lightning protection earthing compliance</li>
+            <li>Multiple electrode configuration (parallel rods)</li>
+            <li>Earth resistance calculation for various electrode types</li>
+            <li>Chemical earthing recommendation</li>
+        </ul>
+        <p style="margin-top: 15px;"><b>Expected release:</b> Coming soon in the next update!</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Show a simple preview of what's coming
+    with st.expander("📊 Preview - Earthing Calculation Methodology", expanded=False):
+        st.markdown("""
+        **Earthing Design Steps (IEEE Std 80 / IEC 62305):**
+        
+        **1. Soil Resistivity Measurement**
+        - Wenner four-pin method
+        - Soil types and typical resistivity values
+        
+        **2. Electrode Selection**
+        - Rod electrodes: R = (ρ / 2πL) × ln(4L/d)
+        - Plate electrodes: R = ρ / (4 × √(π × A))
+        - Strip/ring electrodes: R = (ρ / 2πL) × ln(2L² / (w × h))
+        
+        **3. Multiple Electrodes**
+        - Parallel rod configuration
+        - Utilization factor based on spacing
+        
+        **4. Step & Touch Potential**
+        - Step potential: Es = (ρ × I × Ks × Ki) / L
+        - Touch potential: Et = (ρ × I × Kt × Ki) / L
+        
+        **5. IEC 62305 Compliance**
+        - Class I: ≤ 1 Ω, min rod length 3m
+        - Class II: ≤ 4 Ω, min rod length 2.5m
+        - Class III: ≤ 10 Ω, min rod length 2m
+        - Class IV: ≤ 20 Ω, min rod length 1.5m
+        """)
+
 # Footer
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray; font-size: 16px;'>🔌 CES-Electrical | Version 88.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: gray; font-size: 16px;'>🔌 CES-Electrical | Version 2.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
