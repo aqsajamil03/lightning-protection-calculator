@@ -8,6 +8,7 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.section import WD_ORIENTATION
 import os
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
@@ -881,12 +882,16 @@ class CableWordReport:
         style = self.doc.styles['Normal']
         style.font.name = 'Arial'
         style.font.size = Pt(11)
-        sections = self.doc.sections
-        for section in sections:
-            section.top_margin = Cm(2.5)
-            section.bottom_margin = Cm(2.5)
-            section.left_margin = Cm(2.5)
-            section.right_margin = Cm(2.5)
+        
+        # Set landscape orientation for all sections to fit more columns
+        for section in self.doc.sections:
+            section.orientation = WD_ORIENTATION.LANDSCAPE
+            section.page_width = Cm(29.7)  # A4 landscape width
+            section.page_height = Cm(21.0)  # A4 landscape height
+            section.top_margin = Cm(2.0)
+            section.bottom_margin = Cm(2.0)
+            section.left_margin = Cm(1.5)
+            section.right_margin = Cm(1.5)
     
     def add_title(self):
         title = self.doc.add_heading('CABLE SIZING & CIRCUIT BREAKER REPORT', 0)
@@ -918,105 +923,198 @@ class CableWordReport:
             row_cells.cells[0].paragraphs[0].runs[0].bold = True
         self.doc.add_paragraph()
     
+    def _get_load_value(self, load, param_name):
+        """Helper method to get value for a parameter from load data"""
+        try:
+            if param_name == 'Power (kW)':
+                return f"{float(load['Power (kW)']):.1f}"
+            elif param_name == 'Voltage (V)':
+                return f"{float(load['Voltage (V)']):.0f}"
+            elif param_name == 'Phase':
+                return str(load['Phase'])
+            elif param_name == 'Load Type':
+                return format_load_type(load.get('Load Type', 'Continuous'))
+            elif param_name == 'Power Factor':
+                return f"{float(load.get('Power Factor', 0.85)):.2f}"
+            elif param_name == 'Efficiency':
+                return f"{float(load.get('Efficiency', 1.0)):.2f}"
+            elif param_name == 'Length (m)':
+                return f"{float(load['Length (m)']):.0f}"
+            elif param_name == 'Insulation Type':
+                return format_insulation_type(load.get('Insulation Type', 'XLPE_90'))
+            elif param_name == 'Cable Type':
+                return format_cable_type(load.get('Cable Type', 'single_core_non_armoured'))
+            elif param_name == 'Installation Method':
+                return format_installation_method(load.get('Installation Method', 'C'))
+            elif param_name == 'Cables in Group':
+                return str(load.get('Cables in Group', 1))
+            elif param_name == 'Cable Formation':
+                return format_cable_formation(load.get('Cable Formation', 'flat'))
+            else:
+                return 'N/A'
+        except:
+            return 'N/A'
+    
     def add_load_details(self, loads_df):
         heading = self.doc.add_heading('LOAD DETAILS', level=1)
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        for idx, load in loads_df.iterrows():
-            subheading = self.doc.add_heading(f'Load {idx+1}: {load["Load Name"]}', level=2)
-            subheading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-            table = self.doc.add_table(rows=12, cols=2)
+        
+        if loads_df.empty:
+            self.doc.add_paragraph('No load data available.')
+            return
+        
+        CHUNK_SIZE = 15  # Maximum rows per table (loads per page)
+        num_loads = len(loads_df)
+        num_chunks = (num_loads + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        # Parameters as COLUMNS
+        param_names = [
+            'Power (kW)', 'Voltage (V)', 'Phase', 'Load Type', 'Power Factor', 
+            'Efficiency', 'Length (m)', 'Insulation Type', 'Cable Type', 
+            'Installation Method', 'Cables in Group', 'Cable Formation'
+        ]
+        
+        for chunk_idx in range(num_chunks):
+            start_idx = chunk_idx * CHUNK_SIZE
+            end_idx = min(start_idx + CHUNK_SIZE, num_loads)
+            chunk_df = loads_df.iloc[start_idx:end_idx]
+            
+            if num_chunks > 1:
+                self.doc.add_heading(f'Loads {start_idx + 1} to {end_idx}', level=2)
+            
+            # Number of columns = number of parameters + 1 (for Load Name column)
+            num_cols = len(param_names) + 1
+            num_rows = len(chunk_df) + 1  # +1 for header row
+            
+            table = self.doc.add_table(rows=num_rows, cols=num_cols)
             table.style = 'Light Grid Accent 1'
             
-            power_val = float(load['Power (kW)']) if pd.notna(load['Power (kW)']) else 0
-            voltage_val = float(load['Voltage (V)']) if pd.notna(load['Voltage (V)']) else 0
-            phase_val = str(load['Phase']) if pd.notna(load['Phase']) else 'N/A'
-            load_type_val = format_load_type(load.get('Load Type', 'Continuous')) if pd.notna(load.get('Load Type', 'Continuous')) else 'Continuous'
-            # FIXED: Use .get() to safely access Power Factor
-            pf_val = float(load.get('Power Factor', 0.85)) if pd.notna(load.get('Power Factor', 0.85)) else 0.85
-            efficiency_val = float(load.get('Efficiency', 1.0)) if pd.notna(load.get('Efficiency', 1.0)) else 1.0
-            length_val = float(load['Length (m)']) if pd.notna(load['Length (m)']) else 0
-            insulation_val = format_insulation_type(load.get('Insulation Type', 'XLPE_90')) if pd.notna(load.get('Insulation Type', 'XLPE_90')) else 'XLPE 90°C'
-            cable_type_val = format_cable_type(load.get('Cable Type', 'single_core_non_armoured')) if pd.notna(load.get('Cable Type', 'single_core_non_armoured')) else 'Single core non-armoured'
-            install_method_val = format_installation_method(load.get('Installation Method', 'C')) if pd.notna(load.get('Installation Method', 'C')) else 'Method C'
-            cables_group_val = str(load.get('Cables in Group', 1)) if pd.notna(load.get('Cables in Group', 1)) else '1'
-            formation_val = format_cable_formation(load.get('Cable Formation', 'flat')) if pd.notna(load.get('Cable Formation', 'flat')) else 'Flat'
+            # HEADER ROW: Parameter names as column headers
+            header_row = table.rows[0]
+            header_row.cells[0].text = 'Load Name'
+            header_row.cells[0].paragraphs[0].runs[0].bold = True
             
-            params = [
-                ('Power (kW)', f"{power_val:.1f}"),
-                ('Voltage (V)', f"{voltage_val:.0f}"),
-                ('Phase', phase_val),
-                ('Load Type', load_type_val),
-                ('Power Factor', f"{pf_val:.2f}"),
-                ('Efficiency', f"{efficiency_val:.2f}"),
-                ('Length (m)', f"{length_val:.0f}"),
-                ('Insulation Type', insulation_val),
-                ('Cable Type', cable_type_val),
-                ('Installation Method', install_method_val),
-                ('Cables in Group', cables_group_val),
-                ('Cable Formation', formation_val)
-            ]
+            for col_idx, param_name in enumerate(param_names, start=1):
+                header_row.cells[col_idx].text = param_name
+                header_row.cells[col_idx].paragraphs[0].runs[0].bold = True
             
-            for i, (param, value) in enumerate(params):
-                if i < len(table.rows):
-                    row_cells = table.rows[i]
-                    row_cells.cells[0].text = param
-                    row_cells.cells[1].text = value
-                    row_cells.cells[0].paragraphs[0].runs[0].bold = True
+            # DATA ROWS: Each load as a row
+            for row_idx, (idx, load) in enumerate(chunk_df.iterrows(), start=1):
+                row_cells = table.rows[row_idx].cells
+                row_cells[0].text = load['Load Name']
+                
+                for col_idx, param_name in enumerate(param_names, start=1):
+                    value = self._get_load_value(load, param_name)
+                    row_cells[col_idx].text = value
             
-            if load.get('Installation Method') in ['D', 'D_direct']:
-                burial_table = self.doc.add_table(rows=2, cols=2)
-                burial_table.style = 'Light Grid Accent 1'
-                soil_res_val = load.get('Soil Resistivity (K.m/W)', 1.5) if pd.notna(load.get('Soil Resistivity (K.m/W)', 1.5)) else 1.5
-                depth_val = load.get('Burial Depth (m)', 0.8) if pd.notna(load.get('Burial Depth (m)', 0.8)) else 0.8
-                burial_params = [
-                    ('Soil Resistivity', f"{soil_res_val} K.m/W"),
-                    ('Burial Depth', f"{depth_val} m")
-                ]
-                for i, (param, value) in enumerate(burial_params):
-                    row_cells = burial_table.rows[i]
-                    row_cells.cells[0].text = param
-                    row_cells.cells[1].text = value
-                    row_cells.cells[0].paragraphs[0].runs[0].bold = True
             self.doc.add_paragraph()
+            
+            # Burial parameters (separate table if needed)
+            burial_params = ['Soil Resistivity (K.m/W)', 'Burial Depth (m)']
+            has_burial = any(load.get('Installation Method') in ['D', 'D_direct'] for _, load in chunk_df.iterrows())
+            
+            if has_burial:
+                burial_table = self.doc.add_table(rows=len(chunk_df) + 1, cols=len(burial_params) + 1)
+                burial_table.style = 'Light Grid Accent 1'
+                
+                # Header
+                burial_header = burial_table.rows[0]
+                burial_header.cells[0].text = 'Load Name'
+                burial_header.cells[0].paragraphs[0].runs[0].bold = True
+                
+                for col_idx, param_name in enumerate(burial_params, start=1):
+                    burial_header.cells[col_idx].text = param_name
+                    burial_header.cells[col_idx].paragraphs[0].runs[0].bold = True
+                
+                # Data rows
+                for row_idx, (idx, load) in enumerate(chunk_df.iterrows(), start=1):
+                    row_cells = burial_table.rows[row_idx].cells
+                    row_cells[0].text = load['Load Name']
+                    
+                    for col_idx, param_name in enumerate(burial_params, start=1):
+                        if load.get('Installation Method') in ['D', 'D_direct']:
+                            if param_name == 'Soil Resistivity (K.m/W)':
+                                value = f"{load.get('Soil Resistivity (K.m/W)', 1.5)}"
+                            else:
+                                value = f"{load.get('Burial Depth (m)', 0.8)} m"
+                        else:
+                            value = 'N/A'
+                        row_cells[col_idx].text = value
+                
+                self.doc.add_paragraph()
+            
+            if chunk_idx < num_chunks - 1:
+                self.doc.add_page_break()
     
     def add_cable_results(self, cable_df):
         heading = self.doc.add_heading('CABLE SIZING RESULTS', level=1)
         heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        for idx, row in cable_df.iterrows():
-            subheading = self.doc.add_heading(f'Load: {row["Load Name"]}', level=2)
-            subheading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-            table = self.doc.add_table(rows=14, cols=2)
+        
+        if cable_df.empty:
+            self.doc.add_paragraph('No cable results available.')
+            return
+        
+        CHUNK_SIZE = 20  # Maximum rows per table (loads per page)
+        num_loads = len(cable_df)
+        num_chunks = (num_loads + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        # Parameters as COLUMNS
+        result_params = [
+            'Size (mm²)', 'Load Current (A)', 'Base Ampacity (A)',
+            'Derating Factor K', 'Derated Ampacity (A)', 'Voltage Drop (%)',
+            'Short Circuit (kA)', 'Status', 'Check'
+        ]
+        
+        for chunk_idx in range(num_chunks):
+            start_idx = chunk_idx * CHUNK_SIZE
+            end_idx = min(start_idx + CHUNK_SIZE, num_loads)
+            chunk_df = cable_df.iloc[start_idx:end_idx]
+            
+            if num_chunks > 1:
+                self.doc.add_heading(f'Results for Loads {start_idx + 1} to {end_idx}', level=2)
+            
+            # Number of columns = number of parameters + 1 (for Load Name column)
+            num_cols = len(result_params) + 1
+            num_rows = len(chunk_df) + 1  # +1 for header row
+            
+            table = self.doc.add_table(rows=num_rows, cols=num_cols)
             table.style = 'Light Grid Accent 1'
-            status_color = RGBColor(0, 128, 0) if row['Status'] == 'PASS' else RGBColor(255, 0, 0)
-            check_color = RGBColor(0, 128, 0) if row.get('Check', 'N/A') == 'PASS' else RGBColor(255, 0, 0)
-            params = [
-                ('Selected Cable Size', f"{row['Size (mm²)']} mm²"),
-                ('Cable Type', str(row.get('Cable Type', 'N/A'))),
-                ('Insulation Type', str(row.get('Insulation', 'N/A'))),
-                ('Load Current', str(row.get('Load Current (A)', 'N/A'))),
-                ('Base Ampacity', f"{row['Base Ampacity (A)']} A"),
-                ('Derating Factor K', str(row.get('Derating Factor K', 'N/A'))),
-                ('Derated Ampacity', str(row['Derated Ampacity (A)'])),
-                ('Voltage Drop', f"{row['Voltage Drop (%)']}%"),
-                ('Voltage Drop Limit', '2.5%'),
-                ('Short Circuit Current', f"{row['Short Circuit (kA)']} kA"),
-                ('Initial Temperature (θi)', str(row.get('θi (°C)', 'N/A'))),
-                ('Final Temperature (θf)', str(row.get('θf (°C)', 'N/A'))),
-                ('Operating Temperature', str(row.get('Operating Temp', 'N/A'))),
-                ('Status', row['Status']),
-                ('Verification', row.get('Check', 'N/A'))
-            ]
-            for i, (param, value) in enumerate(params):
-                if i < len(table.rows):
-                    row_cells = table.rows[i]
-                    row_cells.cells[0].text = param
-                    row_cells.cells[1].text = value
-                    row_cells.cells[0].paragraphs[0].runs[0].bold = True
+            
+            # HEADER ROW: Parameter names as column headers
+            header_row = table.rows[0]
+            header_row.cells[0].text = 'Load Name'
+            header_row.cells[0].paragraphs[0].runs[0].bold = True
+            
+            for col_idx, param in enumerate(result_params, start=1):
+                header_row.cells[col_idx].text = param
+                header_row.cells[col_idx].paragraphs[0].runs[0].bold = True
+            
+            # DATA ROWS: Each load as a row
+            for row_idx, (idx, cable_row) in enumerate(chunk_df.iterrows(), start=1):
+                row_cells = table.rows[row_idx].cells
+                row_cells[0].text = cable_row['Load Name']
+                
+                for col_idx, param in enumerate(result_params, start=1):
+                    value = str(cable_row.get(param, 'N/A'))
+                    cell = row_cells[col_idx]
+                    cell.text = value
+                    
+                    # Color coding for Status and Check
                     if param == 'Status':
-                        row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = status_color
-                    elif param == 'Verification':
-                        row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = check_color
+                        if value == 'PASS':
+                            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
+                        else:
+                            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
+                    elif param == 'Check':
+                        if value == 'PASS':
+                            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
+                        else:
+                            cell.paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
+            
             self.doc.add_paragraph()
+            
+            if chunk_idx < num_chunks - 1:
+                self.doc.add_page_break()
     
     def add_detailed_calculations(self, detailed_calcs):
         self.doc.add_page_break()
@@ -1097,7 +1195,7 @@ class CableWordReport:
                 elif param == 'Check':
                     row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
             
-            # Step 4.5: Cable selection trials (all attempted sizes)
+            # Step 4.5: Cable selection trials
             if 'trials' in calc and calc['trials']:
                 self.doc.add_heading('Step 4.5: Cable selection trials (all attempted sizes)', level=3)
                 
@@ -1130,7 +1228,7 @@ class CableWordReport:
                 
                 self.doc.add_paragraph()
             
-            # Step 5: Voltage drop calculation with detailed steps
+            # Step 5: Voltage drop calculation
             self.doc.add_heading('Step 5: Voltage drop calculation', level=3)
             
             cable_db = get_cable_data(calc['insulation_type'], calc['cable_type'])
@@ -1147,7 +1245,14 @@ class CableWordReport:
                 x_value = cable_data.get('X', 0)
             
             if r_value == 0:
-                r_value = 0.19
+                if calc['size'] <= 16:
+                    r_value = 1.15
+                elif calc['size'] <= 35:
+                    r_value = 0.73
+                elif calc['size'] <= 95:
+                    r_value = 0.44
+                else:
+                    r_value = 0.19
                 self.doc.add_paragraph(f'ℹ️ Using typical R = {r_value:.4f} Ω/km (actual cable data not available)')
             if x_value == 0:
                 x_value = 0.08
@@ -1292,46 +1397,66 @@ class CableWordReport:
                 self.doc.add_paragraph(f'Series: {detail["series"]}')
                 self.doc.add_paragraph('_' * 50)
         
-        # ========== SUMMARY TABLES ==========
+        # ========== COMPACT TABLE FOR INDIVIDUAL CIRCUIT BREAKERS ==========
         self.doc.add_heading('INDIVIDUAL CIRCUIT BREAKERS SUMMARY', level=2)
-        for r in cb_results:
-            subheading = self.doc.add_heading(f'Load: {r["Load"]}', level=3)
-            table = self.doc.add_table(rows=11, cols=2)
+        
+        cb_params = ['Power (kW)', 'Voltage (V)', 'Phase', 'Load Current (A)', 
+                     'Selected CB (A)', 'Breaker Type', 'Poles']
+        
+        CHUNK_SIZE = 20
+        num_loads = len(cb_results)
+        num_chunks = (num_loads + CHUNK_SIZE - 1) // CHUNK_SIZE
+        
+        for chunk_idx in range(num_chunks):
+            start_idx = chunk_idx * CHUNK_SIZE
+            end_idx = min(start_idx + CHUNK_SIZE, num_loads)
+            chunk_results = cb_results[start_idx:end_idx]
+            
+            if num_chunks > 1:
+                self.doc.add_heading(f'Breakers for Loads {start_idx + 1} to {end_idx}', level=3)
+            
+            num_cols = len(cb_params) + 1
+            num_rows = len(chunk_results) + 1
+            table = self.doc.add_table(rows=num_rows, cols=num_cols)
             table.style = 'Light Grid Accent 1'
-            selected_poles = pole_selections.get(r['Load'], '3P')
             
-            power_val = r.get('Power (kW)', 0)
-            voltage_val = r.get('Voltage (V)', 0)
-            phase_val = r.get('Phase', 'N/A')
-            load_type_val = r.get('Load Type', 'Continuous')
-            current_val = r.get('Current (A)', 0)
-            required_val = r.get('Required CB (A)', 0)
-            selected_val = r.get('Selected CB (A)', 0)
-            breaker_type_val = r.get('Breaker Type', 'N/A')
-            standard_val = r.get('Standard', 'N/A')
-            manufacturer_val = r.get('Manufacturer', 'N/A')
-            series_val = r.get('Series', 'N/A')
+            # Header row: Parameters as column headers
+            header_row = table.rows[0]
+            header_row.cells[0].text = 'Load Name'
+            header_row.cells[0].paragraphs[0].runs[0].bold = True
             
-            params = [
-                ('Power', f"{power_val:.1f} kW"),
-                ('Voltage', f"{voltage_val:.0f} V"),
-                ('Phase', phase_val),
-                ('Load Type', load_type_val),
-                ('Load Current', f"{current_val:.1f} A"),
-                ('Required CB Rating', f"{required_val:.1f} A"),
-                ('Selected CB Rating', f"{selected_val} A"),
-                ('Breaker Type', f"{breaker_type_val} ({standard_val})"),
-                ('Manufacturer', manufacturer_val),
-                ('Series', series_val),
-                ('Poles', selected_poles)
-            ]
-            for i, (param, value) in enumerate(params):
-                if i < len(table.rows):
-                    row_cells = table.rows[i]
-                    row_cells.cells[0].text = param
-                    row_cells.cells[1].text = value
-                    row_cells.cells[0].paragraphs[0].runs[0].bold = True
+            for col_idx, param in enumerate(cb_params, start=1):
+                header_row.cells[col_idx].text = param
+                header_row.cells[col_idx].paragraphs[0].runs[0].bold = True
+            
+            # Data rows: Each load as a row
+            for row_idx, r in enumerate(chunk_results, start=1):
+                row_cells = table.rows[row_idx].cells
+                row_cells[0].text = r['Load']
+                
+                for col_idx, param in enumerate(cb_params, start=1):
+                    if param == 'Power (kW)':
+                        value = f"{r['Power (kW)']:.1f}"
+                    elif param == 'Voltage (V)':
+                        value = f"{r['Voltage (V)']:.0f}"
+                    elif param == 'Phase':
+                        value = r['Phase']
+                    elif param == 'Load Current (A)':
+                        value = f"{r['Current (A)']:.1f}"
+                    elif param == 'Selected CB (A)':
+                        value = str(r['Selected CB (A)'])
+                    elif param == 'Breaker Type':
+                        value = f"{r['Breaker Type']}"
+                    elif param == 'Poles':
+                        value = pole_selections.get(r['Load'], '3P')
+                    else:
+                        value = 'N/A'
+                    row_cells[col_idx].text = value
+            
             self.doc.add_paragraph()
+            
+            if chunk_idx < num_chunks - 1:
+                self.doc.add_page_break()
         
         # ========== MAIN CIRCUIT BREAKERS (BY VOLTAGE LEVEL) ==========
         self.doc.add_heading('MAIN CIRCUIT BREAKERS (BY VOLTAGE LEVEL)', level=2)
@@ -2047,7 +2172,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         'Base Ampacity (A)': base_ampacity,
                         'Derating Factor K': f"{total_k_actual:.3f}",
                         'Derated Ampacity (A)': f"{derated_amp_actual:.1f} A",
-                        'Voltage Drop (%)': f"{vd_pct:.3f}%",
+                        'Voltage Drop (%)': f"{vd_pct:.3f}",
                         'Short Circuit (kA)': f"{isc/1000:.2f}",
                         'K Value': f"{k_value}",
                         'θi (°C)': f"{theta_i:.0f}",
@@ -2455,7 +2580,7 @@ Isc = **{calc['sc']:.2f} kA**
             if st.button("📥 Generate word report", key="cable_word", use_container_width=True):
                 with st.spinner("Generating word with complete detailed calculations..."):
                     try:
-                        # FIX: Sanitize data before generating report - ensure all Power Factor values exist
+                        # Sanitize data before generating report
                         for calc in st.session_state.detailed_calcs:
                             if 'pf' not in calc or calc['pf'] is None or calc['pf'] == '':
                                 calc['pf'] = 0.85
