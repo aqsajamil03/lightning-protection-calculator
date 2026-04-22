@@ -21,12 +21,21 @@ def format_cable_arrangement(arrangement):
         'single_layer_wall_floor': 'Single layer on wall or floor',
         'single_layer_perforated_tray': 'Single layer on perforated tray',
         'single_layer_ladder_cleats': 'Single layer on ladder / cleats',
-        'direct_buried_touching': 'Direct Buried - Cables Touching',
-        'direct_buried_spaced': 'Direct Buried - Cables Spaced (1 diameter)',
-        'buried_ducts_touching': 'Buried in Ducts - Ducts Touching',
-        'buried_ducts_spaced': 'Buried in Ducts - Ducts Spaced (0.25m)'
+        'direct_buried': 'Direct Buried in Ground',
+        'buried_ducts': 'Buried in Ducts'
     }
     return formats.get(arrangement, arrangement.replace('_', ' ').title())
+
+def format_cable_clearance(clearance):
+    formats = {
+        'touching': 'Touching (0 clearance)',
+        'one_diameter': 'One cable diameter spacing',
+        'clearance_0_125m': '0.125 m clearance',
+        'clearance_0_25m': '0.25 m clearance',
+        'clearance_0_5m': '0.5 m clearance',
+        'clearance_1_0m': '1.0 m clearance'
+    }
+    return formats.get(clearance, clearance.replace('_', ' ').title())
 
 def format_cable_formation(formation):
     formats = {'flat': 'Flat', 'trefoil': 'Trefoil', 'spaced': 'Spaced'}
@@ -42,8 +51,11 @@ def format_cable_type(cable_type):
     return formats.get(cable_type, cable_type.replace('_', ' ').title())
 
 def format_insulation_type(insulation_type):
-    formats = {'XLPE_90': 'XLPE 90°C', 'PVC_70': 'PVC 70°C'}
-    return formats.get(insulation_type, insulation_type.replace('_', ' '))
+    if insulation_type == 'PVC_70':
+        return 'PVC 70°C'
+    elif insulation_type == 'XLPE_90':
+        return 'XLPE 90°C'
+    return insulation_type.replace('_', ' ')
 
 def format_load_type(load_type):
     return load_type.capitalize()
@@ -59,6 +71,26 @@ def format_installation_method(method):
         'G': 'Method G - In free air (spaced)'
     }
     return formats.get(method, method)
+
+def get_table_config_description(config_key, cable_type):
+    """Get full description for cable configuration key"""
+    descriptions = {
+        'B2': '2 cables, single-phase a.c. or d.c.',
+        'B34': '3 or 4 cables, three-phase a.c.',
+        'C2': '2 cables, single-phase a.c. or d.c.',
+        'C34': '3 or 4 cables, three-phase a.c.',
+        'F2': '2 cables, flat and touching, single-phase a.c. or d.c.',
+        'F34_flat': '3 or 4 cables, flat and touching, three-phase a.c.',
+        'F34_trefoil': '3 cables, trefoil formation, three-phase a.c.',
+        'G2': '2 cables, spaced by one diameter, single-phase a.c. or d.c.',
+        'G34': '3 cables, spaced by one diameter, three-phase a.c.',
+        'E2': '1 two-core cable, single-phase a.c. or d.c.',
+        'E34': '1 three or four-core cable, three-phase a.c.',
+        'F2_flat': '2 cables, flat and touching, single-phase a.c. or d.c.',
+        'D2': '1 two-core cable, single-phase a.c. or d.c. (buried)',
+        'D34': '1 three or four-core cable, three-phase a.c. (buried)'
+    }
+    return descriptions.get(config_key, config_key)
 
 st.markdown("""
 <style>
@@ -115,7 +147,7 @@ LOAD_TYPE_FACTORS = {
     'Standby': {'diversity': 0.1, 'description': 'Stand-by (10%) - Emergency/backup only', 'cb_factor': 1.25, 'color': '#DC3545'}
 }
 
-# ========== TEMPERATURE DERATING FACTORS (TABLE 4B1 & 4B2) ==========
+# ========== TEMPERATURE DERATING FACTORS ==========
 TEMPERATURE_FACTORS_AIR = {70: {25: 1.03, 30: 1.00, 35: 0.94, 40: 0.87, 45: 0.79, 50: 0.71, 55: 0.61}, 90: {25: 1.02, 30: 1.00, 35: 0.96, 40: 0.91, 45: 0.87, 50: 0.82, 55: 0.76}}
 TEMPERATURE_FACTORS_GROUND = {70: {10: 1.10, 15: 1.05, 20: 1.00, 25: 0.95, 30: 0.89, 35: 0.84, 40: 0.77, 45: 0.71}, 90: {10: 1.07, 15: 1.04, 20: 1.00, 25: 0.96, 30: 0.93, 35: 0.89, 40: 0.85, 45: 0.80}}
 
@@ -139,19 +171,48 @@ GROUPING_FACTORS_AIR = {
     'single_layer_ladder_cleats': {1: 1.00, 2: 0.87, 3: 0.82, 4: 0.80, 5: 0.80, 6: 0.79, 7: 0.79, 8: 0.78, 9: 0.78, 12: 0.78, 16: 0.78, 20: 0.78},
 }
 
-GROUPING_FACTORS_BURIED = {
-    'direct_buried_touching': {1: 1.00, 2: 0.75, 3: 0.65, 4: 0.60, 5: 0.55, 6: 0.50},
-    'direct_buried_spaced': {1: 1.00, 2: 0.80, 3: 0.70, 4: 0.60, 5: 0.55, 6: 0.55},
-    'buried_ducts_touching': {1: 1.00, 2: 0.85, 3: 0.75, 4: 0.70, 5: 0.65, 6: 0.60},
-    'buried_ducts_spaced': {1: 1.00, 2: 0.90, 3: 0.85, 4: 0.80, 5: 0.80, 6: 0.80},
+GROUPING_FACTORS_BURIED_DIRECT = {
+    'touching': {1: 1.00, 2: 0.75, 3: 0.65, 4: 0.60, 5: 0.55, 6: 0.50},
+    'one_diameter': {1: 1.00, 2: 0.80, 3: 0.70, 4: 0.60, 5: 0.55, 6: 0.55},
+    'clearance_0_125m': {1: 1.00, 2: 0.85, 3: 0.75, 4: 0.70, 5: 0.65, 6: 0.60},
+    'clearance_0_25m': {1: 1.00, 2: 0.90, 3: 0.80, 4: 0.75, 5: 0.70, 6: 0.70},
+    'clearance_0_5m': {1: 1.00, 2: 0.90, 3: 0.85, 4: 0.80, 5: 0.80, 6: 0.80},
 }
 
-def get_grouping_factor(num_cables, arrangement, installation_type='air'):
+GROUPING_FACTORS_BURIED_DUCTS_MULTI = {
+    'touching': {1: 1.00, 2: 0.85, 3: 0.75, 4: 0.70, 5: 0.65, 6: 0.60},
+    'clearance_0_25m': {1: 1.00, 2: 0.90, 3: 0.85, 4: 0.80, 5: 0.80, 6: 0.80},
+    'clearance_0_5m': {1: 1.00, 2: 0.95, 3: 0.90, 4: 0.85, 5: 0.85, 6: 0.85},
+    'clearance_1_0m': {1: 1.00, 2: 0.95, 3: 0.95, 4: 0.90, 5: 0.90, 6: 0.90},
+}
+
+GROUPING_FACTORS_BURIED_DUCTS_SINGLE = {
+    'touching': {1: 1.00, 2: 0.80, 3: 0.70, 4: 0.65, 5: 0.60, 6: 0.60},
+    'clearance_0_25m': {1: 1.00, 2: 0.90, 3: 0.80, 4: 0.75, 5: 0.70, 6: 0.70},
+    'clearance_0_5m': {1: 1.00, 2: 0.90, 3: 0.85, 4: 0.80, 5: 0.80, 6: 0.80},
+    'clearance_1_0m': {1: 1.00, 2: 0.95, 3: 0.90, 4: 0.90, 5: 0.90, 6: 0.95},
+}
+
+def get_grouping_factor(num_cables, arrangement, installation_type='air', clearance='touching', is_single_core=True):
     if installation_type in ['buried', 'duct', 'ground', 'D', 'D_direct']:
-        if arrangement in GROUPING_FACTORS_BURIED:
-            factors = GROUPING_FACTORS_BURIED[arrangement]
+        if arrangement == 'direct_buried':
+            if clearance in GROUPING_FACTORS_BURIED_DIRECT:
+                factors = GROUPING_FACTORS_BURIED_DIRECT[clearance]
+            else:
+                factors = GROUPING_FACTORS_BURIED_DIRECT['touching']
+        elif arrangement == 'buried_ducts':
+            if is_single_core:
+                if clearance in GROUPING_FACTORS_BURIED_DUCTS_SINGLE:
+                    factors = GROUPING_FACTORS_BURIED_DUCTS_SINGLE[clearance]
+                else:
+                    factors = GROUPING_FACTORS_BURIED_DUCTS_SINGLE['touching']
+            else:
+                if clearance in GROUPING_FACTORS_BURIED_DUCTS_MULTI:
+                    factors = GROUPING_FACTORS_BURIED_DUCTS_MULTI[clearance]
+                else:
+                    factors = GROUPING_FACTORS_BURIED_DUCTS_MULTI['touching']
         else:
-            factors = GROUPING_FACTORS_BURIED['direct_buried_touching']
+            factors = GROUPING_FACTORS_BURIED_DIRECT['touching']
     else:
         if arrangement in GROUPING_FACTORS_AIR:
             factors = GROUPING_FACTORS_AIR[arrangement]
@@ -232,245 +293,291 @@ def calculate_short_circuit_current(size_mm2, insulation_type, duration_s=1.0, c
     log_term = math.log((θf + β) / (θi + β))
     return first_term * math.sqrt(log_term), K, θi, θf
 
-# ========== CABLE DATABASES - COMPLETE ==========
+# ========== ACCURATE VOLTAGE DROP DATABASE BASED ON BS 7671 TABLES ==========
 
-# SINGLE CORE XLPE 90°C NON-ARMOURED (Table 4E1A & 4E1B)
-XLPE_90_SINGLE_NON_ARMOURED = {
-    1.5: {'ampacity': {'B2': 23.0, 'B34': 20.0, 'C2': 25.0, 'C34': 23.0, 'F2': 26.0, 'F34_flat': 23.0, 'F34_trefoil': 23.0, 'G2': 32.0, 'G34': 29.0}, 'voltage_drop': {'B2': 31, 'B34': 27, 'C2': 31, 'C34': 27, 'F2': 31, 'F34': 27, 'G2': 31, 'G34': 27}, 'R': 12.1, 'X': 0.13},
-    2.5: {'ampacity': {'B2': 31.0, 'B34': 28.0, 'C2': 34.0, 'C34': 31.0, 'F2': 36.0, 'F34_flat': 32.0, 'F34_trefoil': 32.0, 'G2': 44.0, 'G34': 40.0}, 'voltage_drop': {'B2': 19, 'B34': 16, 'C2': 19, 'C34': 16, 'F2': 19, 'F34': 16, 'G2': 19, 'G34': 16}, 'R': 7.41, 'X': 0.13},
-    4.0: {'ampacity': {'B2': 42.0, 'B34': 37.0, 'C2': 46.0, 'C34': 41.0, 'F2': 49.0, 'F34_flat': 42.0, 'F34_trefoil': 42.0, 'G2': 59.0, 'G34': 53.0}, 'voltage_drop': {'B2': 12, 'B34': 10, 'C2': 12, 'C34': 10, 'F2': 12, 'F34': 10, 'G2': 12, 'G34': 10}, 'R': 4.61, 'X': 0.13},
-    6.0: {'ampacity': {'B2': 54.0, 'B34': 48.0, 'C2': 59.0, 'C34': 54.0, 'F2': 63.0, 'F34_flat': 54.0, 'F34_trefoil': 54.0, 'G2': 76.0, 'G34': 68.0}, 'voltage_drop': {'B2': 7.9, 'B34': 6.8, 'C2': 7.9, 'C34': 6.8, 'F2': 7.9, 'F34': 6.8, 'G2': 7.9, 'G34': 6.8}, 'R': 3.08, 'X': 0.13},
-    10.0: {'ampacity': {'B2': 75.0, 'B34': 66.0, 'C2': 81.0, 'C34': 74.0, 'F2': 86.0, 'F34_flat': 75.0, 'F34_trefoil': 75.0, 'G2': 103.0, 'G34': 93.0}, 'voltage_drop': {'B2': 4.7, 'B34': 4.0, 'C2': 4.7, 'C34': 4.0, 'F2': 4.7, 'F34': 4.0, 'G2': 4.7, 'G34': 4.0}, 'R': 1.83, 'X': 0.13},
-    16.0: {'ampacity': {'B2': 100.0, 'B34': 88.0, 'C2': 109.0, 'C34': 99.0, 'F2': 115.0, 'F34_flat': 100.0, 'F34_trefoil': 100.0, 'G2': 138.0, 'G34': 124.0}, 'voltage_drop': {'B2': 2.9, 'B34': 2.5, 'C2': 2.9, 'C34': 2.5, 'F2': 2.9, 'F34': 2.5, 'G2': 2.9, 'G34': 2.5}, 'R': 1.15, 'X': 0.13},
-    25.0: {'ampacity': {'B2': 133.0, 'B34': 117.0, 'C2': 143.0, 'C34': 130.0, 'F2': 149.0, 'F34_flat': 127.0, 'F34_trefoil': 127.0, 'G2': 176.0, 'G34': 158.0}, 'voltage_drop': {'B2': 1.85, 'B34': 1.6, 'C2': 1.85, 'C34': 1.6, 'F2': 1.85, 'F34': 1.6, 'G2': 1.85, 'G34': 1.6}, 'R': 0.727, 'X': 0.13},
-    35.0: {'ampacity': {'B2': 164.0, 'B34': 144.0, 'C2': 176.0, 'C34': 161.0, 'F2': 185.0, 'F34_flat': 158.0, 'F34_trefoil': 158.0, 'G2': 218.0, 'G34': 196.0}, 'voltage_drop': {'B2': 1.35, 'B34': 1.15, 'C2': 1.35, 'C34': 1.15, 'F2': 1.35, 'F34': 1.15, 'G2': 1.35, 'G34': 1.15}, 'R': 0.524, 'X': 0.13},
-    50.0: {'ampacity': {'B2': 198.0, 'B34': 175.0, 'C2': 228.0, 'C34': 209.0, 'F2': 225.0, 'F34_flat': 192.0, 'F34_trefoil': 192.0, 'G2': 265.0, 'G34': 240.0}, 'voltage_drop': {'B2': 0.99, 'B34': 0.87, 'C2': 0.99, 'C34': 0.87, 'F2': 0.99, 'F34': 0.87, 'G2': 0.99, 'G34': 0.87}, 'R': 0.387, 'X': 0.13},
-    70.0: {'ampacity': {'B2': 253.0, 'B34': 222.0, 'C2': 293.0, 'C34': 268.0, 'F2': 289.0, 'F34_flat': 246.0, 'F34_trefoil': 246.0, 'G2': 340.0, 'G34': 307.0}, 'voltage_drop': {'B2': 0.68, 'B34': 0.60, 'C2': 0.68, 'C34': 0.60, 'F2': 0.68, 'F34': 0.60, 'G2': 0.68, 'G34': 0.60}, 'R': 0.268, 'X': 0.13},
-    95.0: {'ampacity': {'B2': 306.0, 'B34': 269.0, 'C2': 355.0, 'C34': 326.0, 'F2': 352.0, 'F34_flat': 298.0, 'F34_trefoil': 298.0, 'G2': 415.0, 'G34': 375.0}, 'voltage_drop': {'B2': 0.49, 'B34': 0.43, 'C2': 0.49, 'C34': 0.43, 'F2': 0.49, 'F34': 0.43, 'G2': 0.49, 'G34': 0.43}, 'R': 0.193, 'X': 0.13},
-    120.0: {'ampacity': {'B2': 354.0, 'B34': 312.0, 'C2': 413.0, 'C34': 379.0, 'F2': 410.0, 'F34_flat': 346.0, 'F34_trefoil': 346.0, 'G2': 483.0, 'G34': 437.0}, 'voltage_drop': {'B2': 0.39, 'B34': 0.34, 'C2': 0.39, 'C34': 0.34, 'F2': 0.39, 'F34': 0.34, 'G2': 0.39, 'G34': 0.34}, 'R': 0.153, 'X': 0.13},
-    150.0: {'ampacity': {'B2': 393.0, 'B34': 342.0, 'C2': 476.0, 'C34': 436.0, 'F2': 473.0, 'F34_flat': 399.0, 'F34_trefoil': 399.0, 'G2': 558.0, 'G34': 505.0}, 'voltage_drop': {'B2': 0.32, 'B34': 0.28, 'C2': 0.32, 'C34': 0.28, 'F2': 0.32, 'F34': 0.28, 'G2': 0.32, 'G34': 0.28}, 'R': 0.124, 'X': 0.13},
-    185.0: {'ampacity': {'B2': 449.0, 'B34': 384.0, 'C2': 545.0, 'C34': 500.0, 'F2': 542.0, 'F34_flat': 456.0, 'F34_trefoil': 456.0, 'G2': 640.0, 'G34': 580.0}, 'voltage_drop': {'B2': 0.25, 'B34': 0.22, 'C2': 0.25, 'C34': 0.22, 'F2': 0.25, 'F34': 0.22, 'G2': 0.25, 'G34': 0.22}, 'R': 0.0991, 'X': 0.13},
-    240.0: {'ampacity': {'B2': 528.0, 'B34': 450.0, 'C2': 644.0, 'C34': 590.0, 'F2': 641.0, 'F34_flat': 538.0, 'F34_trefoil': 538.0, 'G2': 757.0, 'G34': 686.0}, 'voltage_drop': {'B2': 0.19, 'B34': 0.17, 'C2': 0.19, 'C34': 0.17, 'F2': 0.19, 'F34': 0.17, 'G2': 0.19, 'G34': 0.17}, 'R': 0.0754, 'X': 0.13},
-    300.0: {'ampacity': {'B2': 603.0, 'B34': 514.0, 'C2': 743.0, 'C34': 681.0, 'F2': 741.0, 'F34_flat': 621.0, 'F34_trefoil': 621.0, 'G2': 875.0, 'G34': 793.0}, 'voltage_drop': {'B2': 0.155, 'B34': 0.14, 'C2': 0.155, 'C34': 0.14, 'F2': 0.155, 'F34': 0.14, 'G2': 0.155, 'G34': 0.14}, 'R': 0.0601, 'X': 0.13},
-    400.0: {'ampacity': {'B2': 683.0, 'B34': 584.0, 'C2': 868.0, 'C34': 793.0, 'F2': 865.0, 'F34_flat': 741.0, 'F34_trefoil': 741.0, 'G2': 1025.0, 'G34': 930.0}, 'voltage_drop': {'B2': 0.12, 'B34': 0.11, 'C2': 0.12, 'C34': 0.11, 'F2': 0.12, 'F34': 0.11, 'G2': 0.12, 'G34': 0.11}, 'R': 0.0470, 'X': 0.13},
-}
-
-# MULTI CORE XLPE 90°C NON-ARMOURED (Table 4E2A & 4E2B)
+# MULTI CORE NON-ARMOURED (Table 4E2B)
 XLPE_90_MULTI_NON_ARMOURED = {
-    1.5: {'ampacity': {'B2': 22.0, 'B34': 19.5, 'C2': 24.0, 'C34': 22.0, 'E2': 26.0, 'E34': 23.0}, 'voltage_drop': {'B2': 31, 'B34': 27, 'C2': 31, 'C34': 27, 'E2': 31, 'E34': 27}, 'R': 12.1, 'X': 0.14},
-    2.5: {'ampacity': {'B2': 30.0, 'B34': 26.0, 'C2': 33.0, 'C34': 30.0, 'E2': 36.0, 'E34': 32.0}, 'voltage_drop': {'B2': 19, 'B34': 16, 'C2': 19, 'C34': 16, 'E2': 19, 'E34': 16}, 'R': 7.41, 'X': 0.14},
-    4.0: {'ampacity': {'B2': 40.0, 'B34': 35.0, 'C2': 45.0, 'C34': 40.0, 'E2': 49.0, 'E34': 42.0}, 'voltage_drop': {'B2': 12, 'B34': 10, 'C2': 12, 'C34': 10, 'E2': 12, 'E34': 10}, 'R': 4.61, 'X': 0.14},
-    6.0: {'ampacity': {'B2': 51.0, 'B34': 44.0, 'C2': 58.0, 'C34': 52.0, 'E2': 63.0, 'E34': 54.0}, 'voltage_drop': {'B2': 7.9, 'B34': 6.8, 'C2': 7.9, 'C34': 6.8, 'E2': 7.9, 'E34': 6.8}, 'R': 3.08, 'X': 0.14},
-    10.0: {'ampacity': {'B2': 69.0, 'B34': 60.0, 'C2': 80.0, 'C34': 71.0, 'E2': 86.0, 'E34': 75.0}, 'voltage_drop': {'B2': 4.7, 'B34': 4.0, 'C2': 4.7, 'C34': 4.0, 'E2': 4.7, 'E34': 4.0}, 'R': 1.83, 'X': 0.14},
-    16.0: {'ampacity': {'B2': 91.0, 'B34': 80.0, 'C2': 107.0, 'C34': 96.0, 'E2': 115.0, 'E34': 100.0}, 'voltage_drop': {'B2': 2.9, 'B34': 2.5, 'C2': 2.9, 'C34': 2.5, 'E2': 2.9, 'E34': 2.5}, 'R': 1.15, 'X': 0.14},
-    25.0: {'ampacity': {'B2': 119.0, 'B34': 105.0, 'C2': 138.0, 'C34': 119.0, 'E2': 149.0, 'E34': 127.0}, 'voltage_drop': {'B2': 1.85, 'B34': 1.6, 'C2': 1.85, 'C34': 1.6, 'E2': 1.85, 'E34': 1.6}, 'R': 0.727, 'X': 0.14},
-    35.0: {'ampacity': {'B2': 146.0, 'B34': 128.0, 'C2': 171.0, 'C34': 147.0, 'E2': 185.0, 'E34': 158.0}, 'voltage_drop': {'B2': 1.35, 'B34': 1.15, 'C2': 1.35, 'C34': 1.15, 'E2': 1.35, 'E34': 1.15}, 'R': 0.524, 'X': 0.14},
-    50.0: {'ampacity': {'B2': 175.0, 'B34': 154.0, 'C2': 209.0, 'C34': 179.0, 'E2': 225.0, 'E34': 192.0}, 'voltage_drop': {'B2': 0.98, 'B34': 0.86, 'C2': 0.98, 'C34': 0.86, 'E2': 0.98, 'E34': 0.86}, 'R': 0.387, 'X': 0.14},
-    70.0: {'ampacity': {'B2': 221.0, 'B34': 194.0, 'C2': 269.0, 'C34': 229.0, 'E2': 289.0, 'E34': 246.0}, 'voltage_drop': {'B2': 0.67, 'B34': 0.59, 'C2': 0.67, 'C34': 0.59, 'E2': 0.67, 'E34': 0.59}, 'R': 0.268, 'X': 0.14},
-    95.0: {'ampacity': {'B2': 265.0, 'B34': 233.0, 'C2': 328.0, 'C34': 278.0, 'E2': 352.0, 'E34': 298.0}, 'voltage_drop': {'B2': 0.49, 'B34': 0.43, 'C2': 0.49, 'C34': 0.43, 'E2': 0.49, 'E34': 0.43}, 'R': 0.193, 'X': 0.14},
-    120.0: {'ampacity': {'B2': 305.0, 'B34': 268.0, 'C2': 382.0, 'C34': 322.0, 'E2': 410.0, 'E34': 346.0}, 'voltage_drop': {'B2': 0.39, 'B34': 0.34, 'C2': 0.39, 'C34': 0.34, 'E2': 0.39, 'E34': 0.34}, 'R': 0.153, 'X': 0.14},
-    150.0: {'ampacity': {'B2': 334.0, 'B34': 300.0, 'C2': 441.0, 'C34': 371.0, 'E2': 473.0, 'E34': 399.0}, 'voltage_drop': {'B2': 0.31, 'B34': 0.28, 'C2': 0.31, 'C34': 0.28, 'E2': 0.31, 'E34': 0.28}, 'R': 0.124, 'X': 0.14},
-    185.0: {'ampacity': {'B2': 384.0, 'B34': 340.0, 'C2': 506.0, 'C34': 424.0, 'E2': 542.0, 'E34': 456.0}, 'voltage_drop': {'B2': 0.25, 'B34': 0.22, 'C2': 0.25, 'C34': 0.22, 'E2': 0.25, 'E34': 0.22}, 'R': 0.0991, 'X': 0.14},
-    240.0: {'ampacity': {'B2': 459.0, 'B34': 398.0, 'C2': 599.0, 'C34': 500.0, 'E2': 641.0, 'E34': 538.0}, 'voltage_drop': {'B2': 0.195, 'B34': 0.175, 'C2': 0.195, 'C34': 0.175, 'E2': 0.195, 'E34': 0.175}, 'R': 0.0754, 'X': 0.14},
-    300.0: {'ampacity': {'B2': 532.0, 'B34': 455.0, 'C2': 693.0, 'C34': 576.0, 'E2': 741.0, 'E34': 621.0}, 'voltage_drop': {'B2': 0.155, 'B34': 0.14, 'C2': 0.155, 'C34': 0.14, 'E2': 0.155, 'E34': 0.14}, 'R': 0.0601, 'X': 0.14},
-    400.0: {'ampacity': {'B2': 625.0, 'B34': 536.0, 'C2': 803.0, 'C34': 667.0, 'E2': 865.0, 'E34': 741.0}, 'voltage_drop': {'B2': 0.12, 'B34': 0.11, 'C2': 0.12, 'C34': 0.11, 'E2': 0.12, 'E34': 0.11}, 'R': 0.0470, 'X': 0.14},
+    1.0: {'voltage_drop': {'dc_mv': 46, 'single_phase_mv': 46, 'three_phase_mv': 40}},
+    1.5: {'voltage_drop': {'dc_mv': 31, 'single_phase_mv': 31, 'three_phase_mv': 27}},
+    2.5: {'voltage_drop': {'dc_mv': 19, 'single_phase_mv': 19, 'three_phase_mv': 16}},
+    4.0: {'voltage_drop': {'dc_mv': 12, 'single_phase_mv': 12, 'three_phase_mv': 10}},
+    6.0: {'voltage_drop': {'dc_mv': 7.9, 'single_phase_mv': 7.9, 'three_phase_mv': 6.8}},
+    10.0: {'voltage_drop': {'dc_mv': 4.7, 'single_phase_mv': 4.7, 'three_phase_mv': 4.0}},
+    16.0: {'voltage_drop': {'dc_mv': 2.9, 'single_phase_mv': 2.9, 'three_phase_mv': 2.5}},
+    25.0: {'voltage_drop': {'single_phase_R': 1.85, 'single_phase_X': 0.16, 'single_phase_Z': 1.90,
+                           'three_phase_R': 1.6, 'three_phase_X': 0.14, 'three_phase_Z': 1.65}},
+    35.0: {'voltage_drop': {'single_phase_R': 1.35, 'single_phase_X': 0.155, 'single_phase_Z': 1.35,
+                           'three_phase_R': 1.15, 'three_phase_X': 0.135, 'three_phase_Z': 1.15}},
+    50.0: {'voltage_drop': {'single_phase_R': 0.99, 'single_phase_X': 0.155, 'single_phase_Z': 1.00,
+                           'three_phase_R': 0.86, 'three_phase_X': 0.135, 'three_phase_Z': 0.87}},
+    70.0: {'voltage_drop': {'single_phase_R': 0.67, 'single_phase_X': 0.15, 'single_phase_Z': 0.69,
+                           'three_phase_R': 0.59, 'three_phase_X': 0.13, 'three_phase_Z': 0.60}},
+    95.0: {'voltage_drop': {'single_phase_R': 0.50, 'single_phase_X': 0.15, 'single_phase_Z': 0.52,
+                           'three_phase_R': 0.43, 'three_phase_X': 0.13, 'three_phase_Z': 0.45}},
+    120.0: {'voltage_drop': {'single_phase_R': 0.40, 'single_phase_X': 0.145, 'single_phase_Z': 0.42,
+                            'three_phase_R': 0.34, 'three_phase_X': 0.13, 'three_phase_Z': 0.37}},
+    150.0: {'voltage_drop': {'single_phase_R': 0.32, 'single_phase_X': 0.145, 'single_phase_Z': 0.35,
+                            'three_phase_R': 0.28, 'three_phase_X': 0.125, 'three_phase_Z': 0.30}},
+    185.0: {'voltage_drop': {'single_phase_R': 0.26, 'single_phase_X': 0.145, 'single_phase_Z': 0.29,
+                            'three_phase_R': 0.22, 'three_phase_X': 0.125, 'three_phase_Z': 0.26}},
+    240.0: {'voltage_drop': {'single_phase_R': 0.20, 'single_phase_X': 0.14, 'single_phase_Z': 0.24,
+                            'three_phase_R': 0.175, 'three_phase_X': 0.125, 'three_phase_Z': 0.21}},
+    300.0: {'voltage_drop': {'single_phase_R': 0.16, 'single_phase_X': 0.14, 'single_phase_Z': 0.21,
+                            'three_phase_R': 0.14, 'three_phase_X': 0.12, 'three_phase_Z': 0.185}},
+    400.0: {'voltage_drop': {'single_phase_R': 0.13, 'single_phase_X': 0.14, 'single_phase_Z': 0.19,
+                            'three_phase_R': 0.115, 'three_phase_X': 0.12, 'three_phase_Z': 0.165}},
 }
 
-# SINGLE CORE XLPE 90°C ARMOURED (Table 4E3A & 4E3B)
+# SINGLE CORE NON-ARMOURED (Table 4E1B)
+XLPE_90_SINGLE_NON_ARMOURED = {
+    1.5: {'voltage_drop': {'single_phase_mv': 31, 'three_phase_mv': 27}},
+    2.5: {'voltage_drop': {'single_phase_mv': 19, 'three_phase_mv': 16}},
+    4.0: {'voltage_drop': {'single_phase_mv': 12, 'three_phase_mv': 10}},
+    6.0: {'voltage_drop': {'single_phase_mv': 7.9, 'three_phase_mv': 6.8}},
+    10.0: {'voltage_drop': {'single_phase_mv': 4.7, 'three_phase_mv': 4.0}},
+    16.0: {'voltage_drop': {'single_phase_mv': 2.9, 'three_phase_mv': 2.5}},
+    25.0: {'voltage_drop': {'single_phase_R': 1.85, 'single_phase_X': 0.31, 'three_phase_R': 1.85, 'three_phase_X': 0.27}},
+    35.0: {'voltage_drop': {'single_phase_R': 1.35, 'single_phase_X': 0.29, 'three_phase_R': 1.35, 'three_phase_X': 0.25}},
+    50.0: {'voltage_drop': {'single_phase_R': 1.00, 'single_phase_X': 0.29, 'three_phase_R': 0.87, 'three_phase_X': 0.25}},
+    70.0: {'voltage_drop': {'single_phase_R': 0.70, 'single_phase_X': 0.28, 'three_phase_R': 0.60, 'three_phase_X': 0.24}},
+    95.0: {'voltage_drop': {'single_phase_R': 0.51, 'single_phase_X': 0.27, 'three_phase_R': 0.44, 'three_phase_X': 0.23}},
+    120.0: {'voltage_drop': {'single_phase_R': 0.41, 'single_phase_X': 0.26, 'three_phase_R': 0.35, 'three_phase_X': 0.23}},
+    150.0: {'voltage_drop': {'single_phase_R': 0.33, 'single_phase_X': 0.26, 'three_phase_R': 0.29, 'three_phase_X': 0.23}},
+    185.0: {'voltage_drop': {'single_phase_R': 0.27, 'single_phase_X': 0.26, 'three_phase_R': 0.23, 'three_phase_X': 0.23}},
+    240.0: {'voltage_drop': {'single_phase_R': 0.21, 'single_phase_X': 0.26, 'three_phase_R': 0.185, 'three_phase_X': 0.22}},
+    300.0: {'voltage_drop': {'single_phase_R': 0.175, 'single_phase_X': 0.25, 'three_phase_R': 0.15, 'three_phase_X': 0.22}},
+    400.0: {'voltage_drop': {'single_phase_R': 0.140, 'single_phase_X': 0.25, 'three_phase_R': 0.125, 'three_phase_X': 0.22}},
+}
+
+# SINGLE CORE ARMOURED (Table 4E3B)
 XLPE_90_SINGLE_ARMOURED = {
-    50.0: {'ampacity': {'C2': 237.0, 'C34': 220.0, 'F2_flat': 253.0, 'F34_flat': 232.0, 'F34_trefoil': 222.0}, 'voltage_drop': {'C2': 0.98, 'C34': 0.86, 'F2': 0.98, 'F34': 0.86}, 'R': 0.98, 'X': 0.18},
-    70.0: {'ampacity': {'C2': 303.0, 'C34': 277.0, 'F2_flat': 322.0, 'F34_flat': 293.0, 'F34_trefoil': 285.0}, 'voltage_drop': {'C2': 0.67, 'C34': 0.59, 'F2': 0.67, 'F34': 0.59}, 'R': 0.67, 'X': 0.17},
-    95.0: {'ampacity': {'C2': 367.0, 'C34': 333.0, 'F2_flat': 389.0, 'F34_flat': 352.0, 'F34_trefoil': 346.0}, 'voltage_drop': {'C2': 0.49, 'C34': 0.43, 'F2': 0.49, 'F34': 0.43}, 'R': 0.49, 'X': 0.17},
-    120.0: {'ampacity': {'C2': 425.0, 'C34': 383.0, 'F2_flat': 449.0, 'F34_flat': 405.0, 'F34_trefoil': 402.0}, 'voltage_drop': {'C2': 0.39, 'C34': 0.34, 'F2': 0.39, 'F34': 0.34}, 'R': 0.39, 'X': 0.165},
-    150.0: {'ampacity': {'C2': 488.0, 'C34': 437.0, 'F2_flat': 516.0, 'F34_flat': 462.0, 'F34_trefoil': 463.0}, 'voltage_drop': {'C2': 0.31, 'C34': 0.28, 'F2': 0.31, 'F34': 0.28}, 'R': 0.31, 'X': 0.16},
-    185.0: {'ampacity': {'C2': 557.0, 'C34': 496.0, 'F2_flat': 587.0, 'F34_flat': 524.0, 'F34_trefoil': 529.0}, 'voltage_drop': {'C2': 0.25, 'C34': 0.22, 'F2': 0.25, 'F34': 0.22}, 'R': 0.25, 'X': 0.16},
-    240.0: {'ampacity': {'C2': 656.0, 'C34': 579.0, 'F2_flat': 689.0, 'F34_flat': 612.0, 'F34_trefoil': 625.0}, 'voltage_drop': {'C2': 0.195, 'C34': 0.175, 'F2': 0.195, 'F34': 0.175}, 'R': 0.195, 'X': 0.155},
-    300.0: {'ampacity': {'C2': 755.0, 'C34': 662.0, 'F2_flat': 792.0, 'F34_flat': 700.0, 'F34_trefoil': 720.0}, 'voltage_drop': {'C2': 0.155, 'C34': 0.14, 'F2': 0.155, 'F34': 0.14}, 'R': 0.155, 'X': 0.15},
-    400.0: {'ampacity': {'C2': 853.0, 'C34': 717.0, 'F2_flat': 899.0, 'F34_flat': 767.0, 'F34_trefoil': 815.0}, 'voltage_drop': {'C2': 0.115, 'C34': 0.10, 'F2': 0.115, 'F34': 0.10}, 'R': 0.115, 'X': 0.15},
-    500.0: {'ampacity': {'C2': 962.0, 'C34': 791.0, 'F2_flat': 1016.0, 'F34_flat': 851.0, 'F34_trefoil': 918.0}, 'voltage_drop': {'C2': 0.093, 'C34': 0.085, 'F2': 0.093, 'F34': 0.085}, 'R': 0.093, 'X': 0.145},
-    630.0: {'ampacity': {'C2': 1082.0, 'C34': 861.0, 'F2_flat': 1146.0, 'F34_flat': 935.0, 'F34_trefoil': 1027.0}, 'voltage_drop': {'C2': 0.073, 'C34': 0.065, 'F2': 0.073, 'F34': 0.065}, 'R': 0.073, 'X': 0.145},
-    800.0: {'ampacity': {'C2': 1170.0, 'C34': 904.0, 'F2_flat': 1246.0, 'F34_flat': 987.0, 'F34_trefoil': 1119.0}, 'voltage_drop': {'C2': 0.056, 'C34': 0.050, 'F2': 0.056, 'F34': 0.050}, 'R': 0.056, 'X': 0.14},
-    1000.0: {'ampacity': {'C2': 1261.0, 'C34': 961.0, 'F2_flat': 1345.0, 'F34_flat': 1055.0, 'F34_trefoil': 1214.0}, 'voltage_drop': {'C2': 0.045, 'C34': 0.040, 'F2': 0.045, 'F34': 0.040}, 'R': 0.045, 'X': 0.135},
+    50.0: {'voltage_drop': {'single_phase_touching_R': 0.99, 'single_phase_touching_X': 0.21,
+                           'single_phase_spaced_R': 0.98, 'single_phase_spaced_X': 0.29,
+                           'three_phase_trefoil_R': 0.86, 'three_phase_trefoil_X': 0.18,
+                           'three_phase_flat_touching_R': 0.84, 'three_phase_flat_touching_X': 0.25,
+                           'three_phase_flat_spaced_R': 0.84, 'three_phase_flat_spaced_X': 0.33}},
+    70.0: {'voltage_drop': {'single_phase_touching_R': 0.68, 'single_phase_touching_X': 0.21,
+                           'single_phase_spaced_R': 0.69, 'single_phase_spaced_X': 0.29,
+                           'three_phase_trefoil_R': 0.59, 'three_phase_trefoil_X': 0.17,
+                           'three_phase_flat_touching_R': 0.60, 'three_phase_flat_touching_X': 0.25,
+                           'three_phase_flat_spaced_R': 0.62, 'three_phase_flat_spaced_X': 0.32}},
+    95.0: {'voltage_drop': {'single_phase_touching_R': 0.51, 'single_phase_touching_X': 0.195,
+                           'single_phase_spaced_R': 0.53, 'single_phase_spaced_X': 0.28,
+                           'three_phase_trefoil_R': 0.44, 'three_phase_trefoil_X': 0.17,
+                           'three_phase_flat_touching_R': 0.46, 'three_phase_flat_touching_X': 0.24,
+                           'three_phase_flat_spaced_R': 0.49, 'three_phase_flat_spaced_X': 0.31}},
+    120.0: {'voltage_drop': {'single_phase_touching_R': 0.41, 'single_phase_touching_X': 0.19,
+                            'single_phase_spaced_R': 0.43, 'single_phase_spaced_X': 0.27,
+                            'three_phase_trefoil_R': 0.35, 'three_phase_trefoil_X': 0.165,
+                            'three_phase_flat_touching_R': 0.38, 'three_phase_flat_touching_X': 0.24,
+                            'three_phase_flat_spaced_R': 0.41, 'three_phase_flat_spaced_X': 0.30}},
+    150.0: {'voltage_drop': {'single_phase_touching_R': 0.33, 'single_phase_touching_X': 0.185,
+                            'single_phase_spaced_R': 0.36, 'single_phase_spaced_X': 0.27,
+                            'three_phase_trefoil_R': 0.29, 'three_phase_trefoil_X': 0.16,
+                            'three_phase_flat_touching_R': 0.31, 'three_phase_flat_touching_X': 0.23,
+                            'three_phase_flat_spaced_R': 0.34, 'three_phase_flat_spaced_X': 0.29}},
+    185.0: {'voltage_drop': {'single_phase_touching_R': 0.27, 'single_phase_touching_X': 0.185,
+                            'single_phase_spaced_R': 0.30, 'single_phase_spaced_X': 0.26,
+                            'three_phase_trefoil_R': 0.23, 'three_phase_trefoil_X': 0.16,
+                            'three_phase_flat_touching_R': 0.26, 'three_phase_flat_touching_X': 0.23,
+                            'three_phase_flat_spaced_R': 0.29, 'three_phase_flat_spaced_X': 0.29}},
+    240.0: {'voltage_drop': {'single_phase_touching_R': 0.21, 'single_phase_touching_X': 0.18,
+                            'single_phase_spaced_R': 0.24, 'single_phase_spaced_X': 0.26,
+                            'three_phase_trefoil_R': 0.18, 'three_phase_trefoil_X': 0.155,
+                            'three_phase_flat_touching_R': 0.21, 'three_phase_flat_touching_X': 0.22,
+                            'three_phase_flat_spaced_R': 0.24, 'three_phase_flat_spaced_X': 0.28}},
+    300.0: {'voltage_drop': {'single_phase_touching_R': 0.17, 'single_phase_touching_X': 0.175,
+                            'single_phase_spaced_R': 0.195, 'single_phase_spaced_X': 0.25,
+                            'three_phase_trefoil_R': 0.145, 'three_phase_trefoil_X': 0.15,
+                            'three_phase_flat_touching_R': 0.17, 'three_phase_flat_touching_X': 0.22,
+                            'three_phase_flat_spaced_R': 0.20, 'three_phase_flat_spaced_X': 0.27}},
+    400.0: {'voltage_drop': {'single_phase_touching_R': 0.145, 'single_phase_touching_X': 0.17,
+                            'single_phase_spaced_R': 0.18, 'single_phase_spaced_X': 0.24,
+                            'three_phase_trefoil_R': 0.125, 'three_phase_trefoil_X': 0.15,
+                            'three_phase_flat_touching_R': 0.16, 'three_phase_flat_touching_X': 0.21,
+                            'three_phase_flat_spaced_R': 0.20, 'three_phase_flat_spaced_X': 0.27}},
+    500.0: {'voltage_drop': {'single_phase_touching_R': 0.125, 'single_phase_touching_X': 0.17,
+                            'single_phase_spaced_R': 0.165, 'single_phase_spaced_X': 0.24,
+                            'three_phase_trefoil_R': 0.105, 'three_phase_trefoil_X': 0.145,
+                            'three_phase_flat_touching_R': 0.145, 'three_phase_flat_touching_X': 0.20,
+                            'three_phase_flat_spaced_R': 0.19, 'three_phase_flat_spaced_X': 0.24}},
+    630.0: {'voltage_drop': {'single_phase_touching_R': 0.105, 'single_phase_touching_X': 0.165,
+                            'single_phase_spaced_R': 0.15, 'single_phase_spaced_X': 0.23,
+                            'three_phase_trefoil_R': 0.092, 'three_phase_trefoil_X': 0.145,
+                            'three_phase_flat_touching_R': 0.135, 'three_phase_flat_touching_X': 0.195,
+                            'three_phase_flat_spaced_R': 0.175, 'three_phase_flat_spaced_X': 0.23}},
+    800.0: {'voltage_drop': {'single_phase_touching_R': 0.09, 'single_phase_touching_X': 0.16,
+                            'single_phase_spaced_R': 0.145, 'single_phase_spaced_X': 0.23,
+                            'three_phase_trefoil_R': 0.086, 'three_phase_trefoil_X': 0.14,
+                            'three_phase_flat_touching_R': 0.13, 'three_phase_flat_touching_X': 0.18,
+                            'three_phase_flat_spaced_R': 0.175, 'three_phase_flat_spaced_X': 0.195}},
+    1000.0: {'voltage_drop': {'single_phase_touching_R': 0.092, 'single_phase_touching_X': 0.155,
+                             'single_phase_spaced_R': 0.14, 'single_phase_spaced_X': 0.21,
+                             'three_phase_trefoil_R': 0.08, 'three_phase_trefoil_X': 0.135,
+                             'three_phase_flat_touching_R': 0.125, 'three_phase_flat_touching_X': 0.17,
+                             'three_phase_flat_spaced_R': 0.165, 'three_phase_flat_spaced_X': 0.18}},
 }
 
-# MULTI CORE XLPE 90°C ARMOURED (Table 4E4A & 4E4B)
+# MULTI CORE ARMOURED (Table 4E4B)
 XLPE_90_MULTI_ARMOURED = {
-    1.5: {'ampacity': {'C2': 27.0, 'C34': 23.0, 'E2': 29.0, 'E34': 25.0, 'D2': 25.0, 'D34': 21.0}, 'voltage_drop': {'C2': 31, 'C34': 27, 'E2': 31, 'E34': 27, 'D2': 31, 'D34': 27}, 'R': 12.1, 'X': 0.16},
-    2.5: {'ampacity': {'C2': 36.0, 'C34': 31.0, 'E2': 39.0, 'E34': 33.0, 'D2': 33.0, 'D34': 28.0}, 'voltage_drop': {'C2': 19, 'C34': 16, 'E2': 19, 'E34': 16, 'D2': 19, 'D34': 16}, 'R': 7.41, 'X': 0.16},
-    4.0: {'ampacity': {'C2': 49.0, 'C34': 42.0, 'E2': 52.0, 'E34': 44.0, 'D2': 43.0, 'D34': 36.0}, 'voltage_drop': {'C2': 12, 'C34': 10, 'E2': 12, 'E34': 10, 'D2': 12, 'D34': 10}, 'R': 4.61, 'X': 0.16},
-    6.0: {'ampacity': {'C2': 62.0, 'C34': 53.0, 'E2': 66.0, 'E34': 56.0, 'D2': 53.0, 'D34': 44.0}, 'voltage_drop': {'C2': 7.9, 'C34': 6.8, 'E2': 7.9, 'E34': 6.8, 'D2': 7.9, 'D34': 6.8}, 'R': 3.08, 'X': 0.16},
-    10.0: {'ampacity': {'C2': 85.0, 'C34': 73.0, 'E2': 90.0, 'E34': 78.0, 'D2': 71.0, 'D34': 58.0}, 'voltage_drop': {'C2': 4.7, 'C34': 4.0, 'E2': 4.7, 'E34': 4.0, 'D2': 4.7, 'D34': 4.0}, 'R': 1.83, 'X': 0.16},
-    16.0: {'ampacity': {'C2': 110.0, 'C34': 94.0, 'E2': 115.0, 'E34': 99.0, 'D2': 91.0, 'D34': 75.0}, 'voltage_drop': {'C2': 2.9, 'C34': 2.5, 'E2': 2.9, 'E34': 2.5, 'D2': 2.9, 'D34': 2.5}, 'R': 1.15, 'X': 0.16},
-    25.0: {'ampacity': {'C2': 146.0, 'C34': 124.0, 'E2': 152.0, 'E34': 131.0, 'D2': 116.0, 'D34': 96.0}, 'voltage_drop': {'C2': 1.85, 'C34': 1.6, 'E2': 1.85, 'E34': 1.6, 'D2': 1.85, 'D34': 1.6}, 'R': 0.727, 'X': 0.16},
-    35.0: {'ampacity': {'C2': 180.0, 'C34': 154.0, 'E2': 188.0, 'E34': 162.0, 'D2': 139.0, 'D34': 115.0}, 'voltage_drop': {'C2': 1.35, 'C34': 1.15, 'E2': 1.35, 'E34': 1.15, 'D2': 1.35, 'D34': 1.15}, 'R': 0.524, 'X': 0.155},
-    50.0: {'ampacity': {'C2': 219.0, 'C34': 187.0, 'E2': 228.0, 'E34': 197.0, 'D2': 164.0, 'D34': 135.0}, 'voltage_drop': {'C2': 0.98, 'C34': 0.86, 'E2': 0.98, 'E34': 0.86, 'D2': 0.98, 'D34': 0.86}, 'R': 0.387, 'X': 0.155},
-    70.0: {'ampacity': {'C2': 279.0, 'C34': 238.0, 'E2': 291.0, 'E34': 251.0, 'D2': 203.0, 'D34': 167.0}, 'voltage_drop': {'C2': 0.67, 'C34': 0.59, 'E2': 0.67, 'E34': 0.59, 'D2': 0.67, 'D34': 0.59}, 'R': 0.268, 'X': 0.15},
-    95.0: {'ampacity': {'C2': 338.0, 'C34': 289.0, 'E2': 354.0, 'E34': 304.0, 'D2': 239.0, 'D34': 197.0}, 'voltage_drop': {'C2': 0.49, 'C34': 0.43, 'E2': 0.49, 'E34': 0.43, 'D2': 0.49, 'D34': 0.43}, 'R': 0.193, 'X': 0.15},
-    120.0: {'ampacity': {'C2': 392.0, 'C34': 335.0, 'E2': 410.0, 'E34': 353.0, 'D2': 271.0, 'D34': 223.0}, 'voltage_drop': {'C2': 0.39, 'C34': 0.34, 'E2': 0.39, 'E34': 0.34, 'D2': 0.39, 'D34': 0.34}, 'R': 0.153, 'X': 0.145},
-    150.0: {'ampacity': {'C2': 451.0, 'C34': 386.0, 'E2': 472.0, 'E34': 406.0, 'D2': 306.0, 'D34': 251.0}, 'voltage_drop': {'C2': 0.31, 'C34': 0.28, 'E2': 0.31, 'E34': 0.28, 'D2': 0.31, 'D34': 0.28}, 'R': 0.124, 'X': 0.145},
-    185.0: {'ampacity': {'C2': 515.0, 'C34': 441.0, 'E2': 539.0, 'E34': 463.0, 'D2': 343.0, 'D34': 281.0}, 'voltage_drop': {'C2': 0.25, 'C34': 0.22, 'E2': 0.25, 'E34': 0.22, 'D2': 0.25, 'D34': 0.22}, 'R': 0.0991, 'X': 0.145},
-    240.0: {'ampacity': {'C2': 607.0, 'C34': 520.0, 'E2': 636.0, 'E34': 546.0, 'D2': 395.0, 'D34': 324.0}, 'voltage_drop': {'C2': 0.195, 'C34': 0.175, 'E2': 0.195, 'E34': 0.175, 'D2': 0.195, 'D34': 0.175}, 'R': 0.0754, 'X': 0.14},
-    300.0: {'ampacity': {'C2': 698.0, 'C34': 599.0, 'E2': 732.0, 'E34': 628.0, 'D2': 446.0, 'D34': 365.0}, 'voltage_drop': {'C2': 0.155, 'C34': 0.14, 'E2': 0.155, 'E34': 0.14, 'D2': 0.155, 'D34': 0.14}, 'R': 0.0601, 'X': 0.14},
-    400.0: {'ampacity': {'C2': 787.0, 'C34': 673.0, 'E2': 847.0, 'E34': 728.0}, 'voltage_drop': {'C2': 0.12, 'C34': 0.11, 'E2': 0.12, 'E34': 0.11}, 'R': 0.0470, 'X': 0.14},
+    1.5: {'voltage_drop': {'single_phase_mv': 31, 'three_phase_mv': 27}},
+    2.5: {'voltage_drop': {'single_phase_mv': 19, 'three_phase_mv': 16}},
+    4.0: {'voltage_drop': {'single_phase_mv': 12, 'three_phase_mv': 10}},
+    6.0: {'voltage_drop': {'single_phase_mv': 7.9, 'three_phase_mv': 6.8}},
+    10.0: {'voltage_drop': {'single_phase_mv': 4.7, 'three_phase_mv': 4.0}},
+    16.0: {'voltage_drop': {'single_phase_mv': 2.9, 'three_phase_mv': 2.5}},
+    25.0: {'voltage_drop': {'single_phase_R': 1.85, 'single_phase_X': 0.16, 'three_phase_R': 1.6, 'three_phase_X': 0.14}},
+    35.0: {'voltage_drop': {'single_phase_R': 1.35, 'single_phase_X': 0.155, 'three_phase_R': 1.15, 'three_phase_X': 0.135}},
+    50.0: {'voltage_drop': {'single_phase_R': 0.99, 'single_phase_X': 0.155, 'three_phase_R': 0.86, 'three_phase_X': 0.135}},
+    70.0: {'voltage_drop': {'single_phase_R': 0.67, 'single_phase_X': 0.15, 'three_phase_R': 0.59, 'three_phase_X': 0.13}},
+    95.0: {'voltage_drop': {'single_phase_R': 0.50, 'single_phase_X': 0.15, 'three_phase_R': 0.43, 'three_phase_X': 0.13}},
+    120.0: {'voltage_drop': {'single_phase_R': 0.40, 'single_phase_X': 0.145, 'three_phase_R': 0.34, 'three_phase_X': 0.13}},
+    150.0: {'voltage_drop': {'single_phase_R': 0.32, 'single_phase_X': 0.145, 'three_phase_R': 0.28, 'three_phase_X': 0.125}},
+    185.0: {'voltage_drop': {'single_phase_R': 0.26, 'single_phase_X': 0.145, 'three_phase_R': 0.22, 'three_phase_X': 0.125}},
+    240.0: {'voltage_drop': {'single_phase_R': 0.20, 'single_phase_X': 0.14, 'three_phase_R': 0.175, 'three_phase_X': 0.125}},
+    300.0: {'voltage_drop': {'single_phase_R': 0.16, 'single_phase_X': 0.14, 'three_phase_R': 0.14, 'three_phase_X': 0.12}},
+    400.0: {'voltage_drop': {'single_phase_R': 0.13, 'single_phase_X': 0.14, 'three_phase_R': 0.115, 'three_phase_X': 0.12}},
 }
 
-# PVC 70°C DATABASES (Simplified - add full data as needed)
-PVC_70_SINGLE_NON_ARMOURED = {
-    1.0: {'ampacity': {'B2': 13.5, 'B34': 12.0, 'C2': 15.5, 'C34': 14.0}, 'R': 18.1, 'X': 0.14},
-    1.5: {'ampacity': {'B2': 17.5, 'B34': 15.5, 'C2': 20.0, 'C34': 18.0}, 'R': 12.1, 'X': 0.14},
-}
-
-PVC_70_MULTI_NON_ARMOURED = {
-    1.0: {'ampacity': {'B2': 13.0, 'B34': 11.5, 'C2': 15.0, 'C34': 13.5}, 'R': 18.1, 'X': 0.15},
-    1.5: {'ampacity': {'B2': 16.5, 'B34': 15.0, 'C2': 19.5, 'C34': 17.5}, 'R': 12.1, 'X': 0.15},
-}
-
-CABLE_DATABASE = {
-    'XLPE_90': {
-        'insulation_temp': 90,
-        'description': 'XLPE Insulated, 90°C',
-        'single_core_non_armoured': XLPE_90_SINGLE_NON_ARMOURED,
-        'multi_core_non_armoured': XLPE_90_MULTI_NON_ARMOURED,
-        'single_core_armoured': XLPE_90_SINGLE_ARMOURED,
-        'multi_core_armoured': XLPE_90_MULTI_ARMOURED
-    },
-    'PVC_70': {
-        'insulation_temp': 70,
-        'description': 'PVC Insulated, 70°C',
-        'single_core_non_armoured': PVC_70_SINGLE_NON_ARMOURED,
-        'multi_core_non_armoured': PVC_70_MULTI_NON_ARMOURED,
-        'single_core_armoured': {},
-        'multi_core_armoured': {}
-    }
-}
-
-def get_cable_data(insulation_type='XLPE_90', cable_type='multi_core_non_armoured'):
-    try:
-        db = CABLE_DATABASE[insulation_type]
-        return db.get(cable_type, {})
-    except:
-        return {}
+# ========== VOLTAGE DROP LOOKUP FUNCTION ==========
+def get_voltage_drop_values(cable_type, size_mm2, phase, formation='flat'):
+    """Get accurate voltage drop values based on cable type, size, phase, and formation"""
+    
+    if cable_type == 'multi_core_non_armoured':
+        if size_mm2 <= 16:
+            data = XLPE_90_MULTI_NON_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'mv', 'value': vd.get('three_phase_mv', 0)}
+            else:
+                return {'type': 'mv', 'value': vd.get('single_phase_mv', vd.get('dc_mv', 0))}
+        else:
+            data = XLPE_90_MULTI_NON_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'rx', 'R': vd.get('three_phase_R', 0), 'X': vd.get('three_phase_X', 0)}
+            else:
+                return {'type': 'rx', 'R': vd.get('single_phase_R', 0), 'X': vd.get('single_phase_X', 0)}
+    
+    elif cable_type == 'single_core_non_armoured':
+        if size_mm2 <= 16:
+            data = XLPE_90_SINGLE_NON_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'mv', 'value': vd.get('three_phase_mv', 0)}
+            else:
+                return {'type': 'mv', 'value': vd.get('single_phase_mv', 0)}
+        else:
+            data = XLPE_90_SINGLE_NON_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'rx', 'R': vd.get('three_phase_R', 0), 'X': vd.get('three_phase_X', 0)}
+            else:
+                return {'type': 'rx', 'R': vd.get('single_phase_R', 0), 'X': vd.get('single_phase_X', 0)}
+    
+    elif cable_type == 'single_core_armoured':
+        data = XLPE_90_SINGLE_ARMOURED.get(size_mm2, {})
+        vd = data.get('voltage_drop', {})
+        
+        if phase == '3-phase':
+            if formation == 'trefoil':
+                return {'type': 'rx', 'R': vd.get('three_phase_trefoil_R', 0), 'X': vd.get('three_phase_trefoil_X', 0)}
+            elif formation == 'spaced':
+                return {'type': 'rx', 'R': vd.get('three_phase_flat_spaced_R', 0), 'X': vd.get('three_phase_flat_spaced_X', 0)}
+            else:
+                return {'type': 'rx', 'R': vd.get('three_phase_flat_touching_R', 0), 'X': vd.get('three_phase_flat_touching_X', 0)}
+        else:
+            if formation == 'spaced':
+                return {'type': 'rx', 'R': vd.get('single_phase_spaced_R', 0), 'X': vd.get('single_phase_spaced_X', 0)}
+            else:
+                return {'type': 'rx', 'R': vd.get('single_phase_touching_R', 0), 'X': vd.get('single_phase_touching_X', 0)}
+    
+    elif cable_type == 'multi_core_armoured':
+        if size_mm2 <= 16:
+            data = XLPE_90_MULTI_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'mv', 'value': vd.get('three_phase_mv', 0)}
+            else:
+                return {'type': 'mv', 'value': vd.get('single_phase_mv', 0)}
+        else:
+            data = XLPE_90_MULTI_ARMOURED.get(size_mm2, {})
+            vd = data.get('voltage_drop', {})
+            if phase == '3-phase':
+                return {'type': 'rx', 'R': vd.get('three_phase_R', 0), 'X': vd.get('three_phase_X', 0)}
+            else:
+                return {'type': 'rx', 'R': vd.get('single_phase_R', 0), 'X': vd.get('single_phase_X', 0)}
+    
+    return {'type': 'mv', 'value': 0}
 
 # ========== TABLE CONFIGURATION FUNCTIONS ==========
-
 def get_valid_reference_methods(cable_type):
-    """Return valid Reference Methods for each cable type based on IEC standards"""
     valid_methods = {
         'single_core_non_armoured': ['B', 'C', 'F', 'G'],
         'multi_core_non_armoured': ['B', 'C', 'E'],
         'single_core_armoured': ['C', 'F'],
-        'multi_core_armoured': ['C', 'E', 'D']
+        'multi_core_armoured': ['C', 'E', 'D', 'D_direct']
     }
     return valid_methods.get(cable_type, ['B', 'C'])
 
 def get_table_configurations(cable_type, reference_method):
-    """Return available table configurations for given cable type and reference method"""
-    
     configs = {
         'single_core_non_armoured': {
-            'B': [
-                {'key': 'B2', 'description': '2 cables, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'B34', 'description': '3 or 4 cables, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'C': [
-                {'key': 'C2', 'description': '2 cables, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'C34', 'description': '3 or 4 cables, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'F': [
-                {'key': 'F2', 'description': '2 cables, flat and touching, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'F34_flat', 'description': '3 or 4 cables, flat and touching, three-phase a.c.', 'phase': '3-phase'},
-                {'key': 'F34_trefoil', 'description': '3 cables, trefoil formation, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'G': [
-                {'key': 'G2', 'description': '2 cables, spaced by one diameter, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'G34', 'description': '3 cables, spaced by one diameter, three-phase a.c.', 'phase': '3-phase'}
-            ]
+            'B': [{'key': 'B2', 'description': '2 cables, single-phase a.c. or d.c.', 'phase': '1-phase'},
+                  {'key': 'B34', 'description': '3 or 4 cables, three-phase a.c.', 'phase': '3-phase'}],
+            'C': [{'key': 'C2', 'description': '2 cables, single-phase a.c. or d.c.', 'phase': '1-phase'},
+                  {'key': 'C34', 'description': '3 or 4 cables, three-phase a.c.', 'phase': '3-phase'}],
+            'F': [{'key': 'F2', 'description': '2 cables, flat and touching', 'phase': '1-phase'},
+                  {'key': 'F34_flat', 'description': '3 or 4 cables, flat and touching', 'phase': '3-phase'},
+                  {'key': 'F34_trefoil', 'description': '3 cables, trefoil formation', 'phase': '3-phase'}],
+            'G': [{'key': 'G2', 'description': '2 cables, spaced', 'phase': '1-phase'},
+                  {'key': 'G34', 'description': '3 cables, spaced', 'phase': '3-phase'}]
         },
         'multi_core_non_armoured': {
-            'B': [
-                {'key': 'B2', 'description': '1 two-core cable, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'B34', 'description': '1 three or four-core cable, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'C': [
-                {'key': 'C2', 'description': '1 two-core cable, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'C34', 'description': '1 three or four-core cable, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'E': [
-                {'key': 'E2', 'description': '1 two-core cable, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'E34', 'description': '1 three or four-core cable, three-phase a.c.', 'phase': '3-phase'}
-            ]
+            'B': [{'key': 'B2', 'description': '1 two-core cable', 'phase': '1-phase'},
+                  {'key': 'B34', 'description': '1 three/four-core cable', 'phase': '3-phase'}],
+            'C': [{'key': 'C2', 'description': '1 two-core cable', 'phase': '1-phase'},
+                  {'key': 'C34', 'description': '1 three/four-core cable', 'phase': '3-phase'}],
+            'E': [{'key': 'E2', 'description': '1 two-core cable', 'phase': '1-phase'},
+                  {'key': 'E34', 'description': '1 three/four-core cable', 'phase': '3-phase'}]
         },
         'single_core_armoured': {
-            'C': [
-                {'key': 'C2', 'description': '2 cables, flat and touching, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'C34', 'description': '3 or 4 cables, flat and touching, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'F': [
-                {'key': 'F2_flat', 'description': '2 cables, flat and touching, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'F34_flat', 'description': '3 cables, flat and touching, three-phase a.c.', 'phase': '3-phase'},
-                {'key': 'F34_trefoil', 'description': '3 cables, trefoil formation, three-phase a.c.', 'phase': '3-phase'}
-            ]
+            'C': [{'key': 'C2', 'description': '2 cables, flat and touching', 'phase': '1-phase'},
+                  {'key': 'C34', 'description': '3 or 4 cables, flat and touching', 'phase': '3-phase'}],
+            'F': [{'key': 'F2_flat', 'description': '2 cables, flat and touching', 'phase': '1-phase'},
+                  {'key': 'F34_flat', 'description': '3 cables, flat and touching', 'phase': '3-phase'},
+                  {'key': 'F34_trefoil', 'description': '3 cables, trefoil formation', 'phase': '3-phase'}]
         },
         'multi_core_armoured': {
-            'C': [
-                {'key': 'C2', 'description': '1 two-core cable, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'C34', 'description': '1 three or four-core cable, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'E': [
-                {'key': 'E2', 'description': '1 two-core cable, single-phase a.c. or d.c.', 'phase': '1-phase'},
-                {'key': 'E34', 'description': '1 three or four-core cable, three-phase a.c.', 'phase': '3-phase'}
-            ],
-            'D': [
-                {'key': 'D2', 'description': '1 two-core cable, single-phase a.c. or d.c. (buried)', 'phase': '1-phase'},
-                {'key': 'D34', 'description': '1 three or four-core cable, three-phase a.c. (buried)', 'phase': '3-phase'}
-            ]
+            'C': [{'key': 'C2', 'description': '1 two-core cable', 'phase': '1-phase'},
+                  {'key': 'C34', 'description': '1 three/four-core cable', 'phase': '3-phase'}],
+            'E': [{'key': 'E2', 'description': '1 two-core cable', 'phase': '1-phase'},
+                  {'key': 'E34', 'description': '1 three/four-core cable', 'phase': '3-phase'}],
+            'D': [{'key': 'D2', 'description': '1 two-core cable (buried)', 'phase': '1-phase'},
+                  {'key': 'D34', 'description': '1 three/four-core cable (buried)', 'phase': '3-phase'}],
+            'D_direct': [{'key': 'D2', 'description': '1 two-core cable (direct buried)', 'phase': '1-phase'},
+                         {'key': 'D34', 'description': '1 three/four-core cable (direct buried)', 'phase': '3-phase'}]
         }
     }
-    
     return configs.get(cable_type, {}).get(reference_method, [])
 
 def get_table_reference_info(cable_type, reference_method, config_key):
-    """Get the standard table reference for verification"""
-    
     table_info = {
-        'single_core_non_armoured': {
-            'B': 'BS 7671 Table 4E1A - Reference Method B (Enclosed in conduit)',
-            'C': 'BS 7671 Table 4E1A - Reference Method C (Clipped direct)',
-            'F': 'BS 7671 Table 4E1A - Reference Method F (Free air - touching)',
-            'G': 'BS 7671 Table 4E1A - Reference Method G (Free air - spaced)'
-        },
-        'multi_core_non_armoured': {
-            'B': 'BS 7671 Table 4E2A - Reference Method B (Enclosed in conduit)',
-            'C': 'BS 7671 Table 4E2A - Reference Method C (Clipped direct)',
-            'E': 'BS 7671 Table 4E2A - Reference Method E (Perforated cable tray)'
-        },
-        'single_core_armoured': {
-            'C': 'BS 7671 Table 4E3A - Reference Method C (Clipped direct)',
-            'F': 'BS 7671 Table 4E3A - Reference Method F (Free air)'
-        },
-        'multi_core_armoured': {
-            'C': 'BS 7671 Table 4E4A - Reference Method C (Clipped direct)',
-            'E': 'BS 7671 Table 4E4A - Reference Method E (Perforated cable tray)',
-            'D': 'BS 7671 Table 4E4A - Reference Method D (Buried)'
-        }
+        'single_core_non_armoured': {'B': 'BS 7671 Table 4E1A', 'C': 'BS 7671 Table 4E1A', 'F': 'BS 7671 Table 4E1A', 'G': 'BS 7671 Table 4E1A'},
+        'multi_core_non_armoured': {'B': 'BS 7671 Table 4E2A', 'C': 'BS 7671 Table 4E2A', 'E': 'BS 7671 Table 4E2A'},
+        'single_core_armoured': {'C': 'BS 7671 Table 4E3A', 'F': 'BS 7671 Table 4E3A'},
+        'multi_core_armoured': {'C': 'BS 7671 Table 4E4A', 'E': 'BS 7671 Table 4E4A', 'D': 'BS 7671 Table 4E4A', 'D_direct': 'BS 7671 Table 4E4A'}
     }
-    
     return table_info.get(cable_type, {}).get(reference_method, 'IEC 60502-2 / BS 7671')
 
 def get_valid_arrangements(installation_method, cable_type):
-    """Return valid cable arrangements based on installation method and cable type"""
-    # For buried installations (Method D or D_direct)
     if installation_method in ['D', 'D_direct']:
-        # Multi-core cables can use buried arrangements
-        if 'multi_core' in cable_type:
-            return ['direct_buried_touching', 'direct_buried_spaced', 
-                    'buried_ducts_touching', 'buried_ducts_spaced']
+        if 'multi_core_armoured' in cable_type:
+            return ['direct_buried', 'buried_ducts']
         else:
-            # Single-core cables should not use buried methods, but if they do, use air arrangements
             return ['bunched_in_air_surface_enclosed', 'single_layer_wall_floor', 
                     'single_layer_perforated_tray', 'single_layer_ladder_cleats']
     else:
-        # For air installations
         if installation_method == 'B':
             return ['bunched_in_air_surface_enclosed']
         elif installation_method == 'C':
@@ -485,18 +592,140 @@ def get_valid_arrangements(installation_method, cable_type):
             return ['bunched_in_air_surface_enclosed', 'single_layer_wall_floor', 
                     'single_layer_perforated_tray', 'single_layer_ladder_cleats']
 
-def get_ampacity_from_config(cable_data, table_config, load_phase):
-    """Get base ampacity directly from table configuration"""
+def get_clearance_options(installation_method, arrangement, is_single_core=True):
+    if installation_method in ['D', 'D_direct']:
+        if arrangement == 'direct_buried':
+            return ['touching', 'one_diameter', 'clearance_0_125m', 'clearance_0_25m', 'clearance_0_5m']
+        elif arrangement == 'buried_ducts':
+            return ['touching', 'clearance_0_25m', 'clearance_0_5m', 'clearance_1_0m']
+    return []
+
+def get_ampacity_from_config(cable_data, table_config, load_phase, installation_method='C'):
+    """Get base ampacity from table configuration based on installation method"""
+    # First try exact match with table_config
     if table_config and table_config in cable_data.get('ampacity', {}):
         return cable_data['ampacity'][table_config]
-    return 0
+    
+    # If not found, use method-appropriate fallback
+    if installation_method in ['D', 'D_direct']:
+        # For buried installations - use D2/D34 keys from Table 4E4A
+        if load_phase == '3-phase':
+            return cable_data.get('D34', cable_data.get('C34', cable_data.get('E34', 0)))
+        else:
+            return cable_data.get('D2', cable_data.get('C2', cable_data.get('E2', 0)))
+    elif installation_method in ['E']:
+        # For perforated tray - use E2/E34 keys
+        if load_phase == '3-phase':
+            return cable_data.get('E34', cable_data.get('C34', 0))
+        else:
+            return cable_data.get('E2', cable_data.get('C2', 0))
+    elif installation_method in ['F', 'G']:
+        # For free air - use F keys
+        if load_phase == '3-phase':
+            return cable_data.get('F34_flat', cable_data.get('F34_trefoil', cable_data.get('C34', 0)))
+        else:
+            return cable_data.get('F2', cable_data.get('C2', 0))
+    else:
+        # Default to Method C
+        if load_phase == '3-phase':
+            return cable_data.get('C34', cable_data.get('E34', 0))
+        else:
+            return cable_data.get('C2', cable_data.get('E2', 0))
 
-def get_voltage_drop_from_config(cable_data, table_config):
-    """Get voltage drop directly from table configuration"""
-    if table_config and table_config in cable_data.get('voltage_drop', {}):
-        return cable_data['voltage_drop'][table_config]
-    return cable_data.get('R', 0)
+# ========== CABLE DATABASE WITH AMPACITIES ==========
+# Multi-core non-armoured ampacities (Table 4E2A)
+XLPE_90_MULTI_NON_ARMOURED_AMP = {
+    1.0: {'B2': 17.0, 'B34': 15.0, 'C2': 19.0, 'C34': 17.0, 'E2': 21.0, 'E34': 18.0},
+    1.5: {'B2': 22.0, 'B34': 19.5, 'C2': 24.0, 'C34': 22.0, 'E2': 26.0, 'E34': 23.0},
+    2.5: {'B2': 30.0, 'B34': 26.0, 'C2': 33.0, 'C34': 30.0, 'E2': 36.0, 'E34': 32.0},
+    4.0: {'B2': 40.0, 'B34': 35.0, 'C2': 45.0, 'C34': 40.0, 'E2': 49.0, 'E34': 42.0},
+    6.0: {'B2': 51.0, 'B34': 44.0, 'C2': 58.0, 'C34': 52.0, 'E2': 63.0, 'E34': 54.0},
+    10.0: {'B2': 69.0, 'B34': 60.0, 'C2': 80.0, 'C34': 71.0, 'E2': 86.0, 'E34': 75.0},
+    16.0: {'B2': 91.0, 'B34': 80.0, 'C2': 107.0, 'C34': 96.0, 'E2': 115.0, 'E34': 100.0},
+    25.0: {'B2': 119.0, 'B34': 105.0, 'C2': 138.0, 'C34': 119.0, 'E2': 149.0, 'E34': 127.0},
+    35.0: {'B2': 146.0, 'B34': 128.0, 'C2': 171.0, 'C34': 147.0, 'E2': 185.0, 'E34': 158.0},
+    50.0: {'B2': 175.0, 'B34': 154.0, 'C2': 209.0, 'C34': 179.0, 'E2': 225.0, 'E34': 192.0},
+    70.0: {'B2': 221.0, 'B34': 194.0, 'C2': 269.0, 'C34': 229.0, 'E2': 289.0, 'E34': 246.0},
+    95.0: {'B2': 265.0, 'B34': 233.0, 'C2': 328.0, 'C34': 278.0, 'E2': 352.0, 'E34': 298.0},
+    120.0: {'B2': 305.0, 'B34': 268.0, 'C2': 382.0, 'C34': 322.0, 'E2': 410.0, 'E34': 346.0},
+    150.0: {'B2': 334.0, 'B34': 300.0, 'C2': 441.0, 'C34': 371.0, 'E2': 473.0, 'E34': 399.0},
+    185.0: {'B2': 384.0, 'B34': 340.0, 'C2': 506.0, 'C34': 424.0, 'E2': 542.0, 'E34': 456.0},
+    240.0: {'B2': 459.0, 'B34': 398.0, 'C2': 599.0, 'C34': 500.0, 'E2': 641.0, 'E34': 538.0},
+    300.0: {'B2': 532.0, 'B34': 455.0, 'C2': 693.0, 'C34': 576.0, 'E2': 741.0, 'E34': 621.0},
+    400.0: {'B2': 625.0, 'B34': 536.0, 'C2': 803.0, 'C34': 667.0, 'E2': 865.0, 'E34': 741.0},
+}
 
+# Single core non-armoured ampacities (Table 4E1A)
+XLPE_90_SINGLE_NON_ARMOURED_AMP = {
+    1.5: {'B2': 23.0, 'B34': 20.0, 'C2': 25.0, 'C34': 23.0, 'F2': 26.0, 'F34_flat': 23.0, 'F34_trefoil': 23.0, 'G2': 32.0, 'G34': 29.0},
+    2.5: {'B2': 31.0, 'B34': 28.0, 'C2': 34.0, 'C34': 31.0, 'F2': 36.0, 'F34_flat': 32.0, 'F34_trefoil': 32.0, 'G2': 44.0, 'G34': 40.0},
+    4.0: {'B2': 42.0, 'B34': 37.0, 'C2': 46.0, 'C34': 41.0, 'F2': 49.0, 'F34_flat': 42.0, 'F34_trefoil': 42.0, 'G2': 59.0, 'G34': 53.0},
+    6.0: {'B2': 54.0, 'B34': 48.0, 'C2': 59.0, 'C34': 54.0, 'F2': 63.0, 'F34_flat': 54.0, 'F34_trefoil': 54.0, 'G2': 76.0, 'G34': 68.0},
+    10.0: {'B2': 75.0, 'B34': 66.0, 'C2': 81.0, 'C34': 74.0, 'F2': 86.0, 'F34_flat': 75.0, 'F34_trefoil': 75.0, 'G2': 103.0, 'G34': 93.0},
+    16.0: {'B2': 100.0, 'B34': 88.0, 'C2': 109.0, 'C34': 99.0, 'F2': 115.0, 'F34_flat': 100.0, 'F34_trefoil': 100.0, 'G2': 138.0, 'G34': 124.0},
+    25.0: {'B2': 133.0, 'B34': 117.0, 'C2': 143.0, 'C34': 130.0, 'F2': 149.0, 'F34_flat': 127.0, 'F34_trefoil': 127.0, 'G2': 176.0, 'G34': 158.0},
+    35.0: {'B2': 164.0, 'B34': 144.0, 'C2': 176.0, 'C34': 161.0, 'F2': 185.0, 'F34_flat': 158.0, 'F34_trefoil': 158.0, 'G2': 218.0, 'G34': 196.0},
+    50.0: {'B2': 198.0, 'B34': 175.0, 'C2': 228.0, 'C34': 209.0, 'F2': 225.0, 'F34_flat': 192.0, 'F34_trefoil': 192.0, 'G2': 265.0, 'G34': 240.0},
+    70.0: {'B2': 253.0, 'B34': 222.0, 'C2': 293.0, 'C34': 268.0, 'F2': 289.0, 'F34_flat': 246.0, 'F34_trefoil': 246.0, 'G2': 340.0, 'G34': 307.0},
+    95.0: {'B2': 306.0, 'B34': 269.0, 'C2': 355.0, 'C34': 326.0, 'F2': 352.0, 'F34_flat': 298.0, 'F34_trefoil': 298.0, 'G2': 415.0, 'G34': 375.0},
+    120.0: {'B2': 354.0, 'B34': 312.0, 'C2': 413.0, 'C34': 379.0, 'F2': 410.0, 'F34_flat': 346.0, 'F34_trefoil': 346.0, 'G2': 483.0, 'G34': 437.0},
+    150.0: {'B2': 393.0, 'B34': 342.0, 'C2': 476.0, 'C34': 436.0, 'F2': 473.0, 'F34_flat': 399.0, 'F34_trefoil': 399.0, 'G2': 558.0, 'G34': 505.0},
+    185.0: {'B2': 449.0, 'B34': 384.0, 'C2': 545.0, 'C34': 500.0, 'F2': 542.0, 'F34_flat': 456.0, 'F34_trefoil': 456.0, 'G2': 640.0, 'G34': 580.0},
+    240.0: {'B2': 528.0, 'B34': 450.0, 'C2': 644.0, 'C34': 590.0, 'F2': 641.0, 'F34_flat': 538.0, 'F34_trefoil': 538.0, 'G2': 757.0, 'G34': 686.0},
+    300.0: {'B2': 603.0, 'B34': 514.0, 'C2': 743.0, 'C34': 681.0, 'F2': 741.0, 'F34_flat': 621.0, 'F34_trefoil': 621.0, 'G2': 875.0, 'G34': 793.0},
+    400.0: {'B2': 683.0, 'B34': 584.0, 'C2': 868.0, 'C34': 793.0, 'F2': 865.0, 'F34_flat': 741.0, 'F34_trefoil': 741.0, 'G2': 1025.0, 'G34': 930.0},
+}
+
+# Single core armoured ampacities (Table 4E3A)
+XLPE_90_SINGLE_ARMOURED_AMP = {
+    50.0: {'C2': 237.0, 'C34': 220.0, 'F2_flat': 253.0, 'F34_flat': 232.0, 'F34_trefoil': 222.0},
+    70.0: {'C2': 303.0, 'C34': 277.0, 'F2_flat': 322.0, 'F34_flat': 293.0, 'F34_trefoil': 285.0},
+    95.0: {'C2': 367.0, 'C34': 333.0, 'F2_flat': 389.0, 'F34_flat': 352.0, 'F34_trefoil': 346.0},
+    120.0: {'C2': 425.0, 'C34': 383.0, 'F2_flat': 449.0, 'F34_flat': 405.0, 'F34_trefoil': 402.0},
+    150.0: {'C2': 488.0, 'C34': 437.0, 'F2_flat': 516.0, 'F34_flat': 462.0, 'F34_trefoil': 463.0},
+    185.0: {'C2': 557.0, 'C34': 496.0, 'F2_flat': 587.0, 'F34_flat': 524.0, 'F34_trefoil': 529.0},
+    240.0: {'C2': 656.0, 'C34': 579.0, 'F2_flat': 689.0, 'F34_flat': 612.0, 'F34_trefoil': 625.0},
+    300.0: {'C2': 755.0, 'C34': 662.0, 'F2_flat': 792.0, 'F34_flat': 700.0, 'F34_trefoil': 720.0},
+    400.0: {'C2': 853.0, 'C34': 717.0, 'F2_flat': 899.0, 'F34_flat': 767.0, 'F34_trefoil': 815.0},
+    500.0: {'C2': 962.0, 'C34': 791.0, 'F2_flat': 1016.0, 'F34_flat': 851.0, 'F34_trefoil': 918.0},
+    630.0: {'C2': 1082.0, 'C34': 861.0, 'F2_flat': 1146.0, 'F34_flat': 935.0, 'F34_trefoil': 1027.0},
+    800.0: {'C2': 1170.0, 'C34': 904.0, 'F2_flat': 1246.0, 'F34_flat': 987.0, 'F34_trefoil': 1119.0},
+    1000.0: {'C2': 1261.0, 'C34': 961.0, 'F2_flat': 1345.0, 'F34_flat': 1055.0, 'F34_trefoil': 1214.0},
+}
+
+# Multi-core armoured ampacities (Table 4E4A)
+XLPE_90_MULTI_ARMOURED_AMP = {
+    1.5: {'C2': 27.0, 'C34': 23.0, 'E2': 29.0, 'E34': 25.0, 'D2': 25.0, 'D34': 21.0},
+    2.5: {'C2': 36.0, 'C34': 31.0, 'E2': 39.0, 'E34': 33.0, 'D2': 33.0, 'D34': 28.0},
+    4.0: {'C2': 49.0, 'C34': 42.0, 'E2': 52.0, 'E34': 44.0, 'D2': 43.0, 'D34': 36.0},
+    6.0: {'C2': 62.0, 'C34': 53.0, 'E2': 66.0, 'E34': 56.0, 'D2': 53.0, 'D34': 44.0},
+    10.0: {'C2': 85.0, 'C34': 73.0, 'E2': 90.0, 'E34': 78.0, 'D2': 71.0, 'D34': 58.0},
+    16.0: {'C2': 110.0, 'C34': 94.0, 'E2': 115.0, 'E34': 99.0, 'D2': 91.0, 'D34': 75.0},
+    25.0: {'C2': 146.0, 'C34': 124.0, 'E2': 152.0, 'E34': 131.0, 'D2': 116.0, 'D34': 96.0},
+    35.0: {'C2': 180.0, 'C34': 154.0, 'E2': 188.0, 'E34': 162.0, 'D2': 139.0, 'D34': 115.0},
+    50.0: {'C2': 219.0, 'C34': 187.0, 'E2': 228.0, 'E34': 197.0, 'D2': 164.0, 'D34': 135.0},
+    70.0: {'C2': 279.0, 'C34': 238.0, 'E2': 291.0, 'E34': 251.0, 'D2': 203.0, 'D34': 167.0},
+    95.0: {'C2': 338.0, 'C34': 289.0, 'E2': 354.0, 'E34': 304.0, 'D2': 239.0, 'D34': 197.0},
+    120.0: {'C2': 392.0, 'C34': 335.0, 'E2': 410.0, 'E34': 353.0, 'D2': 271.0, 'D34': 223.0},
+    150.0: {'C2': 451.0, 'C34': 386.0, 'E2': 472.0, 'E34': 406.0, 'D2': 306.0, 'D34': 251.0},
+    185.0: {'C2': 515.0, 'C34': 441.0, 'E2': 539.0, 'E34': 463.0, 'D2': 343.0, 'D34': 281.0},
+    240.0: {'C2': 607.0, 'C34': 520.0, 'E2': 636.0, 'E34': 546.0, 'D2': 395.0, 'D34': 324.0},
+    300.0: {'C2': 698.0, 'C34': 599.0, 'E2': 732.0, 'E34': 628.0, 'D2': 446.0, 'D34': 365.0},
+    400.0: {'C2': 787.0, 'C34': 673.0, 'E2': 847.0, 'E34': 728.0},
+}
+
+def get_cable_ampacities(cable_type):
+    if cable_type == 'multi_core_non_armoured':
+        return XLPE_90_MULTI_NON_ARMOURED_AMP
+    elif cable_type == 'single_core_non_armoured':
+        return XLPE_90_SINGLE_NON_ARMOURED_AMP
+    elif cable_type == 'single_core_armoured':
+        return XLPE_90_SINGLE_ARMOURED_AMP
+    elif cable_type == 'multi_core_armoured':
+        return XLPE_90_MULTI_ARMOURED_AMP
+    return {}
+
+# ========== CABLE SIZING CALCULATOR CLASS ==========
 class CableSizingCalculator:
     def __init__(self):
         self.results = {}
@@ -526,7 +755,8 @@ class CableSizingCalculator:
         operating_temp = self.calculate_operating_temperature(ambient_temp, load_current, derated_ampacity, insulation_temp)
         return Isc, K, operating_temp, θi, θf
     
-    def get_derating_factors(self, temp_c, insulation_temp, num_cables, arrangement, installation, soil_resistivity, depth, is_single_core=True):
+    def get_derating_factors(self, temp_c, insulation_temp, num_cables, arrangement, installation, 
+                             soil_resistivity, depth, is_single_core=True, clearance='touching'):
         if installation in ['buried', 'duct', 'trench', 'ground', 'D', 'D_direct']:
             k1 = get_temperature_factor(insulation_temp, temp_c, 'ground')
             install_type = 'buried'
@@ -534,7 +764,7 @@ class CableSizingCalculator:
             k1 = get_temperature_factor(insulation_temp, temp_c, 'air')
             install_type = 'air'
         
-        k2 = get_grouping_factor(num_cables, arrangement, install_type)
+        k2 = get_grouping_factor(num_cables, arrangement, install_type, clearance, is_single_core)
         
         if installation in ['buried', 'duct', 'ground', 'D', 'D_direct']:
             k3 = get_soil_resistivity_factor(soil_resistivity, installation, is_single_core)
@@ -547,26 +777,33 @@ class CableSizingCalculator:
         factors = {'k1 (Temperature)': k1, 'k2 (Grouping)': k2, 'k3 (Soil Resistivity)': k3, 'k4 (Depth)': k4, 'total': total_k}
         return total_k, factors
     
-    def calculate_voltage_drop(self, current, length_m, cable_data, pf, voltage_v, phase='3-phase', installation='C', arrangement='flat', table_config=None):
-        # Try to use table configuration first
-        vd_mv_per_amp_per_m = get_voltage_drop_from_config(cable_data, table_config)
+    def calculate_voltage_drop(self, current, length_m, cable_type, size_mm2, pf, voltage_v, phase='3-phase', formation='flat'):
+        """Calculate voltage drop using accurate values - NO derating factors applied"""
+        vd_values = get_voltage_drop_values(cable_type, size_mm2, phase, formation)
         
-        if vd_mv_per_amp_per_m and vd_mv_per_amp_per_m > 0:
-            Vd = vd_mv_per_amp_per_m * current * length_m / 1000
-            return Vd, (Vd / voltage_v) * 100
-        
-        # Fallback to R and X values
-        r = cable_data.get('R', 0)
-        x = cable_data.get('X', 0)
-        if r == 0:
-            return 0, 0
-        
-        phi = math.acos(pf)
-        if phase == '3-phase':
-            Vd = 1.732 * current * (r * pf + x * math.sin(phi)) * length_m / 1000
+        if vd_values['type'] == 'mv':
+            mv_per_am = vd_values['value']
+            if mv_per_am == 0:
+                return 0, 0
+            Vd = mv_per_am * current * length_m / 1000
+            vd_percent = (Vd / voltage_v) * 100
+            return Vd, vd_percent
         else:
-            Vd = 2 * current * (r * pf + x * math.sin(phi)) * length_m / 1000
-        return Vd, (Vd / voltage_v) * 100
+            r = vd_values['R']
+            x = vd_values['X']
+            if r == 0 and x == 0:
+                return 0, 0
+            
+            phi = math.acos(pf)
+            sin_phi = math.sin(phi)
+            
+            if phase == '3-phase':
+                Vd = 1.732 * current * (r * pf + x * sin_phi) * length_m / 1000
+            else:
+                Vd = 2 * current * (r * pf + x * sin_phi) * length_m / 1000
+            
+            vd_percent = (Vd / voltage_v) * 100
+            return Vd, vd_percent
     
     def get_cable_category(self, voltage_v):
         if voltage_v <= 1000:
@@ -578,24 +815,26 @@ class CableSizingCalculator:
         else:
             return 'MV (11kV)', 'MV_11KV'
 
-def select_cable_automatically(load, cable_db, cable_calc, ambient_temp,
-                                insulation_temp, load_current, 
+def select_cable_automatically(load, cable_calc, ambient_temp, insulation_temp, load_current, 
                                 load_length, load_pf, load_voltage, load_phase,
                                 installation_method, cable_formation, load_cable_type,
                                 load_arrangement, load_soil_res, load_depth,
-                                load_num_cables, table_config):
+                                load_num_cables, table_config, clearance='touching'):
     
-    # For multi-core armoured with Method D - this is valid
-    # For single-core with Method D - reject
     if 'single_core' in load_cable_type and installation_method in ['D', 'D_direct']:
-        st.error(f"Single-core cable ({load['Load Name']}) cannot use Method D (buried).")
         return None, None, 0, 0, 0, 0, {}, False, []
     
-    available_sizes = sorted(cable_db.keys())
-    results_list = []
+    cable_ampacities = get_cable_ampacities(load_cable_type)
+    available_sizes = sorted(cable_ampacities.keys())
     
     for size in available_sizes:
-        cable_data = cable_db[size]
+        cable_data = cable_ampacities[size]
+        
+        # Get ampacity using installation method
+        ampacity = get_ampacity_from_config(cable_data, table_config, load_phase, installation_method)
+        
+        if ampacity == 0:
+            continue
         
         is_single_core = (load_cable_type in ['single_core_non_armoured', 'single_core_armoured'])
         
@@ -604,49 +843,30 @@ def select_cable_automatically(load, cable_db, cable_calc, ambient_temp,
             load_num_cables, load_arrangement,
             installation_method,
             load_soil_res, load_depth,
-            is_single_core
+            is_single_core, clearance
         )
-        
-        # Get ampacity using table configuration
-        ampacity = get_ampacity_from_config(cable_data, table_config, load_phase)
-        
-        if ampacity == 0:
-            # Try fallback to C34
-            if load_phase == '3-phase':
-                ampacity = cable_data.get('ampacity', {}).get('C34', 0)
-            else:
-                ampacity = cable_data.get('ampacity', {}).get('C2', 0)
-        
-        if ampacity == 0:
-            continue
         
         derated = ampacity * total_k
         ampacity_pass = derated >= load_current
         
         vd_v, vd_pct = cable_calc.calculate_voltage_drop(
-            load_current, load_length, cable_data,
-            load_pf, load_voltage, load_phase,
-            installation_method, cable_formation, table_config
+            load_current, load_length, load_cable_type, size,
+            load_pf, load_voltage, load_phase, cable_formation
         )
         
         vd_pass = vd_pct <= 2.5
         
-        results_list.append({
-            'size': size,
-            'ampacity': ampacity,
-            'derated': derated,
-            'vd_pct': vd_pct,
-            'ampacity_pass': ampacity_pass,
-            'vd_pass': vd_pass,
-            'total_k': total_k
-        })
-        
         if ampacity_pass and vd_pass:
-            return size, cable_data, ampacity, derated, vd_pct, total_k, factors, True, results_list
+            return size, cable_data, ampacity, derated, vd_pct, total_k, factors, True, []
     
     if available_sizes:
         largest_size = max(available_sizes)
-        largest_data = cable_db[largest_size]
+        largest_data = cable_ampacities[largest_size]
+        
+        ampacity = get_ampacity_from_config(largest_data, table_config, load_phase, installation_method)
+        
+        if ampacity == 0:
+            ampacity = largest_data.get('C2', 0)
         
         is_single_core = (load_cable_type in ['single_core_non_armoured', 'single_core_armoured'])
         total_k, factors = cable_calc.get_derating_factors(
@@ -654,28 +874,16 @@ def select_cable_automatically(load, cable_db, cable_calc, ambient_temp,
             load_num_cables, load_arrangement,
             installation_method,
             load_soil_res, load_depth,
-            is_single_core
+            is_single_core, clearance
         )
-        
-        ampacity = get_ampacity_from_config(largest_data, table_config, load_phase)
-        
-        if ampacity == 0:
-            if load_phase == '3-phase':
-                ampacity = largest_data.get('ampacity', {}).get('C34', 0)
-            else:
-                ampacity = largest_data.get('ampacity', {}).get('C2', 0)
-        
-        if ampacity == 0:
-            ampacity = largest_data.get('ampacity', {}).get('C2', 0)
         
         derated = ampacity * total_k
         vd_v, vd_pct = cable_calc.calculate_voltage_drop(
-            load_current, load_length, largest_data,
-            load_pf, load_voltage, load_phase,
-            installation_method, cable_formation, table_config
+            load_current, load_length, load_cable_type, largest_size,
+            load_pf, load_voltage, load_phase, cable_formation
         )
         
-        return largest_size, largest_data, ampacity, derated, vd_pct, total_k, factors, False, results_list
+        return largest_size, largest_data, ampacity, derated, vd_pct, total_k, factors, False, []
     
     return None, None, 0, 0, 0, 0, {}, False, []
 
@@ -827,8 +1035,8 @@ I = {current:.2f} A
 
 Step 3: Circuit breaker sizing
 --------------------------------------------------------------------------------
-Design factor: {design_factor} (25% safety margin for continuous loads)
-Required rating = Load current × Design factor
+Safety factor: {design_factor} (25% safety margin for continuous loads)
+Required rating = Required current × Safety factor
 Required = {current:.2f} × {design_factor} = {required:.2f} A
 
 Step 4: Standard rating selection
@@ -854,6 +1062,7 @@ FINAL SELECTION: {selected} A {breaker_type} for {voltage_range} System
         
         return results, detailed_reasons
 
+# ========== WORD REPORT CLASSES ==========
 class LightningWordReport:
     def __init__(self):
         self.doc = Document()
@@ -958,7 +1167,7 @@ class CableWordReport:
             section.right_margin = Cm(1.5)
     
     def add_title(self):
-        title = self.doc.add_heading('CABLE SIZING & CIRCUIT BREAKER REPORT', 0)
+        title = self.doc.add_heading('CABLE SIZING & CIRCUIT BREAKER SELECTION REPORT', 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title.runs[0].font.size = Pt(20)
         title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
@@ -976,7 +1185,7 @@ class CableWordReport:
             ('Ambient Temperature', f'{ambient_temp}°C'),
             ('Voltage Drop Limit', '2.5%'),
             ('Circuit Breaker Safety Factor', '1.25 (25%)'),
-            ('Short Circuit Duration', '1.0 second'),
+            ('Short Circuit Duration', '1 second'),
             ('Conductor Material', 'Copper'),
             ('Reference Standards', 'IEC 60364 / BS 7671 / IEC 60502-2')
         ]
@@ -1001,7 +1210,7 @@ class CableWordReport:
                 return f"{float(load.get('Power Factor', 0.85)):.2f}"
             elif param_name == 'Efficiency':
                 return f"{float(load.get('Efficiency', 1.0)):.2f}"
-            elif param_name == 'Length (m)':
+            elif param_name == 'Cable Length (m)':
                 return f"{float(load['Length (m)']):.0f}"
             elif param_name == 'Insulation Type':
                 return format_insulation_type(load.get('Insulation Type', 'XLPE_90'))
@@ -1009,9 +1218,10 @@ class CableWordReport:
                 return format_cable_type(load.get('Cable Type', 'multi_core_non_armoured'))
             elif param_name == 'Installation Method':
                 return format_installation_method(load.get('Installation Method', 'C'))
-            elif param_name == 'Table Config':
-                return load.get('Table_Config', 'N/A')
-            elif param_name == 'Cables in Group':
+            elif param_name == 'Cable Configuration':
+                config_key = load.get('Table_Config', 'N/A')
+                return get_table_config_description(config_key, load.get('Cable Type', ''))
+            elif param_name == 'No. of Circuits':
                 return str(load.get('Cables in Group', 1))
             elif param_name == 'Cable Formation':
                 return format_cable_formation(load.get('Cable Formation', 'flat'))
@@ -1034,8 +1244,8 @@ class CableWordReport:
         
         param_names = [
             'Power (kW)', 'Voltage (V)', 'Phase', 'Load Type', 'Power Factor', 
-            'Efficiency', 'Length (m)', 'Insulation Type', 'Cable Type', 
-            'Installation Method', 'Table Config', 'Cables in Group', 'Cable Formation'
+            'Efficiency', 'Cable Length (m)', 'Insulation Type', 'Cable Type', 
+            'Installation Method', 'Cable Configuration', 'No. of Circuits', 'Cable Formation'
         ]
         
         for chunk_idx in range(num_chunks):
@@ -1116,9 +1326,8 @@ class CableWordReport:
         num_loads = len(cable_df)
         num_chunks = (num_loads + CHUNK_SIZE - 1) // CHUNK_SIZE
         
-        # Parameters as COLUMNS (fixed number of columns)
         result_params = [
-            'Size (mm²)', 'Load Current (A)', 'Base Ampacity (A)',
+            'Size (mm²)', 'Load Current (A)', 'Current Carrying Capacity (A)',
             'Derating Factor K', 'Derated Ampacity (A)', 'Voltage Drop (%)',
             'Short Circuit (kA)', 'Status', 'Check'
         ]
@@ -1131,14 +1340,11 @@ class CableWordReport:
             if num_chunks > 1:
                 self.doc.add_heading(f'Results for Loads {start_idx + 1} to {end_idx}', level=2)
             
-            # FIXED: Number of columns = number of parameters + 1 (for Load Name column)
             num_cols = len(result_params) + 1
-            num_rows = len(chunk_df) + 1  # +1 for header row
-            
+            num_rows = len(chunk_df) + 1
             table = self.doc.add_table(rows=num_rows, cols=num_cols)
             table.style = 'Light Grid Accent 1'
             
-            # HEADER ROW: Parameter names as column headers
             header_row = table.rows[0]
             header_row.cells[0].text = 'Load Name'
             header_row.cells[0].paragraphs[0].runs[0].bold = True
@@ -1147,7 +1353,6 @@ class CableWordReport:
                 header_row.cells[col_idx].text = param
                 header_row.cells[col_idx].paragraphs[0].runs[0].bold = True
             
-            # DATA ROWS: Each load as a row
             for row_idx, (idx, cable_row) in enumerate(chunk_df.iterrows(), start=1):
                 row_cells = table.rows[row_idx].cells
                 row_cells[0].text = cable_row['Load Name']
@@ -1185,37 +1390,34 @@ class CableWordReport:
             
             self.doc.add_heading(f'Load {i+1}: {calc["load_name"]} ({format_load_type(calc.get("load_type", "Continuous"))})', level=2)
             
+            # Step 1: Load current calculation
             self.doc.add_heading('Step 1: Load current calculation', level=3)
             if calc['phase'] == '3-phase':
                 p = self.doc.add_paragraph()
                 p.add_run('Formula: I = P x 1000 / (1.732 x V x PF) for 3-phase').bold = True
                 p = self.doc.add_paragraph()
                 p.add_run('Calculation: ').bold = True
-                p.add_run(f'I = {calc["power"]} x 1000 / (1.732 x {calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A')
+                p.add_run(f'I = {calc["power"]:.1f} x 1000 / (1.732 x {calc["voltage"]:.0f} x {calc["pf"]:.2f}) = {calc["current"]:.1f} A')
             else:
                 p = self.doc.add_paragraph()
                 p.add_run('Formula: I = P x 1000 / (V x PF) for 1-phase').bold = True
                 p = self.doc.add_paragraph()
                 p.add_run('Calculation: ').bold = True
-                p.add_run(f'I = {calc["power"]} x 1000 / ({calc["voltage"]} x {calc["pf"]}) = {calc["current"]:.1f} A')
+                p.add_run(f'I = {calc["power"]:.1f} x 1000 / ({calc["voltage"]:.0f} x {calc["pf"]:.2f}) = {calc["current"]:.1f} A')
             
+            # Step 2: Cable type and reference selection
             self.doc.add_heading('Step 2: Cable type and reference selection', level=3)
             p = self.doc.add_paragraph()
-            p.add_run(f'Based on voltage {calc["voltage"]}V -> {calc["cable_category"]} cables selected')
+            p.add_run(f'Voltage {calc["voltage"]:.0f}V -> {calc["cable_category"]} cables selected')
+            p = self.doc.add_paragraph()
+            p.add_run(f'Cable Type: {format_cable_type(calc["cable_type"])}')
+            p.add_run(f' | Formation: {format_cable_formation(calc["formation"])}')
             p = self.doc.add_paragraph()
             p.add_run(f'Reference Method: {format_installation_method(calc["installation"])}')
-            p.add_run(f' | Table Configuration: {calc.get("table_config", "N/A")}')
-            p = self.doc.add_paragraph()
-            p.add_run(f'Standard Reference: {get_table_reference_info(calc["cable_type"], calc["installation"], calc.get("table_config", ""))}')
             
+            # Step 3: Derating factors calculation
             self.doc.add_heading('Step 3: Derating factors calculation', level=3)
-            self.doc.add_paragraph('Derating Factor Formulas:')
             self.doc.add_paragraph('Total derating factor K = k1 × k2 × k3 × k4')
-            self.doc.add_paragraph('k1 (Temperature correction): Based on IEC 60364-5-52 Table 4B1/4B2')
-            self.doc.add_paragraph('k2 (Grouping correction): Based on IEC 60364-5-52 Table 4C1 (for air) or Table 4C2 (for buried)')
-            self.doc.add_paragraph('k3 (Soil resistivity correction): Based on IEC 60502-2 Tables B.14, B.15, B.16')
-            self.doc.add_paragraph('k4 (Depth correction): Based on IEC 60502-2 Tables B.12, B.13')
-            self.doc.add_paragraph()
             
             factor_table = self.doc.add_table(rows=5, cols=2)
             factor_table.style = 'Light Grid Accent 1'
@@ -1232,124 +1434,87 @@ class CableWordReport:
                 row_cells.cells[1].text = value
                 row_cells.cells[0].paragraphs[0].runs[0].bold = True
             
+            # Step 4: Cable selection
             self.doc.add_heading('Step 4: Cable selection (automatic)', level=3)
             p = self.doc.add_paragraph()
             p.add_run('Selected cable: ').bold = True
-            p.add_run(f'{calc["size"]} mm² {format_cable_type(calc["cable_type"])} ({format_insulation_type(calc["insulation_type"])})')
+            p.add_run(f'{calc["size"]} mm² {format_cable_type(calc["cable_type"])}')
+            
             ampacity_table = self.doc.add_table(rows=3, cols=2)
             ampacity_table.style = 'Light Grid Accent 1'
             ampacity_data = [
-                ('Base ampacity', f'{calc["base_amp"]} A'),
-                ('Derated ampacity', f'{calc["derated_amp"]:.1f} A'),
-                ('Check', f'{calc["derated_amp"]:.1f} A >= {calc["current"]:.1f} A ? {"PASS" if calc["ampacity_pass"] else "FAIL"}')
+                ('Current Carrying Capacity (from table)', f'{calc["base_amp"]} A'),
+                ('Derated ampacity = CCC × K', f'{calc["base_amp"]:.0f} × {calc["total_k"]:.3f} = {calc["derated_amp"]:.1f} A'),
+                ('Ampacity Check', f'{calc["derated_amp"]:.1f} A >= {calc["current"]:.1f} A ? {"PASS" if calc["ampacity_pass"] else "FAIL"}')
             ]
             for j, (param, value) in enumerate(ampacity_data):
                 row_cells = ampacity_table.rows[j]
                 row_cells.cells[0].text = param
                 row_cells.cells[1].text = value
                 row_cells.cells[0].paragraphs[0].runs[0].bold = True
-                if param == 'Check' and calc['ampacity_pass']:
+                if param == 'Ampacity Check' and calc['ampacity_pass']:
                     row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
-                elif param == 'Check':
+                elif param == 'Ampacity Check':
                     row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
             
-            if 'trials' in calc and calc['trials']:
-                self.doc.add_heading('Step 4.5: Cable selection trials (all attempted sizes)', level=3)
-                
-                trial_table = self.doc.add_table(rows=1, cols=6)
-                trial_table.style = 'Light Grid Accent 1'
-                
-                headers = ['Size (mm²)', 'Base Ampacity (A)', 'Derated (A)', 'Vd %', 'Ampacity Check', 'VD Check']
-                for j, header in enumerate(headers):
-                    trial_table.rows[0].cells[j].text = header
-                    trial_table.rows[0].cells[j].paragraphs[0].runs[0].bold = True
-                
-                for trial in calc['trials']:
-                    row = trial_table.add_row().cells
-                    row[0].text = str(trial['size'])
-                    row[1].text = str(trial.get('ampacity', trial.get('base_amp', 0)))
-                    row[2].text = f"{trial['derated']:.1f}"
-                    row[3].text = f"{trial['vd_pct']:.2f}"
-                    row[4].text = 'PASS' if trial['ampacity_pass'] else 'FAIL'
-                    row[5].text = 'PASS' if trial['vd_pass'] else 'FAIL'
-                    
-                    if trial['ampacity_pass']:
-                        row[4].paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
-                    else:
-                        row[4].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
-                    
-                    if trial['vd_pass']:
-                        row[5].paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
-                    else:
-                        row[5].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
-                
-                self.doc.add_paragraph()
-            
+            # Step 5: Voltage drop calculation
             self.doc.add_heading('Step 5: Voltage drop calculation', level=3)
             
-            cable_db = get_cable_data(calc['insulation_type'], calc['cable_type'])
-            cable_data = cable_db.get(calc['size'], {})
+            vd_values = get_voltage_drop_values(calc['cable_type'], calc['size'], calc['phase'], calc['formation'])
             
-            r_value = cable_data.get('R', 0)
-            x_value = cable_data.get('X', 0)
+            self.doc.add_paragraph(f'Using values from BS 7671 Table for {format_cable_type(calc["cable_type"])}')
             
-            if r_value == 0:
-                if calc['size'] <= 16:
-                    r_value = 1.15
-                elif calc['size'] <= 35:
-                    r_value = 0.73
-                elif calc['size'] <= 95:
-                    r_value = 0.44
-                else:
-                    r_value = 0.19
-                self.doc.add_paragraph(f'ℹ️ Using typical R = {r_value:.4f} Ω/km (actual cable data not available)')
-            if x_value == 0:
-                x_value = 0.08
-                self.doc.add_paragraph(f'ℹ️ Using typical X = {x_value:.4f} Ω/km (actual cable data not available)')
-            
-            phi = math.acos(calc['pf'])
-            sin_phi = math.sin(phi)
-            
-            self.doc.add_paragraph(f'Cable parameters for {calc["size"]} mm²:')
-            self.doc.add_paragraph(f'• Resistance (R) = {r_value:.4f} Ω/km')
-            self.doc.add_paragraph(f'• Reactance (X) = {x_value:.4f} Ω/km')
-            self.doc.add_paragraph(f'• Power factor (cosφ) = {calc["pf"]}')
-            
-            self.doc.add_paragraph(f'Step 5.1: sinφ = √(1 - cos²φ) = √(1 - {calc["pf"]:.3f}²) = {sin_phi:.4f}')
-            self.doc.add_paragraph(f'Step 5.2: R cosφ = {r_value:.4f} × {calc["pf"]:.3f} = {r_value * calc["pf"]:.4f}')
-            self.doc.add_paragraph(f'Step 5.3: X sinφ = {x_value:.4f} × {sin_phi:.4f} = {x_value * sin_phi:.4f}')
-            self.doc.add_paragraph(f'Step 5.4: (R cosφ + X sinφ) = {r_value * calc["pf"]:.4f} + {x_value * sin_phi:.4f} = {(r_value * calc["pf"] + x_value * sin_phi):.4f}')
-            
-            if calc['phase'] == '3-phase':
-                vd_calc = 1.732 * calc['current'] * (r_value * calc['pf'] + x_value * sin_phi) * calc['length'] / 1000
-                vd_pct_calc = (vd_calc / calc['voltage']) * 100
-                self.doc.add_paragraph(f'Step 5.5: Vd = √3 × I × (R cosφ + X sinφ) × L / 1000')
-                self.doc.add_paragraph(f'Vd = 1.732 × {calc["current"]:.1f} × {(r_value * calc["pf"] + x_value * sin_phi):.4f} × {calc["length"]:.0f} / 1000 = {vd_calc:.2f} V')
-                self.doc.add_paragraph(f'Step 5.6: Vd% = ({vd_calc:.2f} / {calc["voltage"]:.0f}) × 100 = {vd_pct_calc:.3f}%')
+            if vd_values['type'] == 'mv':
+                mv_value = vd_values['value']
+                self.doc.add_paragraph(f'From table: mV/A/m = {mv_value}')
+                self.doc.add_paragraph('Formula: Vd = (mV/A/m) × I × L / 1000')
+                self.doc.add_paragraph(f'Vd = {mv_value} × {calc["current"]:.1f} × {calc["length"]:.0f} / 1000')
+                vd_calc = mv_value * calc['current'] * calc['length'] / 1000
+                self.doc.add_paragraph(f'Vd = {vd_calc:.2f} V')
+                self.doc.add_paragraph(f'Vd% = ({vd_calc:.2f} / {calc["voltage"]:.0f}) × 100 = {calc["vd_pct"]:.3f}%')
             else:
-                vd_calc = 2 * calc['current'] * (r_value * calc['pf'] + x_value * sin_phi) * calc['length'] / 1000
-                vd_pct_calc = (vd_calc / calc['voltage']) * 100
-                self.doc.add_paragraph(f'Step 5.5: Vd = 2 × I × (R cosφ + X sinφ) × L / 1000')
-                self.doc.add_paragraph(f'Vd = 2 × {calc["current"]:.1f} × {(r_value * calc["pf"] + x_value * sin_phi):.4f} × {calc["length"]:.0f} / 1000 = {vd_calc:.2f} V')
-                self.doc.add_paragraph(f'Step 5.6: Vd% = ({vd_calc:.2f} / {calc["voltage"]:.0f}) × 100 = {vd_pct_calc:.3f}%')
+                r = vd_values['R']
+                x = vd_values['X']
+                phi = math.acos(calc['pf'])
+                sin_phi = math.sin(phi)
+                
+                self.doc.add_paragraph(f'From table: R = {r:.4f} Ω/km, X = {x:.4f} Ω/km')
+                self.doc.add_paragraph(f'Power factor cosφ = {calc["pf"]:.3f}, sinφ = √(1 - cos²φ) = {sin_phi:.4f}')
+                self.doc.add_paragraph(f'R cosφ = {r:.4f} × {calc["pf"]:.3f} = {r * calc["pf"]:.4f}')
+                self.doc.add_paragraph(f'X sinφ = {x:.4f} × {sin_phi:.4f} = {x * sin_phi:.4f}')
+                self.doc.add_paragraph(f'(R cosφ + X sinφ) = {r * calc["pf"] + x * sin_phi:.4f}')
+                
+                if calc['phase'] == '3-phase':
+                    self.doc.add_paragraph('Formula (3-phase): Vd = √3 × I × (R cosφ + X sinφ) × L / 1000')
+                    vd_calc = 1.732 * calc['current'] * (r * calc['pf'] + x * sin_phi) * calc['length'] / 1000
+                    self.doc.add_paragraph(f'Vd = 1.732 × {calc["current"]:.1f} × {(r * calc["pf"] + x * sin_phi):.4f} × {calc["length"]:.0f} / 1000')
+                    self.doc.add_paragraph(f'Vd = {vd_calc:.2f} V')
+                else:
+                    self.doc.add_paragraph('Formula (1-phase): Vd = 2 × I × (R cosφ + X sinφ) × L / 1000')
+                    vd_calc = 2 * calc['current'] * (r * calc['pf'] + x * sin_phi) * calc['length'] / 1000
+                    self.doc.add_paragraph(f'Vd = 2 × {calc["current"]:.1f} × {(r * calc["pf"] + x * sin_phi):.4f} × {calc["length"]:.0f} / 1000')
+                    self.doc.add_paragraph(f'Vd = {vd_calc:.2f} V')
+                
+                self.doc.add_paragraph(f'Vd% = ({vd_calc:.2f} / {calc["voltage"]:.0f}) × 100 = {calc["vd_pct"]:.3f}%')
             
             vd_table = self.doc.add_table(rows=3, cols=2)
             vd_table.style = 'Light Grid Accent 1'
             vd_data = [
                 ('Calculated Voltage Drop', f'{calc["vd_pct"]:.3f}%'),
                 ('Limit', '2.5%'),
-                ('Check', f'{calc["vd_pct"]:.3f}% <= 2.5% ? {"PASS" if calc["vd_pass"] else "FAIL"}')
+                ('VD Check', f'{calc["vd_pct"]:.3f}% <= 2.5% ? {"PASS" if calc["vd_pass"] else "FAIL"}')
             ]
             for j, (param, value) in enumerate(vd_data):
                 row_cells = vd_table.rows[j]
                 row_cells.cells[0].text = param
                 row_cells.cells[1].text = value
                 row_cells.cells[0].paragraphs[0].runs[0].bold = True
-                if param == 'Check' and calc['vd_pass']:
+                if param == 'VD Check' and calc['vd_pass']:
                     row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = RGBColor(0, 128, 0)
-                elif param == 'Check':
+                elif param == 'VD Check':
                     row_cells.cells[1].paragraphs[0].runs[0].font.color.rgb = RGBColor(255, 0, 0)
             
+            # Step 6: Short circuit calculation
             self.doc.add_heading('Step 6: Short circuit calculation', level=3)
             self.doc.add_paragraph('Formula: Isc = (K × S / √t) × √(ln((θf + β) / (θi + β)))')
             self.doc.add_paragraph(f'Where: K = 226 (Copper), β = 234.5, θi = {calc["theta_i"]:.0f}°C, θf = {calc["theta_f"]:.0f}°C')
@@ -1358,6 +1523,7 @@ class CableWordReport:
             self.doc.add_paragraph(f'√(ln term) = {math.sqrt(math.log((calc["theta_f"] + 234.5) / (calc["theta_i"] + 234.5))):.4f}')
             self.doc.add_paragraph(f'Isc = {calc["sc"]:.2f} kA')
             
+            # Final status
             self.doc.add_heading('Final status', level=3)
             p = self.doc.add_paragraph()
             if calc['status'] == 'PASS':
@@ -1411,36 +1577,15 @@ class CableWordReport:
                     p.add_run(f'I = {orig_power:.1f} x 1000 / 110 = {detail["current"]:.2f} A')
                 
                 self.doc.add_heading('Step 2: Circuit breaker rating calculation', level=4)
-                self.doc.add_paragraph(f'Design factor: {detail["design_factor"]} (25% safety margin)')
+                self.doc.add_paragraph(f'Safety factor: {detail["design_factor"]} (25% safety margin)')
                 p = self.doc.add_paragraph()
-                p.add_run('Required rating = Load current × Design factor').bold = True
+                p.add_run('Required rating = Required current × Safety factor').bold = True
                 p = self.doc.add_paragraph()
                 p.add_run(f'Required = {detail["current"]:.2f} × {detail["design_factor"]} = {detail["required"]:.2f} A')
                 
-                self.doc.add_heading('Step 3: Standard rating selection', level=4)
-                self.doc.add_paragraph('Standard circuit breaker ratings (A): 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600')
+                self.doc.add_heading('Step 3: Final selection', level=4)
                 p = self.doc.add_paragraph()
-                p.add_run(f'Selected rating: {detail["selected"]} A (next standard rating ≥ {detail["required"]:.2f} A)').bold = True
-                
-                self.doc.add_heading('Step 4: Breaker type selection', level=4)
-                p = self.doc.add_paragraph()
-                if detail['voltage'] >= 1000:
-                    p.add_run(f'Voltage {detail["voltage"]:.0f}V (MV) → {detail["breaker_type"]}').bold = True
-                    self.doc.add_paragraph(f'Standard: {detail["standard"]} (IEC 62271-100 for MV switchgear)')
-                else:
-                    if detail["selected"] <= 125:
-                        p.add_run(f'Rating {detail["selected"]} A ≤ 125 A → MCB (Miniature Circuit Breaker)').bold = True
-                        self.doc.add_paragraph('Application: For final circuits (IEC 60898)')
-                    elif detail["selected"] <= 1600:
-                        p.add_run(f'Rating {detail["selected"]} A ≤ 1600 A → MCCB (Moulded Case Circuit Breaker)').bold = True
-                        self.doc.add_paragraph('Application: For distribution circuits (IEC 60947-2)')
-                    else:
-                        p.add_run(f'Rating {detail["selected"]} A ≥ 1600 A → ACB (Air Circuit Breaker)').bold = True
-                        self.doc.add_paragraph('Application: For main incomers (IEC 60947-2)')
-                
-                self.doc.add_heading('Step 5: Manufacturer selection', level=4)
-                self.doc.add_paragraph(f'Manufacturer: {detail["manufacturer"]}')
-                self.doc.add_paragraph(f'Series: {detail["series"]}')
+                p.add_run(f'Selected Circuit Breaker Rating: {detail["selected"]} A').bold = True
                 self.doc.add_paragraph('_' * 50)
         
         self.doc.add_heading('INDIVIDUAL CIRCUIT BREAKERS SUMMARY', level=2)
@@ -1460,14 +1605,11 @@ class CableWordReport:
             if num_chunks > 1:
                 self.doc.add_heading(f'Breakers for Loads {start_idx + 1} to {end_idx}', level=3)
             
-            # FIXED: Number of columns = number of parameters + 1 (for Load Name column)
             num_cols = len(cb_params) + 1
             num_rows = len(chunk_results) + 1
-            
             table = self.doc.add_table(rows=num_rows, cols=num_cols)
             table.style = 'Light Grid Accent 1'
             
-            # Header row: Parameter names as column headers
             header_row = table.rows[0]
             header_row.cells[0].text = 'Load Name'
             header_row.cells[0].paragraphs[0].runs[0].bold = True
@@ -1476,7 +1618,6 @@ class CableWordReport:
                 header_row.cells[col_idx].text = param
                 header_row.cells[col_idx].paragraphs[0].runs[0].bold = True
             
-            # Data rows: Each load as a row
             for row_idx, r in enumerate(chunk_results, start=1):
                 row_cells = table.rows[row_idx].cells
                 row_cells[0].text = r['Load']
@@ -1557,32 +1698,13 @@ class CableWordReport:
                 self.doc.add_paragraph(f'I = {main_cb["current"]:.2f} A')
                 
                 self.doc.add_paragraph(f'Step 3: Circuit breaker sizing')
-                self.doc.add_paragraph(f'Design factor: 1.25 (25% safety margin for continuous loads)')
-                self.doc.add_paragraph(f'Required rating = Load current × Design factor')
+                self.doc.add_paragraph(f'Safety factor: 1.25 (25% safety margin for continuous loads)')
+                self.doc.add_paragraph(f'Required rating = Required current × Safety factor')
                 self.doc.add_paragraph(f'Required = {main_cb["current"]:.2f} × 1.25 = {main_cb["required_cb"]:.2f} A')
                 
-                self.doc.add_paragraph(f'Step 4: Standard rating selection')
-                self.doc.add_paragraph('Standard circuit breaker ratings (A): 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600')
-                self.doc.add_paragraph(f'Selected rating: {main_cb["selected_cb"]} A (next standard rating ≥ {main_cb["required_cb"]:.2f} A)')
-                
-                self.doc.add_paragraph(f'Step 5: Breaker type selection')
-                if main_cb["voltage"] >= 1000:
-                    self.doc.add_paragraph(f'Voltage {main_cb["voltage"]:.0f}V (MV) → {main_cb["breaker_type"]}')
-                    self.doc.add_paragraph(f'Standard: {main_cb["standard"]} (IEC 62271-100 for MV switchgear)')
-                else:
-                    if main_cb["selected_cb"] <= 125:
-                        self.doc.add_paragraph(f'Rating {main_cb["selected_cb"]} A ≤ 125 A → MCB (Miniature Circuit Breaker)')
-                        self.doc.add_paragraph('Application: For final circuits (IEC 60898)')
-                    elif main_cb["selected_cb"] <= 1600:
-                        self.doc.add_paragraph(f'Rating {main_cb["selected_cb"]} A ≤ 1600 A → MCCB (Moulded Case Circuit Breaker)')
-                        self.doc.add_paragraph('Application: For distribution circuits (IEC 60947-2)')
-                    else:
-                        self.doc.add_paragraph(f'Rating {main_cb["selected_cb"]} A ≥ 1600 A → ACB (Air Circuit Breaker)')
-                        self.doc.add_paragraph('Application: For main incomers (IEC 60947-2)')
-                
-                self.doc.add_paragraph(f'Manufacturer: {main_cb["manufacturer"]}')
-                self.doc.add_paragraph(f'Series: {main_cb["series"]}')
-                self.doc.add_paragraph(f'Poles: {selected_poles}')
+                self.doc.add_paragraph(f'Step 4: Final selection')
+                p = self.doc.add_paragraph()
+                p.add_run(f'Selected Circuit Breaker Rating: {main_cb["selected_cb"]} A').bold = True
                 
                 self.doc.add_paragraph('_' * 60)
         else:
@@ -1751,7 +1873,7 @@ class SimpleTransformerCalculator:
 # ========== SESSION STATE INITIALIZATION ==========
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
-        'Load Description': ['LV Motor', 'MV Motor'],
+        'Load Description': ['LV Motor 1', 'MV Motor 1'],
         'Quantity': [1, 1],
         'Rating (kW)': [75, 500],
         'Voltage (V)': [415, 3300],
@@ -1765,7 +1887,7 @@ if 'loads_df' not in st.session_state:
         'Load Name', 'Power (kW)', 'Voltage (V)', 'Phase', 'Load Type', 
         'Power Factor', 'Efficiency', 'Length (m)', 'Insulation Type', 
         'Cable Type', 'Installation Method', 'Table_Config', 'Cables in Group', 
-        'Cable Arrangement', 'Cable Formation', 'Soil Resistivity (K.m/W)', 
+        'Cable Arrangement', 'Cable Formation', 'Cable Clearance', 'Soil Resistivity (K.m/W)', 
         'Burial Depth (m)'
     ])
 
@@ -1820,7 +1942,7 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
     st.markdown("""
     <div class="info-box">
         <h4>📌 This load sheet is used by all calculators</h4>
-        <p>Two example loads provided: LV Motor (415V) and MV Motor (3300V). Load Type determines diversity factor:</p>
+        <p>Two example loads provided: LV Motor 1 (415V) and MV Motor 1 (3300V). Load Type determines diversity factor:</p>
         <p><span class="load-type-badge continuous-badge">Continuous</span> = 100% (1.0) | 
            <span class="load-type-badge intermittent-badge">Intermittent</span> = 30% (0.3) | 
            <span class="load-type-badge standby-badge">Standby</span> = 10% (0.1)</p>
@@ -2010,6 +2132,15 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
         ambient_temp = st.number_input("Ambient temperature (°C) - common", value=30.0, min_value=10.0, max_value=80.0, step=5.0, key="ambient_temp_global")
         st.info("Same for all cables")
     
+    clearance_options_dict = {
+        'touching': 'Touching (0 clearance)',
+        'one_diameter': 'One cable diameter spacing',
+        'clearance_0_125m': '0.125 m clearance',
+        'clearance_0_25m': '0.25 m clearance',
+        'clearance_0_5m': '0.5 m clearance',
+        'clearance_1_0m': '1.0 m clearance'
+    }
+    
     if st.button("📥 Import loads from load sheet", use_container_width=True):
         new_loads = []
         for idx, load in st.session_state.universal_loads.iterrows():
@@ -2023,10 +2154,14 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 cable_type = 'multi_core_non_armoured'
                 install_method = 'C'
                 table_config = 'C34' if phase == '3-phase' else 'C2'
+                arrangement = 'bunched_in_air_surface_enclosed'
+                formation = 'flat'
             else:
                 cable_type = 'single_core_non_armoured'
                 install_method = 'F'
                 table_config = 'F34_flat' if phase == '3-phase' else 'F2'
+                arrangement = 'single_layer_ladder_cleats'
+                formation = 'flat'
             
             new_loads.append({
                 'Load Name': load['Load Description'],
@@ -2042,8 +2177,9 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 'Installation Method': install_method,
                 'Table_Config': table_config,
                 'Cables in Group': 3,
-                'Cable Arrangement': 'bunched_in_air_surface_enclosed',
-                'Cable Formation': 'flat',
+                'Cable Arrangement': arrangement,
+                'Cable Formation': formation,
+                'Cable Clearance': 'touching',
                 'Soil Resistivity (K.m/W)': 1.5,
                 'Burial Depth (m)': 0.8
             })
@@ -2189,10 +2325,22 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                         )
                     
                     with col_i:
-                        # Check if this is a valid buried installation (multi-core with Method D)
-                        is_buried_valid = (new_install_method in ['D', 'D_direct'] and 'multi_core' in new_cable_type)
+                        is_buried_valid = (new_install_method in ['D', 'D_direct'] and 'multi_core_armoured' in new_cable_type)
                         
                         if is_buried_valid:
+                            clearance_options = get_clearance_options(new_install_method, new_arrangement, 'single_core' in new_cable_type)
+                            current_clearance = load.get('Cable Clearance', 'touching')
+                            if current_clearance not in clearance_options:
+                                current_clearance = clearance_options[0] if clearance_options else 'touching'
+                            
+                            new_clearance = st.selectbox(
+                                f"Cable Clearance",
+                                options=clearance_options,
+                                index=clearance_options.index(current_clearance) if current_clearance in clearance_options else 0,
+                                format_func=lambda x: clearance_options_dict.get(x, x),
+                                key=f"clearance_{idx}"
+                            )
+                            
                             new_soil_res = st.number_input(
                                 f"Soil Resistivity (K.m/W)",
                                 value=float(load.get('Soil Resistivity (K.m/W)', 1.5)),
@@ -2210,9 +2358,17 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 key=f"depth_{idx}"
                             )
                         else:
+                            new_clearance = 'touching'
                             new_soil_res = 1.5
                             new_depth = 0.8
-                            st.info(f"ℹ️ Burial parameters only applicable for Multi-core cables with Method D or D_direct")
+                            if new_install_method in ['D', 'D_direct']:
+                                st.info(f"ℹ️ Burial parameters only applicable for Multi-core Armoured cables")
+                            st.selectbox(
+                                f"Cable Clearance (N/A)",
+                                options=['touching'],
+                                disabled=True,
+                                key=f"clearance_disabled_{idx}"
+                            )
                             st.number_input(
                                 f"Soil Resistivity (N/A)",
                                 value=1.5,
@@ -2235,6 +2391,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                     edited_df.at[idx, 'Cables in Group'] = new_cables_group
                     edited_df.at[idx, 'Cable Arrangement'] = new_arrangement
                     edited_df.at[idx, 'Cable Formation'] = new_formation
+                    edited_df.at[idx, 'Cable Clearance'] = new_clearance if is_buried_valid else 'touching'
                     edited_df.at[idx, 'Soil Resistivity (K.m/W)'] = new_soil_res if is_buried_valid else 1.5
                     edited_df.at[idx, 'Burial Depth (m)'] = new_depth if is_buried_valid else 0.8
                     
@@ -2259,26 +2416,26 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                             cable_category, _ = cable_calc.get_cable_category(load['Voltage (V)'])
                             insulation_type = load['Insulation Type']
                             insulation_temp = 90 if insulation_type == 'XLPE_90' else 70
-                            cable_db = get_cable_data(insulation_type, load['Cable Type'])
-                            if not cable_db:
-                                st.warning(f"No cable data found for {load['Load Name']}")
-                                continue
+                            
                             current = cable_calc.calculate_load_current(
                                 load['Power (kW)'], load['Voltage (V)'], load['Power Factor'], 
                                 load['Efficiency'], load['Phase']
                             )
-                            selected_size, cable_data, base_amp, derated_amp, vd_pct, total_k, factors, success, trial_results = select_cable_automatically(
-                                load, cable_db, cable_calc, ambient_temp,
+                            
+                            selected_size, cable_data, base_amp, derated_amp, vd_pct, total_k, factors, success, _ = select_cable_automatically(
+                                load, cable_calc, ambient_temp,
                                 insulation_temp, current,
                                 load['Length (m)'], load['Power Factor'], load['Voltage (V)'], load['Phase'],
                                 load['Installation Method'], load['Cable Formation'], load['Cable Type'],
                                 load['Cable Arrangement'],
                                 load['Soil Resistivity (K.m/W)'], load['Burial Depth (m)'], load['Cables in Group'],
-                                load['Table_Config']
+                                load['Table_Config'], load.get('Cable Clearance', 'touching')
                             )
+                            
                             if selected_size is None:
                                 st.error(f"No suitable cable found for {load['Load Name']}")
                                 continue
+                            
                             all_factors[load['Load Name']] = factors
                             insulation_short = 'PVC' if insulation_type == 'PVC_70' else 'XLPE'
                             base_ampacity = base_amp
@@ -2288,7 +2445,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 load['Cables in Group'], load['Cable Arrangement'],
                                 load['Installation Method'],
                                 load['Soil Resistivity (K.m/W)'], load['Burial Depth (m)'],
-                                is_single_core
+                                is_single_core, load.get('Cable Clearance', 'touching')
                             )
                             derated_amp_actual = base_ampacity * total_k_actual
                             isc, k_value, operating_temp, theta_i, theta_f = cable_calc.calculate_short_circuit(
@@ -2315,7 +2472,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 'Cable Type': format_cable_type(load['Cable Type']),
                                 'Size (mm²)': selected_size,
                                 'Load Current (A)': f"{current:.1f}",
-                                'Base Ampacity (A)': base_ampacity,
+                                'Current Carrying Capacity (A)': base_ampacity,
                                 'Derating Factor K': f"{total_k_actual:.3f}",
                                 'Derated Ampacity (A)': f"{derated_amp_actual:.1f}",
                                 'Voltage Drop (%)': f"{vd_pct:.3f}",
@@ -2337,10 +2494,10 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 'insulation_type': insulation_type,
                                 'cable_category': cable_category,
                                 'cable_type': load['Cable Type'],
-                                'table_config': load['Table_Config'],
+                                'formation': load['Cable Formation'],
                                 'installation': load['Installation Method'],
                                 'arrangement': load['Cable Arrangement'],
-                                'formation': load['Cable Formation'],
+                                'clearance': load.get('Cable Clearance', 'touching'),
                                 'soil_res': load['Soil Resistivity (K.m/W)'],
                                 'depth': load['Burial Depth (m)'],
                                 'num_cables': load['Cables in Group'],
@@ -2360,7 +2517,7 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                                 'status': status,
                                 'vd_pass': vd_pct <= 2.5,
                                 'ampacity_pass': derated_amp_actual >= current,
-                                'trials': trial_results
+                                'trials': []
                             })
                             if not success:
                                 st.warning(f"⚠️ {load['Load Name']}: Even largest cable {selected_size} mm² fails! vd={vd_pct:.2f}% > 2.5%")
@@ -2393,11 +2550,11 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
 **Total derating factor K = k1 × k2 × k3 × k4**
 
 **k1 (Temperature correction)** - Based on IEC 60364-5-52 Table 4B1/4B2
-**k2 (Grouping correction)** - Based on IEC 60364-5-52 Table 4C1 (for air) or Table 4C2 (for buried)
+**k2 (Grouping correction)** - Based on IEC 60364-5-52 Table 4C1 (for air) or Table 4C2/4C3 (for buried)
 **k3 (Soil resistivity correction)** - Based on IEC 60502-2 Tables B.14, B.15, B.16 (Reference: 1.5 K.m/W)
 **k4 (Depth correction)** - Based on IEC 60502-2 Tables B.12, B.13 (Reference: 0.8m)
 
-**Derated ampacity = Base ampacity × K**
+**Derated ampacity = Current Carrying Capacity × K**
 """)
         if hasattr(st.session_state, 'all_derating_factors') and st.session_state.all_derating_factors:
             for load_name, factors in st.session_state.all_derating_factors.items():
@@ -2410,20 +2567,6 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
 | k3 (Soil resistivity) | {factors['k3 (Soil Resistivity)']:.3f} | Based on IEC 60502-2 Tables B.14-B.16 |
 | k4 (Depth) | {factors['k4 (Depth)']:.3f} | Based on IEC 60502-2 Tables B.12-B.13 |
 | **Total K** | **{factors['total']:.3f}** | **K = k1 × k2 × k3 × k4** |
-""")
-                    for calc in st.session_state.detailed_calcs:
-                        if calc['load_name'] == load_name:
-                            st.markdown(f"""
-**Installation parameters for {load_name}:**
-- Insulation type: {format_insulation_type(calc['insulation_type'])}
-- Cable type: {format_cable_type(calc['cable_type'])}
-- Reference Method: {format_installation_method(calc['installation'])}
-- Table Configuration: {calc.get('table_config', 'N/A')}
-- Cables in group: {calc['num_cables']}
-- Cable arrangement: {format_cable_arrangement(calc['arrangement'])}
-- Cable formation: {format_cable_formation(calc['formation'])}
-- Soil resistivity: {calc['soil_res']} K.m/W
-- Burial depth: {calc['depth']} m
 """)
         else:
             st.info("👈 Calculate loads first to see derating factors")
@@ -2438,22 +2581,22 @@ elif st.session_state.selected_calculator == "🔌 Cable Sizing":
                 with st.expander(f"🔍 {calc['load_name']} ({format_load_type(calc.get('load_type', 'Continuous'))})"):
                     st.markdown(f"""
 **Step 1: Load current**  
-I = {calc['power']} x 1000 / (1.732 x {calc['voltage']} x {calc['pf']} x {calc.get('efficiency', 1.0):.2f}) = **{calc['current']:.1f} A**
+I = {calc['power']:.1f} x 1000 / (1.732 x {calc['voltage']:.0f} x {calc['pf']:.2f} x {calc.get('efficiency', 1.0):.2f}) = **{calc['current']:.1f} A**
 
 **Step 2: Cable type and reference selection**  
-Voltage {calc['voltage']}V -> {calc['cable_category']}  
-Reference Method: {format_installation_method(calc['installation'])}  
-Table Configuration: {calc.get('table_config', 'N/A')}  
-Standard Reference: {get_table_reference_info(calc['cable_type'], calc['installation'], calc.get('table_config', ''))}
+Voltage {calc['voltage']:.0f}V -> {calc['cable_category']}  
+Cable Type: {format_cable_type(calc['cable_type'])}  
+Formation: {format_cable_formation(calc['formation'])}  
+Reference Method: {format_installation_method(calc['installation'])}
 
-**Step 3: Derating factors**
+**Step 3: Derating factors (FOR AMPACITY ONLY)**
 - Ambient temperature: {calc['ambient_temp']}°C
 - Insulation type: {format_insulation_type(calc['insulation_type'])}
 - Cable type: {format_cable_type(calc['cable_type'])}
 - Installation method: {calc['installation']}
 - Cables in group: {calc['num_cables']}
 - Cable arrangement: {format_cable_arrangement(calc['arrangement'])}
-- Cable formation: {format_cable_formation(calc['formation'])}
+- Cable clearance: {format_cable_clearance(calc.get('clearance', 'touching'))}
 - Soil resistivity: {calc['soil_res']} K.m/W
 - Burial depth: {calc['depth']} m
 
@@ -2465,107 +2608,64 @@ Standard Reference: {get_table_reference_info(calc['cable_type'], calc['installa
 - **Total K = {calc['total_k']:.3f}**
 
 **Step 4: Cable selection**  
-Selected: {calc['size']} mm² {format_cable_type(calc['cable_type'])} ({format_insulation_type(calc['insulation_type'])})  
-Base ampacity: {calc['base_amp']} A  
-Derated ampacity = {calc['base_amp']} × {calc['total_k']:.3f} = **{calc['derated_amp']:.1f} A**  
-Check: {calc['derated_amp']:.1f} A >= {calc['current']:.1f} A -> **{'PASS' if calc['ampacity_pass'] else 'FAIL'}**
+Selected: {calc['size']} mm² {format_cable_type(calc['cable_type'])}  
+Current Carrying Capacity: {calc['base_amp']} A  
+Derated ampacity = CCC × K = {calc['base_amp']} × {calc['total_k']:.3f} = **{calc['derated_amp']:.1f} A**  
+Ampacity Check: {calc['derated_amp']:.1f} A >= {calc['current']:.1f} A -> **{'PASS' if calc['ampacity_pass'] else 'FAIL'}**
 
-**Step 5: Voltage drop calculation**
+**Step 5: Voltage drop calculation (NO DERATING FACTORS)**
 """)
-                    cable_db = get_cable_data(calc['insulation_type'], calc['cable_type'])
-                    cable_data = cable_db.get(calc['size'], {})
-                    r_value = cable_data.get('R', 0)
-                    x_value = cable_data.get('X', 0)
-                    if r_value == 0:
-                        if calc['size'] <= 16:
-                            r_value = 1.15
-                        elif calc['size'] <= 35:
-                            r_value = 0.73
-                        elif calc['size'] <= 95:
-                            r_value = 0.44
-                        else:
-                            r_value = 0.19
-                        st.caption(f"ℹ️ Using typical R = {r_value} Ω/km (actual cable data not available)")
-                    if x_value == 0:
-                        x_value = 0.08
-                        st.caption(f"ℹ️ Using typical X = {x_value} Ω/km (actual cable data not available)")
-                    phi = math.acos(calc['pf'])
-                    sin_phi = math.sin(phi)
-                    if calc['phase'] == '3-phase':
-                        vd_calc = 1.732 * calc['current'] * (r_value * calc['pf'] + x_value * sin_phi) * calc['length'] / 1000
-                        vd_pct_calc = (vd_calc / calc['voltage']) * 100
+                    
+                    vd_values = get_voltage_drop_values(calc['cable_type'], calc['size'], calc['phase'], calc['formation'])
+                    
+                    if vd_values['type'] == 'mv':
+                        mv_value = vd_values['value']
                         st.markdown(f"""
-**Formula (3-phase):** Vd = √3 × I × (R cosφ + X sinφ) × L / 1000
+Using mV/A/m = {mv_value} from BS 7671 Table
 
-**Given for this load:**
-- Load current (I) = {calc['current']:.1f} A
-- Cable length (L) = {calc['length']:.0f} m
-- Power factor (cosφ) = {calc['pf']}
-- Voltage (V) = {calc['voltage']:.0f} V (3-phase)
-- Cable resistance (R) = {r_value:.4f} Ω/km
-- Cable reactance (X) = {x_value:.4f} Ω/km
-
-**Step 5.1:** sinφ = √(1 - cos²φ) = √(1 - {calc['pf']:.3f}²) = **{sin_phi:.4f}**
-
-**Step 5.2:** R cosφ = {r_value:.4f} × {calc['pf']:.3f} = **{r_value * calc['pf']:.4f}**
-
-**Step 5.3:** X sinφ = {x_value:.4f} × {sin_phi:.4f} = **{x_value * sin_phi:.4f}**
-
-**Step 5.4:** (R cosφ + X sinφ) = {r_value * calc['pf']:.4f} + {x_value * sin_phi:.4f} = **{(r_value * calc['pf'] + x_value * sin_phi):.4f}**
-
-**Step 5.5:** Vd = 1.732 × {calc['current']:.1f} × {(r_value * calc['pf'] + x_value * sin_phi):.4f} × {calc['length']:.0f} / 1000 = **{vd_calc:.2f} V**
-
-**Step 5.6:** Vd% = ({vd_calc:.2f} / {calc['voltage']:.0f}) × 100 = **{vd_pct_calc:.3f}%**
+Formula: Vd = mV/A/m × I × L / 1000
+Vd = {mv_value} × {calc['current']:.1f} × {calc['length']:.0f} / 1000
+Vd = **{mv_value * calc['current'] * calc['length'] / 1000:.2f} V**
+Vd% = ({mv_value * calc['current'] * calc['length'] / 1000:.2f} / {calc['voltage']:.0f}) × 100 = **{calc['vd_pct']:.3f}%**
 """)
                     else:
-                        vd_calc = 2 * calc['current'] * (r_value * calc['pf'] + x_value * sin_phi) * calc['length'] / 1000
-                        vd_pct_calc = (vd_calc / calc['voltage']) * 100
+                        r = vd_values['R']
+                        x = vd_values['X']
+                        phi = math.acos(calc['pf'])
+                        sin_phi = math.sin(phi)
+                        
                         st.markdown(f"""
-**Formula (1-phase):** Vd = 2 × I × (R cosφ + X sinφ) × L / 1000
-
-**Given for this load:**
-- Load current (I) = {calc['current']:.1f} A
-- Cable length (L) = {calc['length']:.0f} m
-- Power factor (cosφ) = {calc['pf']}
-- Voltage (V) = {calc['voltage']:.0f} V (1-phase)
-- Cable resistance (R) = {r_value:.4f} Ω/km
-- Cable reactance (X) = {x_value:.4f} Ω/km
-
-**Step 5.1:** sinφ = √(1 - cos²φ) = √(1 - {calc['pf']:.3f}²) = **{sin_phi:.4f}**
-
-**Step 5.2:** R cosφ = {r_value:.4f} × {calc['pf']:.3f} = **{r_value * calc['pf']:.4f}**
-
-**Step 5.3:** X sinφ = {x_value:.4f} × {sin_phi:.4f} = **{x_value * sin_phi:.4f}**
-
-**Step 5.4:** (R cosφ + X sinφ) = {r_value * calc['pf']:.4f} + {x_value * sin_phi:.4f} = **{(r_value * calc['pf'] + x_value * sin_phi):.4f}**
-
-**Step 5.5:** Vd = 2 × {calc['current']:.1f} × {(r_value * calc['pf'] + x_value * sin_phi):.4f} × {calc['length']:.0f} / 1000 = **{vd_calc:.2f} V**
-
-**Step 5.6:** Vd% = ({vd_calc:.2f} / {calc['voltage']:.0f}) × 100 = **{vd_pct_calc:.3f}%**
+Using R = {r:.4f} Ω/km, X = {x:.4f} Ω/km from BS 7671 Table
+Power factor cosφ = {calc['pf']:.3f}, sinφ = √(1 - cos²φ) = {sin_phi:.4f}
+R cosφ = {r:.4f} × {calc['pf']:.3f} = {r * calc['pf']:.4f}
+X sinφ = {x:.4f} × {sin_phi:.4f} = {x * sin_phi:.4f}
+(R cosφ + X sinφ) = {r * calc['pf'] + x * sin_phi:.4f}
 """)
+                        if calc['phase'] == '3-phase':
+                            st.markdown(f"""
+Formula (3-phase): Vd = √3 × I × (R cosφ + X sinφ) × L / 1000
+Vd = 1.732 × {calc['current']:.1f} × {(r * calc['pf'] + x * sin_phi):.4f} × {calc['length']:.0f} / 1000
+Vd = **{calc['vd_pct'] * calc['voltage'] / 100:.2f} V**
+Vd% = **{calc['vd_pct']:.3f}%**
+""")
+                        else:
+                            st.markdown(f"""
+Formula (1-phase): Vd = 2 × I × (R cosφ + X sinφ) × L / 1000
+Vd = 2 × {calc['current']:.1f} × {(r * calc['pf'] + x * sin_phi):.4f} × {calc['length']:.0f} / 1000
+Vd = **{calc['vd_pct'] * calc['voltage'] / 100:.2f} V**
+Vd% = **{calc['vd_pct']:.3f}%**
+""")
+                    
                     st.markdown(f"""
-**Result for this load:**  
+**Result:**  
 Voltage drop = **{calc['vd_pct']:.3f}%** (Limit: 2.5%)  
-Check: {calc['vd_pct']:.3f}% <= 2.5% -> **{'PASS' if calc['vd_pass'] else 'FAIL'}**
+VD Check: {calc['vd_pct']:.3f}% <= 2.5% -> **{'PASS' if calc['vd_pass'] else 'FAIL'}**
 
 **Step 6: Short circuit calculation**  
 Isc = **{calc['sc']:.2f} kA**
 
 **Final status: {'PASS' if calc['status'] == 'PASS' else 'FAIL'}**
 """)
-                    if 'trials' in calc and calc['trials']:
-                        st.markdown("**📊 Cable selection trials (all attempted sizes):**")
-                        trial_data = []
-                        for trial in calc['trials']:
-                            trial_data.append({
-                                'Size (mm²)': trial['size'],
-                                'Base Ampacity (A)': trial.get('ampacity', trial.get('base_amp', 0)),
-                                'Derated (A)': f"{trial['derated']:.1f}",
-                                'Vd %': f"{trial['vd_pct']:.2f}%",
-                                'Ampacity Check': '✓ PASS' if trial['ampacity_pass'] else '✗ FAIL',
-                                'VD Check': '✓ PASS' if trial['vd_pass'] else '✗ FAIL'
-                            })
-                        st.dataframe(pd.DataFrame(trial_data), use_container_width=True, hide_index=True)
         else:
             st.info("👈 Calculate loads first")
     
@@ -2576,15 +2676,9 @@ Isc = **{calc['sc']:.2f} kA**
 **Formula:** Icb = Iload × 1.25 (25% safety margin)
 **Example:**
 - Load current (Iload) = 40 A
-- Required CB rating = 40 × 1.25 = 50 A
+- Required CB = 40 × 1.25 = 50 A
 - Selected standard rating = 50 A
 - Breaker type = MCB (since 50A ≤ 125A)
-
-**Breaker types:**
-- **MCB** (≤125A): Miniature circuit breaker - For final circuits
-- **MCCB** (125A-1600A): Moulded case circuit breaker - For distribution
-- **ACB** (≥1600A): Air circuit breaker - For main incomers
-- **MV Breaker** (for voltages ≥1000V): Medium voltage circuit breaker
 """)
         
         st.markdown("### 🏭 Manufacturer Selection")
@@ -2621,11 +2715,12 @@ Isc = **{calc['sc']:.2f} kA**
                 col_idx = idx % 3
                 with cols[col_idx]:
                     default_poles = '3P' if result['Phase'] == '3-phase' else ('2P' if result['Phase'] == '1-phase' else '1P')
+                    unique_key = f"pole_{result['Load']}_{idx}"
                     pole_selections[result['Load']] = st.selectbox(
                         f"Poles for {result['Load']}",
                         options=list(pole_options.keys()),
                         format_func=lambda x: f"{x} - {pole_options[x].split('-')[0].strip()}",
-                        key=f"pole_{result['Load']}",
+                        key=unique_key,
                         index=list(pole_options.keys()).index(default_poles)
                     )
                     st.caption(pole_options[pole_selections[result['Load']]])
@@ -2636,7 +2731,7 @@ Isc = **{calc['sc']:.2f} kA**
                 'Voltage (V)': r['Voltage (V)'],
                 'Current (A)': f"{r['Current (A)']:.1f}",
                 'Required (A)': f"{r['Required CB (A)']:.1f}",
-                'Selected (A)': r['Selected CB (A)'],
+                'Selected CB (A)': r['Selected CB (A)'],
                 'Type': f"{r['Breaker Type']}",
                 'Manufacturer': selected_manufacturer,
                 'Series': r['Series'],
@@ -2672,10 +2767,6 @@ Isc = **{calc['sc']:.2f} kA**
                             key=f"main_pole_voltage_{voltage}",
                             index=list(pole_options.keys()).index(default_main_poles)
                         )
-                        
-                        if voltage in st.session_state.main_cb_details_by_voltage:
-                            with st.expander("📋 View detailed calculation"):
-                                st.markdown(st.session_state.main_cb_details_by_voltage[voltage])
                 
                 st.markdown("#### 📊 Main Circuit Breakers Summary")
                 main_cb_summary = []
@@ -2691,26 +2782,7 @@ Isc = **{calc['sc']:.2f} kA**
                 if main_cb_summary:
                     st.dataframe(pd.DataFrame(main_cb_summary), use_container_width=True, hide_index=True)
             else:
-                st.info("No main circuit breaker calculations available. Please calculate cable sizes first.")
-            
-            st.markdown("### 📋 Detailed selection calculations")
-            with st.expander("Individual Breaker Selection Details", expanded=False):
-                for detail in st.session_state.cb_details:
-                    st.markdown(f"""
-**Load: {detail['load_name']}**
-
-- Load type: {detail['phase_desc']}
-- Voltage: {detail['voltage']:.0f} V
-- Load current: {detail['current']:.2f} A
-- Required rating: {detail['required']:.2f} A
-- Selected rating: {detail['selected']} A
-- Breaker type: {detail['breaker_type']}
-- Standard: {detail['standard']}
-- Poles: {pole_selections.get(detail['load_name'], '3P')}
-- Manufacturer: {detail['manufacturer']}
-- Series: {detail['series']}
-""")
-                    st.markdown("---")
+                st.info("No main circuit breaker calculations available.")
         else:
             st.info("👈 Calculate cable sizes first to see circuit breaker results")
     
@@ -2720,20 +2792,11 @@ Isc = **{calc['sc']:.2f} kA**
             if st.button("📥 Generate word report", key="cable_word", use_container_width=True):
                 with st.spinner("Generating word with complete detailed calculations..."):
                     try:
-                        # Sanitize data before generating report
                         for calc in st.session_state.detailed_calcs:
-                            if 'pf' not in calc or calc['pf'] is None or calc['pf'] == '':
+                            if 'pf' not in calc or calc['pf'] is None:
                                 calc['pf'] = 0.85
-                            if 'installation' not in calc:
-                                calc['installation'] = 'C'
-                            if 'arrangement' not in calc:
-                                calc['arrangement'] = 'bunched_in_air_surface_enclosed'
                             if 'formation' not in calc:
                                 calc['formation'] = 'flat'
-                        
-                        for r in st.session_state.cb_results:
-                            if 'Power Factor' not in r or r['Power Factor'] is None:
-                                r['Power Factor'] = 0.85
                         
                         word = CableWordReport()
                         word.add_title()
@@ -2782,7 +2845,6 @@ Isc = **{calc['sc']:.2f} kA**
                         
                     except Exception as e:
                         st.error(f"Error generating word document: {str(e)}")
-                        st.error(f"Error type: {type(e).__name__}")
                         st.code(traceback.format_exc())
         else:
             st.info("👈 Calculate cable sizes first to generate report")
@@ -2905,7 +2967,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
                     <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></td>
                     <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></td>
                     <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></td>
+                    <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></tr>
                 </table>
             </div>
             """, unsafe_allow_html=True)
@@ -3021,16 +3083,6 @@ elif st.session_state.selected_calculator == "🔄 Generator Sizing":
         <p style="margin-top: 15px;"><b>Expected release:</b> Coming soon in the next update!</p>
     </div>
     """, unsafe_allow_html=True)
-    with st.expander("📊 Preview - Generator Sizing Methodology", expanded=False):
-        st.markdown("""
-        **Generator Sizing Steps:**
-        1. **Calculate Total Load (kVA)** - Sum of all continuous loads, add largest motor starting kVA
-        2. **Apply Diversity Factors** - Based on load types (Continuous, Intermittent, Standby)
-        3. **Consider Future Expansion** - Add 20-30% for future growth
-        4. **Select Standard Rating** - Choose next standard generator size
-        5. **Verify Starting Requirements** - Check voltage dip during motor starting, ensure generator can handle starting current
-        6. **Fuel Consumption Calculation** - At 100%, 75%, 50% load, tank size recommendation
-        """)
 
 # ========== EARTHING TAB ==========
 elif st.session_state.selected_calculator == "⏚ Earthing":
@@ -3052,30 +3104,6 @@ elif st.session_state.selected_calculator == "⏚ Earthing":
         <p style="margin-top: 15px;"><b>Expected release:</b> Coming soon in the next update!</p>
     </div>
     """, unsafe_allow_html=True)
-    with st.expander("📊 Preview - Earthing Calculation Methodology", expanded=False):
-        st.markdown("""
-        **Earthing Design Steps (IEEE Std 80 / IEC 62305):**
-        
-        **1. Soil Resistivity Measurement** - Wenner four-pin method, soil types and typical resistivity values
-        
-        **2. Electrode Selection**
-        - Rod electrodes: R = (ρ / 2πL) × ln(4L/d)
-        - Plate electrodes: R = ρ / (4 × √(π × A))
-        - Strip/ring electrodes: R = (ρ / 2πL) × ln(2L² / (w × h))
-        
-        **3. Multiple Electrodes** - Parallel rod configuration, utilization factor based on spacing
-        
-        **4. Step & Touch Potential**
-        - Step potential: Es = (ρ × I × Ks × Ki) / L
-        - Touch potential: Et = (ρ × I × Kt × Ki) / L
-        
-        **5. IEC 62305 Compliance**
-        - Class I: ≤ 1 Ω, min rod length 3m
-        - Class II: ≤ 4 Ω, min rod length 2.5m
-        - Class III: ≤ 10 Ω, min rod length 2m
-        - Class IV: ≤ 20 Ω, min rod length 1.5m
-        """)
 
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: gray; font-size: 16px;'>🔌 CES-Electrical | Version 3.0 | {datetime.now().strftime('%Y-%m-%d %H:%M')}</div>", unsafe_allow_html=True)
-
