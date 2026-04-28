@@ -1918,17 +1918,19 @@ if 'tx_largest_data' not in st.session_state:
 
 # ========== SIDEBAR NAVIGATION ==========
 with st.sidebar:
-    st.markdown('<div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;"><h2 style="color: white !important; margin: 0;">⚡ CES-Electrical</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;"><h2 style="color: white !important; margin: 0;">CES-Electrical</h2></div>', unsafe_allow_html=True)
     if 'selected_calculator' not in st.session_state:
-        st.session_state.selected_calculator = "📋 LOAD SHEET"
+        st.session_state.selected_calculator = "LOAD SHEET"
+    
     calculators = [
-        "📋 LOAD SHEET",
-        "⚡ Lightning Protection",
-        "🔌 Cable Sizing",
-        "⚙️ Transformer Sizing",
-        "🔄 Generator Sizing",
-        "⏚ Earthing"
+        "LOAD SHEET",
+        "Lightning Protection",
+        "Cable Sizing",
+        "Transformer Sizing",
+        "Generator Sizing",
+        "Earthing"
     ]
+    
     for calc in calculators:
         if st.button(calc, key=f"nav_{calc}", use_container_width=True):
             st.session_state.selected_calculator = calc
@@ -1937,7 +1939,7 @@ with st.sidebar:
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
 # ========== LOAD SHEET TAB ==========
-if st.session_state.selected_calculator == "📋 LOAD SHEET":
+if st.session_state.selected_calculator == "LOAD SHEET":
     st.markdown('<div class="report-header">📋 UNIVERSAL LOAD SHEET</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
@@ -2047,7 +2049,7 @@ if st.session_state.selected_calculator == "📋 LOAD SHEET":
         st.metric("MV loads", mv_count)
 
 # ========== LIGHTNING PROTECTION TAB ==========
-elif st.session_state.selected_calculator == "⚡ Lightning Protection":
+elif st.session_state.selected_calculator == "Lightning Protection":
     st.markdown('<div class="report-header">⚡ LIGHTNING PROTECTION CALCULATOR</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -2121,7 +2123,7 @@ elif st.session_state.selected_calculator == "⚡ Lightning Protection":
                     st.error(f"Error generating word document: {str(e)}")
 
 # ========== CABLE SIZING TAB ==========
-elif st.session_state.selected_calculator == "🔌 Cable Sizing":
+elif st.session_state.selected_calculator == "Cable Sizing":
     st.markdown('<div class="report-header">🔌 Cable sizing calculator</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -2850,7 +2852,7 @@ Isc = **{calc['sc']:.2f} kA**
             st.info("👈 Calculate cable sizes first to generate report")
 
 # ========== TRANSFORMER SIZING TAB ==========
-elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
+elif st.session_state.selected_calculator == "Transformer Sizing":
     st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown(f"""
     <div class="info-box">
@@ -2963,10 +2965,10 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             <div class="largest-equipment">
                 <h3>🏆 Largest equipment: {largest_load['Load Description']}</h3>
                 <table style="width:100%; border-collapse: collapse;">
-                    <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></td>
+                    <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></tr>
+                    <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></tr>
+                    <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></tr>
+                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></tr>
                     <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></tr>
                 </table>
             </div>
@@ -3064,7 +3066,7 @@ elif st.session_state.selected_calculator == "⚙️ Transformer Sizing":
             st.warning("⚠️ Please go to load analysis tab first to calculate totals.")
 
 # ========== GENERATOR SIZING TAB ==========
-elif st.session_state.selected_calculator == "🔄 Generator Sizing":
+elif st.session_state.selected_calculator == "Generator Sizing":
     st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
@@ -3085,7 +3087,7 @@ elif st.session_state.selected_calculator == "🔄 Generator Sizing":
     """, unsafe_allow_html=True)
 
 # ========== EARTHING TAB ==========
-elif st.session_state.selected_calculator == "⏚ Earthing":
+elif st.session_state.selected_calculator == "Earthing":
     st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
