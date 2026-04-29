@@ -3066,7 +3066,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
     st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
-        <h4>🔄 Iterative Development</h4>
+        <h4> Iterative Development</h4>
         <p>Features:</p>
         <ul>
             <li>Load analysis and kVA calculation</li>
@@ -3081,7 +3081,7 @@ elif st.session_state.selected_calculator == "Earthing":
     st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
-        <h4>⏚ Iterative Development</h4>
+        <h4> Iterative Development</h4>
         <p>Features:</p>
         <ul>
             <li>Soil resistivity analysis</li>
