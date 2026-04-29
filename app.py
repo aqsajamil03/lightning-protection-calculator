@@ -2679,25 +2679,7 @@ Isc = **{calc['sc']:.2f} kA**
     with cable_tabs[3]:
         st.markdown('<div class="report-header">⚡ Circuit breaker sizing</div>', unsafe_allow_html=True)
         
-        st.markdown("### 🏭 Manufacturer Selection")
-        manufacturer_options = list(MANUFACTURERS.keys())
-        selected_manufacturer = st.selectbox("Select Circuit Breaker Manufacturer", options=manufacturer_options, index=0, key="cb_manufacturer_select")
-        st.info(f"**Selected Manufacturer:** {selected_manufacturer}\n\n**Series:** MCB: {MANUFACTURERS[selected_manufacturer]['MCB']} | MCCB: {MANUFACTURERS[selected_manufacturer]['MCCB']} | ACB: {MANUFACTURERS[selected_manufacturer]['ACB']}")
-        
         if st.session_state.cb_results:
-            for i in range(len(st.session_state.cb_results)):
-                st.session_state.cb_results[i]['Manufacturer'] = selected_manufacturer
-                if st.session_state.cb_results[i]['Breaker Type'] in MANUFACTURERS[selected_manufacturer]:
-                    st.session_state.cb_results[i]['Series'] = MANUFACTURERS[selected_manufacturer][st.session_state.cb_results[i]['Breaker Type']]
-                else:
-                    st.session_state.cb_results[i]['Series'] = 'Standard series'
-            for i in range(len(st.session_state.cb_details)):
-                st.session_state.cb_details[i]['manufacturer'] = selected_manufacturer
-                if st.session_state.cb_details[i]['breaker_type'] in MANUFACTURERS[selected_manufacturer]:
-                    st.session_state.cb_details[i]['series'] = MANUFACTURERS[selected_manufacturer][st.session_state.cb_details[i]['breaker_type']]
-                else:
-                    st.session_state.cb_details[i]['series'] = 'Standard series'
-            
             st.markdown("### ⚡ Individual circuit breakers")
             st.markdown("#### 🔧 Pole selection for each load")
             st.info("Select the number of poles based on your system requirements:")
@@ -2731,8 +2713,6 @@ Isc = **{calc['sc']:.2f} kA**
                 'Required (A)': f"{r['Required CB (A)']:.1f}",
                 'Selected CB (A)': r['Selected CB (A)'],
                 'Type': f"{r['Breaker Type']}",
-                'Manufacturer': selected_manufacturer,
-                'Series': r['Series'],
                 'Poles': pole_selections.get(r['Load'], '3P'),
                 'Standard': r['Standard']
             } for r in st.session_state.cb_results])
@@ -2825,7 +2805,7 @@ Isc = **{calc['sc']:.2f} kA**
                                 pole_selections, 
                                 main_pole_selections,
                                 st.session_state.cb_details if st.session_state.cb_details else [],
-                                selected_manufacturer
+                                'Schneider Electric'
                             )
                         
                         word_path = "temp_cable_report.docx"
@@ -2964,7 +2944,7 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
                     <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></td>
                     <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></td>
                     <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></table>
+                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></td>
                     <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></tr>
                 </table>
             </div>
@@ -3066,7 +3046,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
     st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
-        <h4> Iterative Development</h4>
+        <h4>🔄 Iterative Development</h4>
         <p>Features:</p>
         <ul>
             <li>Load analysis and kVA calculation</li>
@@ -3081,7 +3061,7 @@ elif st.session_state.selected_calculator == "Earthing":
     st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
     <div class="info-box">
-        <h4> Iterative Development</h4>
+        <h4>⏚ Iterative Development</h4>
         <p>Features:</p>
         <ul>
             <li>Soil resistivity analysis</li>
