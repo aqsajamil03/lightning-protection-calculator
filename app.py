@@ -2688,15 +2688,6 @@ Isc = **{calc['sc']:.2f} kA**
     
     with cable_tabs[3]:
         st.markdown('<div class="report-header">⚡ Circuit breaker sizing</div>', unsafe_allow_html=True)
-        st.markdown("""
-### Circuit Breaker Sizing Calculation Example
-**Formula:** Icb = Iload × 1.25 (25% safety margin)
-**Example:**
-- Load current (Iload) = 40 A
-- Required CB = 40 × 1.25 = 50 A
-- Selected standard rating = 50 A
-- Breaker type = MCB (since 50A ≤ 125A)
-""")
         
         st.markdown("### 🏭 Manufacturer Selection")
         manufacturer_options = list(MANUFACTURERS.keys())
@@ -2980,10 +2971,10 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
             <div class="largest-equipment">
                 <h3>🏆 Largest equipment: {largest_load['Load Description']}</h3>
                 <table style="width:100%; border-collapse: collapse;">
-                    <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></td>
+                    <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></tr>
+                    <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></tr>
                     <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></tr>
-                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></td>
+                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></tr>
                     <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></tr>
                 </table>
             </div>
