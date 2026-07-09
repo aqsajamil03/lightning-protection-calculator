@@ -1,20 +1,33 @@
 import streamlit as st
+
 import math
+
 import datetime
+
 import pandas as pd
+
 import base64
+
 from datetime import datetime, timedelta
+
 from docx import Document
+
 from docx.shared import Pt, RGBColor, Cm
+
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+
 from docx.enum.table import WD_TABLE_ALIGNMENT
+
 from docx.enum.section import WD_ORIENTATION
+
 import os
+
 import traceback
 
 st.set_page_config(page_title="Professional Engineering Tools", page_icon="🔌", layout="wide")
 
 # ========== PAKISTAN TIME HELPER FUNCTIONS ==========
+
 def get_pakistan_time():
     """Get current Pakistan time (UTC+5)"""
     pakistan_time = datetime.utcnow() + timedelta(hours=5)
@@ -29,6 +42,7 @@ def format_pakistan_date():
     return get_pakistan_time().strftime("%Y-%m-%d")
 
 # ========== HELPER FUNCTIONS FOR FORMATTING ==========
+
 def format_cable_arrangement(arrangement):
     formats = {
         'bunched_in_air_surface_enclosed': 'Bunched in air / surface / enclosed',
@@ -37,7 +51,7 @@ def format_cable_arrangement(arrangement):
         'single_layer_ladder_cleats': 'Single layer on ladder / cleats',
         'direct_buried': 'Direct Buried in Ground',
         'buried_ducts': 'Buried in Ducts'
-    }
+    } 
     return formats.get(arrangement, arrangement.replace('_', ' ').title())
 
 def format_cable_clearance(clearance):
@@ -137,6 +151,10 @@ st.markdown("""
     .formula-box { background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%); padding: 20px; border-radius: 10px; border-left: 6px solid var(--secondary); margin: 15px 0; color: var(--text-dark) !important; }
     .formula-box * { color: var(--text-dark) !important; }
     .formula-box h4 { color: var(--primary) !important; }
+    /* Lightning Protection specific styles */
+    .formula-box-lightning { background-color: #F3F4F6; padding: 15px; border-radius: 8px; border-left: 5px solid #1E3A8A; margin: 10px 0; font-family: 'Courier New', monospace; }
+    .success-box { background-color: #D4EDDA; color: #155724; padding: 15px; border-radius: 8px; border-left: 5px solid #28A745; margin: 10px 0; }
+    .word-btn { background-color: #1e3a8a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -160,8 +178,61 @@ LOAD_TYPE_FACTORS = {
     'Standby': {'diversity': 0.1, 'description': 'Stand-by (10%) - Emergency/backup only', 'cb_factor': 1.25, 'color': '#DC3545'}
 }
 
+# ========== TRANSFORMER SIZING - R10 SERIES & CALCULATOR ==========
+
+R10_SERIES = [100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000]
+
+class TransformerSizingCalculator:
+    def __init__(self):
+        pass
+    
+    @staticmethod
+    def calc_s(p_kw, q_kvar):
+        return math.sqrt(p_kw**2 + q_kvar**2)
+    
+    @staticmethod
+    def calc_q(p_kw, pf):
+        if pf >= 1.0:
+            return 0.0
+        phi = math.acos(pf)
+        return p_kw * math.tan(phi)
+    
+    @staticmethod
+    def calc_p(s_kva, pf):
+        return s_kva * pf
+    
+    @staticmethod
+    def get_r10_rating(required_kva):
+        for rating in R10_SERIES:
+            if rating >= required_kva:
+                return rating
+        return R10_SERIES[-1]
+    
+    @staticmethod
+    def calc_motor_starting_vd(transformer_kva, impedance_pct, max_demand_kva, 
+                                motor_power_kw, starting_current_pct, motor_pf=0.85, voltage_v=433):
+        motor_kva = motor_power_kw / motor_pf if motor_pf > 0 else motor_power_kw
+        starting_kva = motor_kva * (starting_current_pct / 100.0)
+        z_pu = impedance_pct / 100.0
+        sc_current = (transformer_kva * 1000) / (1.732 * voltage_v * z_pu)
+        sc_kva = 1.732 * voltage_v * sc_current / 1000
+        total_kva = max_demand_kva + starting_kva
+        vd_pct = (total_kva / sc_kva) * 100.0
+        return {
+            'motor_kva': round(motor_kva, 1),
+            'starting_kva': round(starting_kva, 1),
+            'starting_current_pct': starting_current_pct,
+            'sc_current_a': round(sc_current, 0),
+            'sc_kva': round(sc_kva, 0),
+            'total_kva_start': round(total_kva, 1),
+            'voltage_drop_pct': round(vd_pct, 2),
+            'is_acceptable': vd_pct <= 15.0
+        }
+
 # ========== TEMPERATURE DERATING FACTORS ==========
+
 TEMPERATURE_FACTORS_AIR = {70: {25: 1.03, 30: 1.00, 35: 0.94, 40: 0.87, 45: 0.79, 50: 0.71, 55: 0.61}, 90: {25: 1.02, 30: 1.00, 35: 0.96, 40: 0.91, 45: 0.87, 50: 0.82, 55: 0.76}}
+
 TEMPERATURE_FACTORS_GROUND = {70: {10: 1.10, 15: 1.05, 20: 1.00, 25: 0.95, 30: 0.89, 35: 0.84, 40: 0.77, 45: 0.71}, 90: {10: 1.07, 15: 1.04, 20: 1.00, 25: 0.96, 30: 0.93, 35: 0.89, 40: 0.85, 45: 0.80}}
 
 def get_temperature_factor(insulation_temp, ambient_temp, installation='air'):
@@ -177,6 +248,7 @@ def get_temperature_factor(insulation_temp, ambient_temp, installation='air'):
         return 1.0
 
 # ========== GROUPING FACTORS ==========
+
 GROUPING_FACTORS_AIR = {
     'bunched_in_air_surface_enclosed': {1: 1.00, 2: 0.80, 3: 0.70, 4: 0.65, 5: 0.60, 6: 0.57, 7: 0.54, 8: 0.52, 9: 0.50, 12: 0.45, 16: 0.41, 20: 0.38},
     'single_layer_wall_floor': {1: 1.00, 2: 0.85, 3: 0.79, 4: 0.75, 5: 0.73, 6: 0.72, 7: 0.72, 8: 0.71, 9: 0.70, 12: 0.70, 16: 0.70, 20: 0.70},
@@ -242,6 +314,7 @@ def get_grouping_factor(num_cables, arrangement, installation_type='air', cleara
         return factors[closest]
 
 # ========== DEPTH FACTORS ==========
+
 def get_depth_factor(depth_m, installation='D_direct', is_single_core=True):
     if depth_m == 0.8:
         return 1.00
@@ -266,6 +339,7 @@ def get_depth_factor(depth_m, installation='D_direct', is_single_core=True):
     return factors[closest_depth]
 
 # ========== SOIL RESISTIVITY FACTORS ==========
+
 def get_soil_resistivity_factor(soil_resistivity, installation='D_direct', is_single_core=True):
     if soil_resistivity == 1.5:
         return 1.00
@@ -453,6 +527,7 @@ XLPE_90_MULTI_ARMOURED = {
 }
 
 # ========== VOLTAGE DROP LOOKUP FUNCTION ==========
+
 def get_voltage_drop_values(cable_type, size_mm2, phase, formation='flat'):
     """Get accurate voltage drop values based on cable type, size, phase, and formation"""
     
@@ -524,6 +599,7 @@ def get_voltage_drop_values(cable_type, size_mm2, phase, formation='flat'):
     return {'type': 'mv', 'value': 0}
 
 # ========== TABLE CONFIGURATION FUNCTIONS ==========
+
 def get_valid_reference_methods(cable_type):
     valid_methods = {
         'single_core_non_armoured': ['B', 'C', 'F', 'G'],
@@ -646,6 +722,7 @@ def get_ampacity_from_config(cable_data, table_config, load_phase, installation_
             return cable_data.get('C2', cable_data.get('E2', 0))
 
 # ========== CABLE DATABASE WITH AMPACITIES ==========
+
 # Multi-core non-armoured ampacities (Table 4E2A)
 XLPE_90_MULTI_NON_ARMOURED_AMP = {
     1.0: {'B2': 17.0, 'B34': 15.0, 'C2': 19.0, 'C34': 17.0, 'E2': 21.0, 'E34': 18.0},
@@ -739,6 +816,7 @@ def get_cable_ampacities(cable_type):
     return {}
 
 # ========== CABLE SIZING CALCULATOR CLASS ==========
+
 class CableSizingCalculator:
     def __init__(self):
         self.results = {}
@@ -1026,14 +1104,12 @@ class CircuitBreakerCalculator:
             
             detailed_reasons[voltage] = f"""
 MAIN CIRCUIT BREAKER DETAILED CALCULATION - {system_type} ({voltage_range})
-
 ================================================================================
 
 Step 1: Load analysis for {voltage_range} system
 --------------------------------------------------------------------------------
 Voltage level: {voltage} V ({system_type})
 Number of loads in this group: {len(group)}
-
 Loads in this voltage group:
 {loads_list}
 
@@ -1056,7 +1132,6 @@ Step 4: Standard rating selection
 --------------------------------------------------------------------------------
 Standard circuit breaker ratings (A): 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 
 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600
-
 Selected rating: {selected} A (next standard rating ≥ {required:.2f} A)
 
 Step 5: Breaker type selection
@@ -1064,10 +1139,8 @@ Step 5: Breaker type selection
 Based on:
 - Voltage level: {voltage} V ({system_type})
 - Rated current: {selected} A
-
 Selected breaker type: {breaker_type}
 Standard: {standard}
-
 ================================================================================
 FINAL SELECTION: {selected} A {breaker_type} for {voltage_range} System
 ================================================================================
@@ -1075,80 +1148,112 @@ FINAL SELECTION: {selected} A {breaker_type} for {voltage_range} System
         
         return results, detailed_reasons
 
-# ========== WORD REPORT CLASSES ==========
+# ========== LIGHTNING PROTECTION WORD REPORT CLASS (replacement) ==========
+
 class LightningWordReport:
     def __init__(self):
         self.doc = Document()
-        style = self.doc.styles['Normal']
-        style.font.name = 'Arial'
-        style.font.size = Pt(11)
+        self.doc.core_properties.title = "Lightning Protection Calculation"
+        self.doc.core_properties.author = "CES-Electrical"
     
     def add_calculations(self, results, inputs):
-        title = self.doc.add_heading('LIGHTNING PROTECTION CALCULATIONS', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        self.doc.add_paragraph(f'Date: {format_pakistan_datetime()} (Pakistan Time)')
-        self.doc.add_paragraph('Reference: IEC 62305-2')
-        self.doc.add_paragraph()
+        self.doc.add_heading('LIGHTNING PROTECTION CALCULATIONS', 0)
         
-        self.doc.add_heading('1.1 Collection area (Ad)', level=1)
-        self.doc.add_paragraph('Formula: Ad = L x W + 2 x (3H) x (L + W) + pi x (3H)^2')
-        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.1.1')
+        # 1. Collection Area (Ad)
+        self.doc.add_heading('1.1 Collection Area (Ad)', level=1)
+        self.doc.add_paragraph('Formula: Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.1.1, Equation A.2')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'Ad = {results["ad"]:.2f} m²')
         
-        self.doc.add_heading('1.2 Near strike collection area (Am)', level=1)
-        self.doc.add_paragraph('Formula: Am = 2 x 500 x (L + W) + pi x 500^2')
-        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3')
+        # 2. Near Strike Collection Area (Am)
+        self.doc.add_heading('1.2 Near Strike Collection Area (Am)', level=1)
+        self.doc.add_paragraph('Formula: Am = 2 × 500 × (L + W) + π × 500²')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.7')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'Am = {results["am"]:.2f} m²')
         
-        self.doc.add_heading('1.3 Environmental factor (CD)', level=1)
-        self.doc.add_paragraph(f'Selected environment: {inputs.get("environment", "Isolated")}')
+        # 3. Environmental Factor
+        self.doc.add_heading('1.3 Environmental Factor (CD)', level=1)
+        self.doc.add_paragraph('Reference: IEC 62305-2 Table A.1')
+        self.doc.add_paragraph('• Surrounded by taller structures: CD = 0.25')
+        self.doc.add_paragraph('• Similar height structures: CD = 0.5')
+        self.doc.add_paragraph('• Isolated structure: CD = 1.0')
+        self.doc.add_paragraph('• Hilltop or knoll: CD = 2.0')
+        self.doc.add_paragraph(f'Selected Environment: {inputs.get("environment", "Isolated")}')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'CD = {inputs.get("cd", 1)}')
         
-        self.doc.add_heading('1.4 Lightning ground flash density (NG)', level=1)
-        self.doc.add_paragraph('Formula: NG = 0.1 x Td')
+        # 4. Lightning Density
+        self.doc.add_heading('1.4 Lightning Ground Flash Density (NG)', level=1)
+        self.doc.add_paragraph('Formula: NG = 0.1 × Td')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.1, Equation A.1')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'NG = {results.get("ng", 1)} flashes/km²/year')
         
-        self.doc.add_heading('1.5 Lightning frequencies', level=1)
+        # 5. Lightning Frequencies
+        self.doc.add_heading('1.5 Lightning Frequencies', level=1)
+        self.doc.add_paragraph('Direct Strike Frequency (Nd):')
+        self.doc.add_paragraph('Formula: Nd = NG × Ad × CD × 10⁻⁶')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.2.4, Equation A.4')
         p = self.doc.add_paragraph()
-        p.add_run('Nd (Direct): ').bold = True
-        p.add_run(f'{results.get("nd", 0):.6f} events/year')
-        p = self.doc.add_paragraph()
-        p.add_run('Nm (Near): ').bold = True
-        p.add_run(f'{results.get("nm", 0):.6f} events/year')
+        p.add_run('Result: ').bold = True
+        p.add_run(f'Nd = {results.get("nd", 0):.6f} events/year')
         
-        self.doc.add_heading('1.6 Protection level', level=1)
+        self.doc.add_paragraph()
+        self.doc.add_paragraph('Near Strike Frequency (Nm):')
+        self.doc.add_paragraph('Formula: Nm = NG × Am × 10⁻⁶')
+        self.doc.add_paragraph('Reference: IEC 62305-2 Annex A.3, Equation A.6')
+        p = self.doc.add_paragraph()
+        p.add_run('Result: ').bold = True
+        p.add_run(f'Nm = {results.get("nm", 0):.6f} events/year')
+        
+        # 6. Protection Level
+        self.doc.add_heading('1.6 Protection Level', level=1)
+        self.doc.add_paragraph('Reference: IEC 62305-1 Table 1 and Figure 1')
+        self.doc.add_paragraph(f'Protection Efficiency: {results.get("efficiency", 0):.1%}')
         p = self.doc.add_paragraph()
         p.add_run('Result: ').bold = True
         p.add_run(f'{results.get("lpl", "Class III")}')
-        self.doc.add_paragraph(f'Rolling sphere radius: {results.get("sphere", 45)}m')
+        self.doc.add_paragraph(f'Rolling Sphere Radius: {results.get("sphere", 45)}m (IEC 62305-3 Table 2)')
         
+        # 7. Air Terminals
+        self.doc.add_heading('1.7 Air Terminals Required', level=1)
+        self.doc.add_paragraph('Method: Rolling Sphere Method')
+        self.doc.add_paragraph('Reference: IEC 62305-3 Clause 5.2.2 Table 2')
+        p = self.doc.add_paragraph()
+        p.add_run('Result: ').bold = True
+        p.add_run(f'{results.get("air_terminals", 4)} air terminals required')
+        
+        # Summary Table
         self.doc.add_page_break()
         self.doc.add_heading('SUMMARY OF RESULTS', level=1)
+        
         table = self.doc.add_table(rows=1, cols=2)
         table.style = 'Light Grid Accent 1'
+        
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'Parameter'
         hdr_cells[1].text = 'Value'
         
+        for cell in hdr_cells:
+            cell.paragraphs[0].runs[0].bold = True
+        
         summary_data = [
-            ('Collection area (Ad)', f"{results['ad']:.2f} m²"),
-            ('Near strike area (Am)', f"{results['am']:.2f} m²"),
-            ('Environmental factor (CD)', str(inputs.get('cd', 1))),
-            ('Lightning density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
-            ('Direct frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
-            ('Near frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),
-            ('Protection efficiency', f"{results.get('efficiency', 0):.1%}"),
-            ('Protection level', results.get('lpl', 'Class III')),
-            ('Rolling sphere radius', f"{results.get('sphere', 45)} m"),
-            ('Air terminals required', str(results.get('air_terminals', 4)))
+            ('Collection Area (Ad)', f"{results['ad']:.2f} m²"),
+            ('Near Strike Area (Am)', f"{results['am']:.2f} m²"),
+            ('Environmental Factor (CD)', str(inputs.get('cd', 1))),
+            ('Lightning Density (NG)', f"{results.get('ng', 1)} flashes/km²/year"),
+            ('Direct Frequency (Nd)', f"{results.get('nd', 0):.6f} events/year"),
+            ('Near Frequency (Nm)', f"{results.get('nm', 0):.6f} events/year"),
+            ('Protection Efficiency', f"{results.get('efficiency', 0):.1%}"),
+            ('Protection Level', results.get('lpl', 'Class III')),
+            ('Rolling Sphere Radius', f"{results.get('sphere', 45)} m"),
+            ('Air Terminals Required', str(results.get('air_terminals', 4)))
         ]
         
         for param, value in summary_data:
@@ -1162,6 +1267,67 @@ class LightningWordReport:
     
     def save(self, filename):
         self.doc.save(filename)
+
+
+
+
+class TransformerWordReport:
+    def __init__(self):
+        self.doc = Document()
+        self.doc.core_properties.title = "Transformer Sizing Calculation"
+        self.doc.core_properties.author = "CES-Electrical"
+    
+    def add_calculations(self, r, ms, motor_kva_val):
+        self.doc.add_heading('TRANSFORMER SIZING REPORT', 0)
+        
+        self.doc.add_heading('1. Load Summary', level=1)
+        table = self.doc.add_table(rows=4, cols=5)
+        table.style = 'Light Grid Accent 1'
+        headers = ['Condition', 'P (kW)', 'PF', 'Q (kVAR)', 'S (kVA)']
+        for i, h in enumerate(headers):
+            table.rows[0].cells[i].text = h
+            table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+        
+        data = [
+            ['Operating', str(round(r["op_p"])), str(r["op_pf"]), str(round(r["op_q"],1)), str(round(r["op_s"],1))],
+            ['Peak', str(round(r["pk_p"])), str(r["pk_pf"]), str(round(r["pk_q"],1)), str(round(r["pk_s"],1))],
+            ['Peak+' + str(r["spare_margin_pct"]) + '%', str(round(r["pk_p"]*r["loading_factor"])), str(r["pk_pf"]), str(round(r["pk_q"]*r["loading_factor"],1)), str(round(r["peak_with_margin_kva"],1))]
+        ]
+        for i, row in enumerate(data):
+            for j, val in enumerate(row):
+                table.rows[i+1].cells[j].text = val
+        
+        self.doc.add_paragraph()
+        self.doc.add_heading('2. Sizing Calculation', level=1)
+        self.doc.add_paragraph('Step 1 - Peak Load S = ' + str(round(r["pk_s"],1)) + ' kVA')
+        self.doc.add_paragraph('Step 2 - S with margin = ' + str(round(r["pk_s"],1)) + ' x ' + str(r["loading_factor"]) + ' = ' + str(round(r["peak_with_margin_kva"],1)) + ' kVA')
+        self.doc.add_paragraph('Step 3 - Required = ' + str(round(r["peak_with_margin_kva"],1)) + ' x 1.2 = ' + str(round(r["tx_required_kva"],1)) + ' kVA')
+        p = self.doc.add_paragraph()
+        p.add_run('Step 4 - Selected R10 Rating = ' + str(r["selected_kva"]) + ' kVA').bold = True
+        
+        self.doc.add_paragraph()
+        self.doc.add_heading('3. Motor Starting Check', level=1)
+        self.doc.add_paragraph('Motor: ' + str(round(motor_kva_val,1)) + ' kVA | Method: ' + r["motor_start_method"] + ' (' + str(r["start_pct"]) + '%)')
+        self.doc.add_paragraph('Starting kVA: ' + str(ms["starting_kva"]) + ' kVA')
+        self.doc.add_paragraph('SC Current: ' + str(ms["sc_current_a"]) + ' A | SC Capacity: ' + str(ms["sc_kva"]) + ' kVA')
+        p = self.doc.add_paragraph()
+        p.add_run('Voltage Drop: ' + str(ms["voltage_drop_pct"]) + '%').bold = True
+        self.doc.add_paragraph('Status: ' + ('ACCEPTABLE' if ms["is_acceptable"] else 'NOT ACCEPTABLE'))
+        
+        self.doc.add_paragraph()
+        self.doc.add_heading('4. Conclusion', level=1)
+        p = self.doc.add_paragraph()
+        p.add_run('Selected Transformer: ' + str(r["selected_kva"]) + ' kVA').bold = True
+        
+        footer = self.doc.add_paragraph()
+        footer.alignment = 1  # CENTER
+        footer.add_run(f'Generated by CES-Electrical on {format_pakistan_datetime()} (Pakistan Time)').italic = True
+    
+    def save(self, filename):
+        self.doc.save(filename)
+
+
+# ========== WORD REPORT CLASSES FOR CABLE AND TRANSFORMER ==========
 
 class CableWordReport:
     def __init__(self):
@@ -1718,164 +1884,12 @@ class CableWordReport:
     def save(self, filename):
         self.doc.save(filename)
 
-class TransformerWordReport:
-    def __init__(self):
-        self.doc = Document()
-        style = self.doc.styles['Normal']
-        style.font.name = 'Arial'
-        style.font.size = Pt(11)
-    
-    def add_title(self):
-        title = self.doc.add_heading('TRANSFORMER SIZING REPORT', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        title.runs[0].font.size = Pt(20)
-        title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        self.doc.add_paragraph(f'Date: {format_pakistan_datetime()} (Pakistan Time)')
-        self.doc.add_paragraph()
-    
-    def add_load_analysis(self, loads_df):
-        heading = self.doc.add_heading('LOAD ANALYSIS', level=1)
-        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        table = self.doc.add_table(rows=1, cols=8)
-        table.style = 'Light Grid Accent 1'
-        headers = ['Load description', 'Qty', 'Rating (kw)', 'Voltage (V)', 'PF', 'Connected (kw)', 'Diversity', 'P (kw)']
-        for i, header in enumerate(headers):
-            table.rows[0].cells[i].text = header
-            table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
-        total_p = 0
-        for idx, load in loads_df.iterrows():
-            load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
-            connected = load['Rating (kW)'] * load['Quantity']
-            p = connected * load_type_diversity
-            total_p += p
-            row = table.add_row().cells
-            row[0].text = load['Load Description']
-            row[1].text = str(load['Quantity'])
-            row[2].text = f"{load['Rating (kW)']:.0f}"
-            row[3].text = f"{load['Voltage (V)']:.0f}"
-            row[4].text = f"{load['Power Factor']:.2f}"
-            row[5].text = f"{connected:.0f}"
-            row[6].text = f"{load_type_diversity:.1f}"
-            row[7].text = f"{p:.1f}"
-        p_row = table.add_row().cells
-        p_row[0].text = 'Total real power (P)'
-        p_row[0].paragraphs[0].runs[0].bold = True
-        for i in range(1, 7):
-            p_row[i].text = ''
-        p_row[7].text = f"{total_p:.1f} kW"
-        p_row[7].paragraphs[0].runs[0].bold = True
-        self.doc.add_paragraph()
-        return total_p
-    
-    def add_step_by_step(self, loads_df):
-        self.doc.add_page_break()
-        heading = self.doc.add_heading('STEP-BY-STEP P, Q, S CALCULATIONS', level=1)
-        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        total_p = 0
-        total_q = 0
-        for idx, load in loads_df.iterrows():
-            self.doc.add_heading(f'Load {idx+1}: {load["Load Description"]}', level=2)
-            load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
-            connected = load['Rating (kW)'] * load['Quantity']
-            p = connected * load_type_diversity
-            phi = math.acos(load['Power Factor'])
-            tan_phi = math.tan(phi)
-            q = p * tan_phi
-            s = math.sqrt(p**2 + q**2)
-            self.doc.add_paragraph(f'Step 1 - Connected power: {load["Rating (kW)"]:.0f} kW x {load["Quantity"]} = {connected:.0f} kW')
-            self.doc.add_paragraph(f'Step 2 - Demand power (P): {connected:.0f} kW x {load_type_diversity:.1f} = {p:.1f} kW')
-            self.doc.add_paragraph(f'Step 3 - Angle φ: acos({load["Power Factor"]}) = {math.degrees(phi):.1f}°')
-            self.doc.add_paragraph(f'Step 4 - tan(φ): tan({math.degrees(phi):.1f}°) = {tan_phi:.3f}')
-            self.doc.add_paragraph(f'Step 5 - Reactive power (Q): {p:.1f} kW x {tan_phi:.3f} = {q:.1f} kVAR')
-            p_step = self.doc.add_paragraph()
-            p_step.add_run('Step 6 - Apparent power (S): ').bold = True
-            p_step.add_run(f'√({p:.1f}² + {q:.1f}²) = {s:.1f} kVA')
-            total_p += p
-            total_q += q
-            self.doc.add_paragraph('_' * 50)
-        return total_p, total_q
-    
-    def add_largest_equipment(self, loads_df, total_p, total_s, largest_data):
-        self.doc.add_page_break()
-        heading = self.doc.add_heading('LARGEST EQUIPMENT ANALYSIS', level=1)
-        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        if largest_data:
-            self.doc.add_heading(f'Largest equipment: {largest_data["load"]["Load Description"]}', level=2)
-            self.doc.add_paragraph(f'Connected power: {largest_data["connected"]:.0f} kW')
-            self.doc.add_paragraph(f'Demand power (P): {largest_data["p"]:.1f} kW')
-            self.doc.add_paragraph(f'Reactive power (Q): {largest_data["q"]:.1f} kVAR')
-            self.doc.add_paragraph(f'Apparent power (S): {largest_data["s"]:.1f} kVA')
-            p_pct = (largest_data["p"] / total_p) * 100 if total_p > 0 else 0
-            s_pct = (largest_data["s"] / total_s) * 100 if total_s > 0 else 0
-            self.doc.add_heading('Impact on total system:', level=3)
-            self.doc.add_paragraph(f'• Contributes {p_pct:.1f}% of total real power (P)')
-            self.doc.add_paragraph(f'• Contributes {s_pct:.1f}% of total apparent power (S)')
-    
-    def add_transformer_selection(self, total_p, total_q, future_expansion, selected_kva):
-        self.doc.add_page_break()
-        heading = self.doc.add_heading('TRANSFORMER SELECTION', level=1)
-        heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        heading.runs[0].font.color.rgb = RGBColor(0, 51, 102)
-        total_s = math.sqrt(total_p**2 + total_q**2)
-        with_future = total_s * (1 + future_expansion/100)
-        self.doc.add_paragraph(f'Total real power (P) = {total_p:.1f} kW')
-        self.doc.add_paragraph(f'Total reactive power (Q) = {total_q:.1f} kVAR')
-        p = self.doc.add_paragraph()
-        p.add_run(f'Total apparent power (S) = √({total_p:.1f}² + {total_q:.1f}²) = {total_s:.1f} kVA').bold = True
-        self.doc.add_paragraph()
-        self.doc.add_paragraph(f'Future expansion: +{future_expansion}%')
-        self.doc.add_paragraph(f'Required with future = {total_s:.1f} x {1 + future_expansion/100:.2f} = {with_future:.1f} kVA')
-        self.doc.add_paragraph()
-        self.doc.add_heading('Standard ratings:', level=3)
-        ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150]
-        self.doc.add_paragraph(', '.join(str(r) for r in ratings))
-        final_heading = self.doc.add_heading('', level=2)
-        final_heading.add_run(f'Selected transformer: {selected_kva} kVA').bold = True
-        final_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    def save(self, filename):
-        self.doc.save(filename)
+# TransformerWordReport class removed - will be re-added when transformer sizing is implemented
 
-class SimpleTransformerCalculator:
-    def __init__(self):
-        self.standard_ratings = [50, 100, 160, 200, 250, 315, 400, 500, 630, 800, 
-                                  1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 
-                                  6300, 8000, 10000, 12500, 16000, 20000, 25000, 
-                                  31500, 40000, 50000, 63000]
-    
-    def calculate_p(self, rating_kw, quantity, diversity):
-        return rating_kw * quantity * diversity
-    
-    def calculate_q(self, p_kw, pf):
-        if pf >= 1.0:
-            return 0
-        phi = math.acos(pf)
-        return p_kw * math.tan(phi)
-    
-    def calculate_s(self, p_kw, q_kvar):
-        return math.sqrt(p_kw**2 + q_kvar**2)
-    
-    def get_standard_rating(self, required_kva):
-        for rating in self.standard_ratings:
-            if rating >= required_kva:
-                return rating
-        return self.standard_ratings[-1]
-    
-    def find_largest_equipment(self, loads):
-        max_p = 0
-        max_load = None
-        max_idx = -1
-        for idx, load in loads.iterrows():
-            p_connected = load['Rating (kW)'] * load['Quantity']
-            if p_connected > max_p:
-                max_p = p_connected
-                max_load = load
-                max_idx = idx
-        return max_idx, max_load, max_p
+# SimpleTransformerCalculator class removed - will be re-added when transformer sizing is implemented
 
 # ========== SESSION STATE INITIALIZATION ==========
+
 if 'universal_loads' not in st.session_state:
     st.session_state.universal_loads = pd.DataFrame({
         'Load Description': ['LV Motor 1', 'MV Motor 1'],
@@ -1898,32 +1912,44 @@ if 'loads_df' not in st.session_state:
 
 if 'cable_results_df' not in st.session_state:
     st.session_state.cable_results_df = pd.DataFrame()
+
 if 'detailed_calcs' not in st.session_state:
     st.session_state.detailed_calcs = []
+
 if 'all_derating_factors' not in st.session_state:
     st.session_state.all_derating_factors = {}
+
 if 'cb_results' not in st.session_state:
     st.session_state.cb_results = []
+
 if 'cb_details' not in st.session_state:
     st.session_state.cb_details = []
+
 if 'main_cbs_by_voltage' not in st.session_state:
     st.session_state.main_cbs_by_voltage = {}
+
 if 'main_cb_details_by_voltage' not in st.session_state:
     st.session_state.main_cb_details_by_voltage = {}
+
 if 'calc_results' not in st.session_state:
     st.session_state.calc_results = {}
+
 if 'calc_done' not in st.session_state:
     st.session_state.calc_done = False
-if 'total_p' not in st.session_state:
-    st.session_state.total_p = 0
-if 'total_q' not in st.session_state:
-    st.session_state.total_q = 0
-if 'tx_largest_data' not in st.session_state:
-    st.session_state.tx_largest_data = None
+
+# Transformer Sizing session states
+if 'tx_calc_done' not in st.session_state:
+    st.session_state.tx_calc_done = False
+
+# Lightning Protection session states
+if 'input_values' not in st.session_state:
+    st.session_state.input_values = {}
 
 # ========== SIDEBAR NAVIGATION ==========
+
 with st.sidebar:
     st.markdown('<div style="background: linear-gradient(135deg, #1E3A8A 0%, #3B5BA6 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;"><h2 style="color: white !important; margin: 0;">CES-Electrical</h2></div>', unsafe_allow_html=True)
+    
     if 'selected_calculator' not in st.session_state:
         st.session_state.selected_calculator = "LOAD SHEET"
     
@@ -1944,6 +1970,7 @@ with st.sidebar:
 st.title(f"{st.session_state.selected_calculator} Calculator")
 
 # ========== LOAD SHEET TAB ==========
+
 if st.session_state.selected_calculator == "LOAD SHEET":
     st.markdown('<div class="report-header">📋 UNIVERSAL LOAD SHEET</div>', unsafe_allow_html=True)
     st.markdown("""
@@ -2053,81 +2080,249 @@ if st.session_state.selected_calculator == "LOAD SHEET":
     with col4:
         st.metric("MV loads", mv_count)
 
-# ========== LIGHTNING PROTECTION TAB ==========
+# ========== LIGHTNING PROTECTION TAB (REPLACED WITH SECOND CODE'S VERSION) ==========
+
 elif st.session_state.selected_calculator == "Lightning Protection":
-    st.markdown('<div class="report-header">⚡ LIGHTNING PROTECTION CALCULATOR</div>', unsafe_allow_html=True)
+    st.markdown('<div class="report-header">⚡ LIGHTNING PROTECTION CALCULATOR (IEC 62305)</div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        length = st.number_input("Length (m)", value=26.5, step=0.5)
-        width = st.number_input("Width (m)", value=26.25, step=0.5)
-        height = st.number_input("Height (m)", value=7.35, step=0.5)
-        td_days = st.number_input("Thunderstorm days/year", value=10, step=1)
-    with col2:
-        environment = st.selectbox("Environment", ["Surrounded", "Similar height", "Isolated", "Hilltop"])
-        cd_values = {"Surrounded": 0.25, "Similar height": 0.5, "Isolated": 1, "Hilltop": 2}
-        cd = cd_values[environment]
-        st.metric("Environmental factor (CD)", cd)
+    lp_tabs = st.tabs([
+        "📊 Risk Assessment", 
+        "🔧 Protection Design", 
+        "📋 Calculations",
+        "📥 Download Report"
+    ])
     
-    if st.button("🔧 Calculate risk", type="primary", use_container_width=True):
-        ad = length * width + 2 * (3 * height) * (length + width) + math.pi * (3 * height)**2
-        am = 2 * 500 * (length + width) + math.pi * 500**2
-        ng = 0.1 * td_days
-        nd = ng * ad * cd * 1e-6
-        nm = ng * am * 1e-6
-        c2, c3, c4, c5 = 1.0, 3.0, 1.0, 5.0
-        c_total = cd * c2 * c3 * c4 * c5
-        nc = 1e-4 / c_total
-        efficiency = 1 - (nc / nd) if nd > 0 else 0
-        if efficiency > 0.98:
-            lpl, sphere = "Class I", 20
-        elif efficiency > 0.95:
-            lpl, sphere = "Class II", 30
-        elif efficiency > 0.90:
-            lpl, sphere = "Class III", 45
+    # TAB 1: Risk Assessment
+    with lp_tabs[0]:
+        st.markdown("## RISK ASSESSMENT (IEC 62305-2)")
+        
+        structure_type = st.selectbox("Select Structure Type", 
+                                      ["Substation Building", "Central Control Building", "Column 4-C01"])
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📐 Dimensions")
+            if structure_type == "Substation Building":
+                length = st.number_input("Length (m)", value=26.5, step=0.5)
+                width = st.number_input("Width (m)", value=26.25, step=0.5)
+                height = st.number_input("Height (m)", value=7.35, step=0.5)
+            elif structure_type == "Central Control Building":
+                length = st.number_input("Length (m)", value=50.0, step=0.5)
+                width = st.number_input("Width (m)", value=26.0, step=0.5)
+                height = st.number_input("Height (m)", value=5.35, step=0.5)
+            else:
+                height = st.number_input("Height (m)", value=50.0, step=0.5)
+                length = height
+                width = 0
+            
+            td_days = st.number_input("Thunderstorm Days/Year", value=10, step=1)
+            environment = st.selectbox("Environment", ["Surrounded", "Similar height", "Isolated", "Hilltop"])
+        
+        with col2:
+            st.markdown("### 📊 Environmental Factor (CD)")
+            cd_values = {"Surrounded": 0.25, "Similar height": 0.5, "Isolated": 1, "Hilltop": 2}
+            cd = cd_values[environment]
+            
+            st.markdown("**IEC 62305-2 Table A.1 Values:**")
+            st.markdown("• Surrounded by taller structures: **CD = 0.25**")
+            st.markdown("• Similar height structures: **CD = 0.5**")
+            st.markdown("• Isolated structure: **CD = 1.0**")
+            st.markdown("• Hilltop or knoll: **CD = 2.0**")
+            st.markdown("---")
+            st.success(f"**Selected: {environment} → CD = {cd}**")
+            
+            st.markdown("### 📊 Other Coefficients")
+            if structure_type == "Column 4-C01":
+                c2, c3, c4, c5 = 0.5, 2.0, 3.0, 10.0
+            else:
+                c2, c3, c4, c5 = 1.0, 3.0, 1.0, 5.0
+            
+            st.metric("C2 - Type", c2)
+            st.metric("C3 - Content", c3)
+            st.metric("C4 - Occupancy", c4)
+            st.metric("C5 - Consequence", c5)
+        
+        if st.button("🔧 CALCULATE RISK", type="primary", use_container_width=True):
+            
+            # Ad Calculation
+            if structure_type == "Column 4-C01":
+                ad = math.pi * 9 * height**2
+            else:
+                ad = length * width + 2 * (3 * height) * (length + width) + math.pi * (3 * height)**2
+            
+            # Am Calculation
+            am = 2 * 500 * (length + width) + math.pi * 500**2
+            
+            ng = 0.1 * td_days
+            nd = ng * ad * cd * 1e-6
+            nm = ng * am * 1e-6
+            
+            c_total = cd * c2 * c3 * c4 * c5
+            nc = 1e-4 / c_total
+            efficiency = 1 - (nc / nd) if nd > 0 else 0
+            
+            if efficiency > 0.98:
+                lpl, sphere = "Class I", 20
+            elif efficiency > 0.95:
+                lpl, sphere = "Class II", 30
+            elif efficiency > 0.90:
+                lpl, sphere = "Class III", 45
+            else:
+                lpl, sphere = "Class IV", 60
+            
+            if height <= sphere:
+                protection_width = 2 * math.sqrt(sphere**2 - (sphere - height)**2)
+                if protection_width > 0:
+                    terminals_length = math.ceil(length / protection_width) + 1
+                    terminals_width = math.ceil(width / protection_width) + 1 if width > 0 else 1
+                    air_terminals = terminals_length * terminals_width
+                else:
+                    air_terminals = 4
+            else:
+                perimeter = 2 * (length + width)
+                air_terminals = math.ceil(perimeter / 10) + math.ceil((length * width) / 100)
+            
+            st.markdown("---")
+            st.subheader("📊 Results")
+            
+            col_a, col_b, col_c, col_d = st.columns(4)
+            with col_a:
+                st.metric("Collection Area (Ad)", f"{ad:.0f} m²")
+                st.metric("Near Strike Area (Am)", f"{am:.0f} m²")
+            with col_b:
+                st.metric("Nd (Direct)", f"{nd:.6f}")
+                st.metric("Nm (Near)", f"{nm:.6f}")
+            with col_c:
+                st.metric("Protection Level", lpl)
+                st.metric("Efficiency", f"{efficiency:.1%}")
+            with col_d:
+                st.metric("Rolling Sphere", f"{sphere}m")
+                st.metric("Air Terminals", air_terminals)
+            
+            st.session_state.calc_results = {
+                'ad': ad, 'am': am, 'ng': ng, 'nd': nd, 'nm': nm,
+                'efficiency': efficiency,
+                'lpl': lpl, 'sphere': sphere, 'air_terminals': air_terminals
+            }
+            st.session_state.input_values = {
+                'length': length, 'width': width, 'height': height,
+                'td_days': td_days, 'environment': environment, 'cd': cd
+            }
+            st.session_state.calc_done = True
+    
+    # TAB 2: Protection Design
+    with lp_tabs[1]:
+        st.markdown("## PROTECTION DESIGN")
+        
+        if not st.session_state.calc_done:
+            st.warning("⚠️ Please complete Risk Assessment first!")
         else:
-            lpl, sphere = "Class IV", 60
-        
-        st.markdown("---")
-        col_a, col_b, col_c, col_d = st.columns(4)
-        with col_a:
-            st.metric("Collection area (Ad)", f"{ad:.0f} m²")
-        with col_b:
-            st.metric("Nd (Direct)", f"{nd:.6f}")
-        with col_c:
-            st.metric("Protection level", lpl)
-        with col_d:
-            st.metric("Rolling sphere", f"{sphere}m")
-        
-        st.session_state.calc_results = {
-            'ad': ad, 'am': am, 'ng': ng, 'nd': nd, 'nm': nm,
-            'efficiency': efficiency, 'lpl': lpl, 'sphere': sphere, 'air_terminals': 4
-        }
-        st.session_state.input_values = {
-            'length': length, 'width': width, 'height': height,
-            'td_days': td_days, 'environment': environment, 'cd': cd
-        }
-        st.session_state.calc_done = True
+            results = st.session_state.calc_results
+            st.success(f"✅ Designing for: **{results['lpl']}**")
+            
+            st.markdown("### Generate Report")
+            with col1:
+                st.metric("Air Terminals", results['air_terminals'])
+                st.metric("Rolling Sphere", f"{results['sphere']}m")
+            
+            with col2:
+                if results['lpl'] in ["Class I", "Class II"]:
+                    st.metric("Rod Diameter", "12.7 mm")
+                    st.metric("Down Conductor", "58 mm²")
+                else:
+                    st.metric("Rod Diameter", "9.5 mm")
+                    st.metric("Down Conductor", "29 mm²")
     
-    if st.session_state.calc_done:
-        if st.button("📥 Generate word report", key="lp_word", use_container_width=True):
-            with st.spinner("Generating word report..."):
-                try:
-                    word = LightningWordReport()
-                    word.add_calculations(st.session_state.calc_results, st.session_state.input_values)
-                    word_path = "temp_lightning.docx"
-                    word.save(word_path)
-                    with open(word_path, "rb") as f:
-                        word_bytes = f.read()
-                    b64 = base64.b64encode(word_bytes).decode()
-                    filename = f"Lightning_Report_{format_pakistan_date()}.docx"
-                    os.remove(word_path)
-                    st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn">📥 Click here to download word report</a>', unsafe_allow_html=True)
-                    st.success("✅ Word generated successfully!")
-                except Exception as e:
-                    st.error(f"Error generating word document: {str(e)}")
+    # TAB 3: Calculations
+    with lp_tabs[2]:
+        st.markdown("## DETAILED CALCULATIONS")
+        
+        if not st.session_state.calc_done:
+            st.warning("⚠️ Please complete Risk Assessment first!")
+        else:
+            results = st.session_state.calc_results
+            inputs = st.session_state.input_values
+            
+            with st.expander("1. Collection Area (Ad)", expanded=True):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** Ad = L × W + 2 × (3H) × (L + W) + π × (3H)²")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.2.1.1, Equation A.2")
+                if inputs.get('width', 0) == 0:
+                    st.markdown(f"**For Column:** Ad = π × 9 × H²")
+                st.markdown(f"**Result:** Ad = **{results['ad']:.2f} m²**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("2. Near Strike Collection Area (Am)", expanded=True):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** Am = 2 × 500 × (L + W) + π × 500²")
+                st.markdown("**Reference:** IEC 62305-2 Annex A.3, Equation A.7")
+                st.markdown(f"**Result:** Am = **{results['am']:.2f} m²**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("3. Environmental Factor (CD)"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Reference:** IEC 62305-2 Table A.1")
+                st.markdown("**Values:**")
+                st.markdown("• Surrounded by taller structures: **0.25**")
+                st.markdown("• Similar height structures: **0.5**")
+                st.markdown("• Isolated structure: **1.0**")
+                st.markdown("• Hilltop or knoll: **2.0**")
+                st.markdown(f"**Selected:** {inputs.get('environment', 'Isolated')} → **{inputs.get('cd', 1)}**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("4. Lightning Density (NG)"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Formula:** NG = 0.1 × Td")
+                st.markdown(f"**Result:** NG = **{results.get('ng', 1)} flashes/km²/year**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("5. Lightning Frequencies"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown("**Nd (Direct Strike Frequency):**")
+                st.markdown("Formula: Nd = NG × Ad × CD × 10⁻⁶")
+                st.markdown(f"Result: **{results.get('nd', 0):.6f} events/year**")
+                st.markdown("---")
+                st.markdown("**Nm (Near Strike Frequency):**")
+                st.markdown("Formula: Nm = NG × Am × 10⁻⁶")
+                st.markdown(f"Result: **{results.get('nm', 0):.6f} events/year**")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("6. Protection Level"):
+                st.markdown('<div class="formula-box">', unsafe_allow_html=True)
+                st.markdown(f"**Efficiency:** {results.get('efficiency', 0):.1%}")
+                st.markdown(f"**Result:** **{results.get('lpl', 'Class III')}**")
+                st.markdown('</div>', unsafe_allow_html=True)
+    
+    # TAB 4: Download Report - Word Only
+    with lp_tabs[3]:
+        st.markdown("## DOWNLOAD REPORT")
+        
+        if not st.session_state.calc_done:
+            st.warning("⚠️ Please complete Risk Assessment first!")
+        else:
+            st.markdown("### Generate Report")
+            if st.button("📥 Generate Word Report", key="word_btn_lp", use_container_width=True):
+                with st.spinner("Generating Word report..."):
+                    try:
+                        word = LightningWordReport()
+                        word.add_calculations(st.session_state.calc_results, st.session_state.input_values)
+                        word_path = "temp_lp_report.docx"
+                        word.save(word_path)
+                        with open(word_path, "rb") as f:
+                            word_bytes = f.read()
+                        b64 = base64.b64encode(word_bytes).decode()
+                        filename = f"LPS_Report_{get_pakistan_time().strftime('%Y%m%d_%H%M')}.docx"
+                        if os.path.exists(word_path):
+                            os.remove(word_path)
+                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn" style="background-color: #1e3a8a;">📥 Click to Download Word</a>', unsafe_allow_html=True)
+                        st.success("✅ Word document generated successfully!")
+                    except Exception as e:
+                        st.error(f"Error generating Word document: {str(e)}")
+                        st.code(traceback.format_exc())
 
 # ========== CABLE SIZING TAB ==========
+
 elif st.session_state.selected_calculator == "Cable Sizing":
     st.markdown('<div class="report-header">🔌 Cable sizing calculator</div>', unsafe_allow_html=True)
     
@@ -2416,6 +2611,7 @@ elif st.session_state.selected_calculator == "Cable Sizing":
             if not has_error:
                 if st.button("🔧 Calculate with derating factors (auto selection)", type="primary", use_container_width=True):
                     with st.spinner("Calculating with automatic cable selection..."):
+                        # (The cable calculation logic remains the same as in the original code)
                         cable_results = []
                         detailed_calcs = []
                         all_factors = {}
@@ -2554,14 +2750,19 @@ elif st.session_state.selected_calculator == "Cable Sizing":
         st.markdown('<div class="report-header">Derating factors summary</div>', unsafe_allow_html=True)
         st.markdown("""
 ### Derating Factor Formulas
+
 **Total derating factor K = k1 × k2 × k3 × k4**
 
 **k1 (Temperature correction)** - Based on IEC 60364-5-52 Table 4B1/4B2
+
 **k2 (Grouping correction)** - Based on IEC 60364-5-52 Table 4C1 (for air) or Table 4C2/4C3 (for buried)
+
 **k3 (Soil resistivity correction)** - Based on IEC 60502-2 Tables B.14, B.15, B.16 (Reference: 1.5 K.m/W)
+
 **k4 (Depth correction)** - Based on IEC 60502-2 Tables B.12, B.13 (Reference: 0.8m)
 
 **Derated ampacity = Current Carrying Capacity × K**
+
 """)
         if hasattr(st.session_state, 'all_derating_factors') and st.session_state.all_derating_factors:
             for load_name, factors in st.session_state.all_derating_factors.items():
@@ -2629,7 +2830,6 @@ Ampacity Check: {calc['derated_amp']:.1f} A >= {calc['current']:.1f} A -> **{'PA
                         mv_value = vd_values['value']
                         st.markdown(f"""
 Using mV/A/m = {mv_value} from BS 7671 Table
-
 Formula: Vd = mV/A/m × I × L / 1000
 Vd = {mv_value} × {calc['current']:.1f} × {calc['length']:.0f} / 1000
 Vd = **{mv_value * calc['current'] * calc['length'] / 1000:.2f} V**
@@ -2828,220 +3028,195 @@ Isc = **{calc['sc']:.2f} kA**
             st.info("👈 Calculate cable sizes first to generate report")
 
 # ========== TRANSFORMER SIZING TAB ==========
+
+
+
 elif st.session_state.selected_calculator == "Transformer Sizing":
-    st.markdown('<div class="report-header">⚙️ TRANSFORMER SIZING CALCULATOR</div>', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class="info-box">
-        <h4>📌 Using loads from universal load sheet</h4>
-        <p>Total {len(st.session_state.universal_loads)} loads available. Calculations below use these loads.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="report-header">TRANSFORMER SIZING CALCULATOR (IEC 60076-1)</div>', unsafe_allow_html=True)
     
-    tx_main_tabs = st.tabs(["📊 Load analysis", "📈 Largest equipment analysis", "📥 Download report"])
-    tx_calc = SimpleTransformerCalculator()
+    tx_calc = TransformerSizingCalculator()
     
-    with tx_main_tabs[0]:
-        load_sub_tabs = st.tabs(["📋 Step-by-step p, q, s", "📊 Summary table"])
-        with load_sub_tabs[0]:
-            st.markdown("### 📋 Step-by-step calculations for each load")
-            total_p = 0
-            total_q = 0
-            for idx, load in st.session_state.universal_loads.iterrows():
-                connected = load['Rating (kW)'] * load['Quantity']
-                load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_type_diversity)
-                phi = math.acos(load['Power Factor'])
-                tan_phi = math.tan(phi)
-                q = tx_calc.calculate_q(p, load['Power Factor'])
-                s = tx_calc.calculate_s(p, q)
-                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
-                st.markdown(f"""
-                <div class="calc-step">
-                    <h4>📌 Load {idx+1}: <span style="color: #1E3A8A;">{load['Load Description']}</span> ({load['Load Type']}, {cable_type})</h4>
-                    <p><b>Input parameters:</b> Rating = {load['Rating (kW)']:.0f} kW, Quantity = {load['Quantity']}, Pf = {load['Power Factor']}, Load type = {load['Load Type']} ({load_type_diversity*100:.0f}%)</p>
-                    <p><b>Step 1 - Connected power:</b> {load['Rating (kW)']:.0f} kW x {load['Quantity']} = <b>{connected:.0f} kW</b></p>
-                    <p><b>Step 2 - Demand power (P):</b> {connected:.0f} kW x {load_type_diversity:.1f} = <b>{p:.1f} kW</b></p>
-                    <p><b>Step 3 - Angle φ:</b> acos({load['Power Factor']}) = <b>{math.degrees(phi):.1f}°</b></p>
-                    <p><b>Step 4 - tan(φ):</b> tan({math.degrees(phi):.1f}°) = <b>{tan_phi:.3f}</b></p>
-                    <p><b>Step 5 - Reactive power (Q):</b> {p:.1f} kW x {tan_phi:.3f} = <b>{q:.1f} kVAR</b></p>
-                    <p><b>Step 6 - Apparent power (S):</b> √({p:.1f}² + {q:.1f}²) = <b>{s:.1f} kVA</b></p>
-                </div>
-                """, unsafe_allow_html=True)
-                total_p += p
-                total_q += q
-            st.session_state.total_p = total_p
-            st.session_state.total_q = total_q
+    st.markdown("### Step 1: Enter Load Data")
+    st.info("Enter kW and PF - kVAR and kVA auto-calculated")
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        st.markdown("**Operating Load**")
+        op_p = st.number_input("Operating P (kW)", value=447.0, step=1.0, key="tx_op_p")
+        op_pf = st.number_input("Operating PF", value=0.83, min_value=0.5, max_value=1.0, step=0.01, key="tx_op_pf")
+        op_q = tx_calc.calc_q(op_p, op_pf) 
+        op_s = tx_calc.calc_s(op_p, op_q)
+        st.markdown(f"Q = {op_q:.1f} kVAR | S = {op_s:.1f} kVA")
+    
+    with col2:
+        st.markdown("**Peak Load**")
+        pk_p = st.number_input("Peak P (kW)", value=507.0, step=1.0, key="tx_pk_p")
+        pk_pf = st.number_input("Peak PF", value=0.84, min_value=0.5, max_value=1.0, step=0.01, key="tx_pk_pf")
+        pk_q = tx_calc.calc_q(pk_p, pk_pf)
+        pk_s = tx_calc.calc_s(pk_p, pk_q)
+        st.markdown(f"Q = {pk_q:.1f} kVAR | S = {pk_s:.1f} kVA")
+    
+    with col3:
+        st.markdown("**Transformer Parameters**")
+        spare_margin_pct = st.number_input("Spare Margin (%)", value=20, step=5, key="tx_margin")
+        loading_factor = 1 + spare_margin_pct / 100.0
+        st.markdown(f"Loading factor = {loading_factor:.2f}")
+        tx_impedance = st.number_input("Transformer Z (%)", value=5.0, min_value=2.0, max_value=15.0, step=0.5, key="tx_z")
+        lv_voltage = st.number_input("LV Voltage (V)", value=433, step=1, key="tx_lv_v")
+    
+    st.markdown("---")
+    st.markdown("### Step 2: Largest Motor Starting Check")
+    
+    col_m1, col_m2 = st.columns([1, 1])
+    
+    with col_m1:
+        motor_power = st.number_input("Largest Motor Power (kW)", value=75.0, step=1.0, key="tx_motor_kw")
+        motor_pf = st.number_input("Motor PF", value=0.85, min_value=0.5, max_value=1.0, step=0.01, key="tx_motor_pf")
+    
+    with col_m2:
+        start_options = {
+            "DOL": 650,
+            "Star-Delta (Y-Delta)": 350,
+            "Soft Starter": 400,
+            "VFD": 150
+        }
+        motor_start_method = st.selectbox(
+            "Starting Method", list(start_options.keys()), index=1, key="tx_start_method"
+        )
+        start_pct = start_options[motor_start_method]
+        st.markdown(f"**Starting Current:** {start_pct}% of rated")
+    
+    if st.button("CALCULATE TRANSFORMER SIZE", type="primary", use_container_width=True):
+        peak_with_margin_kva = pk_s * loading_factor
+        tx_required_kva = peak_with_margin_kva * 1.2
+        selected_kva = tx_calc.get_r10_rating(tx_required_kva)
+        motor_start = tx_calc.calc_motor_starting_vd(
+            selected_kva, tx_impedance, peak_with_margin_kva,
+            motor_power, start_pct, motor_pf, lv_voltage
+        )
         
-        with load_sub_tabs[1]:
-            st.markdown("### 📊 Load summary table")
-            summary_data = []
-            for idx, load in st.session_state.universal_loads.iterrows():
-                load_type_diversity = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
-                connected = load['Rating (kW)'] * load['Quantity']
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_type_diversity)
-                q = tx_calc.calculate_q(p, load['Power Factor'])
-                s = tx_calc.calculate_s(p, q)
-                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
-                summary_data.append({
-                    'Load': load['Load Description'],
-                    'Type': load['Load Type'],
-                    'Cable': cable_type,
-                    'Qty': load['Quantity'],
-                    'Rating (kW)': load['Rating (kW)'],
-                    'Connected (kW)': f"{connected:.0f}",
-                    'Load factor': f"{load_type_diversity*100:.0f}%",
-                    'P (kW)': f"{p:.1f}",
-                    'Pf': load['Power Factor'],
-                    'Q (kVAR)': f"{q:.1f}",
-                    'S (kVA)': f"{s:.1f}"
-                })
-            summary_df = pd.DataFrame(summary_data)
-            st.dataframe(summary_df, use_container_width=True, hide_index=True)
-            st.markdown("""
-            <div class="formula-box">
-                <h4>📐 Formulas used:</h4>
-                <p><b>Connected power = Rating x Quantity</b></p>
-                <p><b>P = Connected power x Load type factor</b> (Real power)</p>
-                <p><b>Q = P x tan(acos(PF))</b> (Reactive power)</p>
-                <p><b>S = √(P² + Q²)</b> (Apparent power)</p>
-                <p><b>Load type factors:</b> Continuous=100%, Intermittent=30%, Standby=10%</p>
-            </div>
-            """, unsafe_allow_html=True)
+        st.session_state.tx_results = {
+            "op_p": op_p, "op_pf": op_pf, "op_q": op_q, "op_s": op_s,
+            "pk_p": pk_p, "pk_pf": pk_pf, "pk_q": pk_q, "pk_s": pk_s,
+            "spare_margin_pct": spare_margin_pct,
+            "loading_factor": loading_factor,
+            "peak_with_margin_kva": peak_with_margin_kva,
+            "tx_required_kva": tx_required_kva,
+            "selected_kva": selected_kva,
+            "tx_impedance": tx_impedance,
+            "motor_start": motor_start,
+            "motor_power": motor_power,
+            "start_pct": start_pct,
+            "lv_voltage": lv_voltage,
+            "motor_start_method": motor_start_method
+        }
+        st.session_state.tx_calc_done = True
+        st.rerun()
     
-    with tx_main_tabs[1]:
-        st.markdown("### 🏭 Largest equipment analysis")
-        largest_idx, largest_load, largest_connected = tx_calc.find_largest_equipment(st.session_state.universal_loads)
-        if largest_load is not None:
-            load_type_diversity = LOAD_TYPE_FACTORS[largest_load['Load Type']]['diversity']
-            p_largest = tx_calc.calculate_p(largest_load['Rating (kW)'], largest_load['Quantity'], load_type_diversity)
-            q_largest = tx_calc.calculate_q(p_largest, largest_load['Power Factor'])
-            s_largest = tx_calc.calculate_s(p_largest, q_largest)
-            total_p = 0
-            total_q = 0
-            all_loads_data = []
-            for idx, load in st.session_state.universal_loads.iterrows():
-                load_div = LOAD_TYPE_FACTORS[load['Load Type']]['diversity']
-                p = tx_calc.calculate_p(load['Rating (kW)'], load['Quantity'], load_div)
-                q = tx_calc.calculate_q(p, load['Power Factor'])
-                s = tx_calc.calculate_s(p, q)
-                total_p += p
-                total_q += q
-                cable_type = "LV" if load['Voltage (V)'] <= 1000 else "MV"
-                all_loads_data.append({
-                    'load': load['Load Description'],
-                    'type': load['Load Type'],
-                    'cable': cable_type,
-                    'p': p,
-                    'q': q,
-                    's': s,
-                    'is_largest': (idx == largest_idx)
-                })
-            total_s = math.sqrt(total_p**2 + total_q**2) if (total_p**2 + total_q**2) > 0 else 0
+    if st.session_state.get("tx_calc_done", False):
+        r = st.session_state.tx_results
+        ms = r["motor_start"]
+        
+        st.markdown("---")
+        st.markdown('<div class="report-header">RESULTS</div>', unsafe_allow_html=True)
+        
+        tx_tabs = st.tabs(["Load Summary", "Sizing", "Motor Starting", "Conclusion", "Download Report"])
+        
+        with tx_tabs[0]:
+            st.markdown("### Load Summary")
+            load_df = pd.DataFrame({
+                "Load Condition": ["Operating", "Peak", f"Peak + {r['spare_margin_pct']}%"],
+                "P (kW)": [round(r['op_p']), round(r['pk_p']), round(r['pk_p'] * r['loading_factor'])],
+                "PF": [r['op_pf'], r['pk_pf'], r['pk_pf']],
+                "Q (kVAR)": [round(r['op_q'],1), round(r['pk_q'],1), round(r['pk_q'] * r['loading_factor'],1)],
+                "S (kVA)": [round(r['op_s'],1), round(r['pk_s'],1), round(r['peak_with_margin_kva'],1)]
+            })
+            st.dataframe(load_df, hide_index=True, use_container_width=True)
+        
+        with tx_tabs[1]:
+            st.markdown("### Sizing Calculation")
             st.markdown(f"""
-            <div class="largest-equipment">
-                <h3>🏆 Largest equipment: {largest_load['Load Description']}</h3>
-                <table style="width:100%; border-collapse: collapse;">
-                    <tr><td style="padding: 10px; font-weight: bold;">Load type: <td style="padding: 10px;"><span class="value">{largest_load['Load Type']} ({load_type_diversity*100:.0f}%)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Connected power: <td style="padding: 10px;"><span class="value">{largest_connected:.0f} kW</span> ({largest_load['Rating (kW)']:.0f} kW x {largest_load['Quantity']})</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Demand power (P): <td style="padding: 10px;"><span class="value">{p_largest:.1f} kW</span> (after {load_type_diversity*100:.0f}% factor)</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Reactive power (Q): <td style="padding: 10px;"><span class="value">{q_largest:.1f} kVAR</span> (Pf = {largest_load['Power Factor']})</span></td>
-                    <tr><td style="padding: 10px; font-weight: bold;">Apparent power (S): <td style="padding: 10px;"><span class="value">{s_largest:.1f} kVA</span></span></tr>
-                </table>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("### 📊 Impact on total system")
-            impact_data = []
-            for data in all_loads_data:
-                p_pct = (data['p'] / total_p) * 100 if total_p > 0 else 0
-                s_pct = (data['s'] / total_s) * 100 if total_s > 0 else 0
-                impact_data.append({
-                    'Load': data['load'],
-                    'Type': data['type'],
-                    'Cable': data['cable'],
-                    'P (kW)': f"{data['p']:.1f}",
-                    '% of total P': f"{p_pct:.1f}%",
-                    'S (kVA)': f"{data['s']:.1f}",
-                    '% of total S': f"{s_pct:.1f}%",
-                    'Highlight': '🏆 Largest' if data['is_largest'] else ''
-                })
-            impact_df = pd.DataFrame(impact_data)
-            st.dataframe(impact_df, use_container_width=True, hide_index=True)
-            st.markdown("### 📈 Cumulative effect analysis")
-            sorted_loads = sorted(all_loads_data, key=lambda x: x['p'], reverse=True)
-            cumulative_p = 0
-            cumulative_data = []
-            for i, data in enumerate(sorted_loads):
-                cumulative_p += data['p']
-                p_pct = (cumulative_p / total_p) * 100 if total_p > 0 else 0
-                cumulative_data.append({
-                    'Rank': i+1,
-                    'Load': data['load'],
-                    'Type': data['type'],
-                    'Individual P (kW)': f"{data['p']:.1f}",
-                    'Cumulative P (kW)': f"{cumulative_p:.1f}",
-                    '% of total': f"{p_pct:.1f}%"
-                })
-            cumulative_df = pd.DataFrame(cumulative_data)
-            st.dataframe(cumulative_df, use_container_width=True, hide_index=True)
-            st.session_state.tx_largest_data = {
-                'load': largest_load,
-                'connected': largest_connected,
-                'p': p_largest,
-                'q': q_largest,
-                's': s_largest
-            }
-    
-    with tx_main_tabs[2]:
-        st.markdown("### ⚙️ Future expansion")
-        future_expansion = st.number_input("Future expansion (%)", value=20, min_value=0, max_value=100, step=5)
-        if 'total_p' in st.session_state and 'total_q' in st.session_state:
-            total_p = st.session_state.total_p
-            total_q = st.session_state.total_q
-            total_s = math.sqrt(total_p**2 + total_q**2)
-            with_future = total_s * (1 + future_expansion/100)
-            selected_kva = tx_calc.get_standard_rating(with_future)
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total P", f"{total_p:.0f} kW")
-            with col2:
-                st.metric("Total Q", f"{total_q:.0f} kVAR")
-            with col3:
-                st.metric("Total S", f"{total_s:.0f} kVA")
-            with col4:
-                st.metric("With future", f"{with_future:.0f} kVA")
+<div class="calc-step">
+    <h4>Step 1: Peak Load with Spare Margin</h4>
+    <p>Peak S = <b>{r['pk_s']:.1f} kVA</b> | Margin = <b>{r['spare_margin_pct']}%</b> | Factor = <b>{r['loading_factor']}</b></p>
+    <p>S with margin = {r['pk_s']:.1f} x {r['loading_factor']} = <b>{r['peak_with_margin_kva']:.1f} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>Step 2: Transformer Size Required</h4>
+    <p>80% max loading with 20% spare margin</p>
+    <p>Required = {r['peak_with_margin_kva']:.1f} x 1.2 = <b>{r['tx_required_kva']:.1f} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>Step 3: R10 Selection (IEC 60076-1)</h4>
+    <p>R10: 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000...</p>
+    <p>Selected: <b>{r['selected_kva']} kVA</b></p>
+</div>
+""", unsafe_allow_html=True)
+            st.success(f"Selected Transformer: {r['selected_kva']} kVA")
+        
+        with tx_tabs[2]:
+            motor_kva_val = r["motor_power"] / motor_pf if motor_pf > 0 else r["motor_power"]
             st.markdown(f"""
-            <div class="result-card">
-                <h3>✅ Final transformer selection</h3>
-                <p><b>S = √(P² + Q²) = √({total_p:.0f}² + {total_q:.0f}²) = {total_s:.0f} kVA</b></p>
-                <p><b>With {future_expansion}% future = {total_s:.0f} x {1 + future_expansion/100:.2f} = {with_future:.0f} kVA</b></p>
-                <p style="font-size: 24px;"><b>Selected: {selected_kva} kVA</b></p>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("📥 Download word report", key="tx_word", use_container_width=True):
-                with st.spinner("Generating word report..."):
+<div class="calc-step">
+    <h4>Motor Starting Check</h4>
+    <p>Motor: <b>{r['motor_power']} kW</b> = {motor_kva_val:.1f} kVA | Method: <b>{r['motor_start_method']}</b> ({r['start_pct']}%)</p>
+    <p>Starting kVA = {motor_kva_val:.1f} x {r['start_pct']/100:.1f} = <b>{ms['starting_kva']} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>SC Capability (Z = {r['tx_impedance']}%)</h4>
+    <p>SC Current = <b>{ms['sc_current_a']} A</b> | SC Capacity = <b>{ms['sc_kva']} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>Voltage Drop</h4>
+    <p>Demand during start = {ms['starting_kva']} + {r['peak_with_margin_kva']:.1f} = <b>{ms['total_kva_start']} kVA</b></p>
+    <p>VD = ({ms['total_kva_start']}/{ms['sc_kva']}) x 100 = <b>{ms['voltage_drop_pct']}%</b> | Limit: <b>15%</b></p>
+    <p>Status: <b>{'ACCEPTABLE' if ms['is_acceptable'] else 'NOT ACCEPTABLE'}</b></p>
+</div>
+""", unsafe_allow_html=True)
+            if ms["is_acceptable"]:
+                st.success(f"Voltage drop {ms['voltage_drop_pct']}% < 15% -> ACCEPTABLE")
+            else:
+                st.error(f"Voltage drop {ms['voltage_drop_pct']}% > 15% -> INCREASE TRANSFORMER SIZE")
+        
+        with tx_tabs[3]:
+            st.markdown(f"""
+<div class="calc-step">
+    <h4>Conclusion</h4>
+    <p>Max Demand ({r['spare_margin_pct']}% margin) = <b>{r['peak_with_margin_kva']:.1f} kVA</b></p>
+    <p>Required = <b>{r['tx_required_kva']:.1f} kVA</b></p>
+    <p>Selected = <b>{r['selected_kva']} kVA</b></p>
+    <p>VD (motor start) = <b>{ms['voltage_drop_pct']}%</b> - {'Acceptable' if ms['is_acceptable'] else 'NOT Acceptable'}</p>
+</div>
+""", unsafe_allow_html=True)
+            st.markdown(f'<div class="result-card"><h3>SELECTED: {r["selected_kva"]} kVA Transformer</h3></div>', unsafe_allow_html=True)
+        
+        with tx_tabs[4]:
+            st.markdown("## DOWNLOAD REPORT")
+            st.markdown("### Generate Report")
+            
+            st.markdown("#### Word Format")
+            if st.button("Generate Word", key="tx_word_btn", use_container_width=True):
+                with st.spinner("Generating Word report..."):
                     try:
+                        motor_kva_val_dl = r["motor_power"] / motor_pf if motor_pf > 0 else r["motor_power"]
                         word = TransformerWordReport()
-                        word.add_title()
-                        total_p_load = word.add_load_analysis(st.session_state.universal_loads)
-                        total_p_step, total_q_step = word.add_step_by_step(st.session_state.universal_loads)
-                        if 'tx_largest_data' in st.session_state and st.session_state.tx_largest_data:
-                            word.add_largest_equipment(st.session_state.universal_loads, total_p, total_s, st.session_state.tx_largest_data)
-                        word.add_transformer_selection(total_p_step, total_q_step, future_expansion, selected_kva)
-                        word_path = "temp_transformer_report.docx"
+                        word.add_calculations(r, ms, motor_kva_val_dl)
+                        word_path = "temp_tx_report.docx"
                         word.save(word_path)
                         with open(word_path, "rb") as f:
                             word_bytes = f.read()
                         b64 = base64.b64encode(word_bytes).decode()
-                        filename = f"Transformer_Report_{format_pakistan_date()}.docx"
-                        os.remove(word_path)
-                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn">📥 Click here to download word report</a>', unsafe_allow_html=True)
-                        st.success("✅ Word generated successfully!")
+                        filename = f"Transformer_Report_{get_pakistan_time().strftime('%Y%m%d_%H%M')}.docx"
+                        if os.path.exists(word_path):
+                            os.remove(word_path)
+                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn" style="background-color: #1e3a8a;">Click to Download Word</a>', unsafe_allow_html=True)
+                        st.success("Word document generated successfully!")
                     except Exception as e:
-                        st.error(f"Error generating word document: {e}")
-        else:
-            st.warning("⚠️ Please go to load analysis tab first to calculate totals.")
-
+                        st.error(f"Error generating Word document: {str(e)}")
+                        st.code(traceback.format_exc())
 # ========== GENERATOR SIZING TAB ==========
+
 elif st.session_state.selected_calculator == "Generator Sizing":
     st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
@@ -3057,6 +3232,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
     """, unsafe_allow_html=True)
 
 # ========== EARTHING TAB ==========
+
 elif st.session_state.selected_calculator == "Earthing":
     st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
     st.markdown("""
