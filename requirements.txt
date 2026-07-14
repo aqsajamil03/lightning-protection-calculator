@@ -4,4 +4,5 @@ pillow
 fpdf
 PyPDF2
 img2pdf
+
 python-docx
