@@ -1395,7 +1395,7 @@ class TransformerWordReport:
         
         if ms['is_acceptable']:
             p = self.doc.add_paragraph()
-            p.add_run('Since Voltage Drop is 15% i.e. (' + str(ms['voltage_drop_pct']) + '% < 15%) so Transformer Size is adequate in size.')
+            p.add_run('Since Voltage Drop is less than 15% i.e., (' + str(ms['voltage_drop_pct']) + '% < 15%), so Transformer is adequate in size.')
             
             self.doc.add_paragraph()
             p = self.doc.add_paragraph()
@@ -3144,8 +3144,8 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
         st.markdown("**System PF & Parameters**")
         pf = st.number_input("System Power Factor", value=0.84, min_value=0.5, max_value=1.0, step=0.01, key="tx_pf")
         spare_margin_pct = st.number_input("Spare Margin (%)", value=20, step=5, key="tx_margin")
-        loading_factor = 1 + spare_margin_pct / 100.0
-        st.markdown(f"Loading factor = {loading_factor:.2f}")
+        loading_factor = st.number_input("Loading Factor", value=1.2, min_value=1.0, max_value=2.0, step=0.05, key="tx_loading")
+        st.markdown(f"Spare Margin = {spare_margin_pct}% | Loading Factor = {loading_factor:.2f}")
         tx_impedance = st.number_input("Transformer Z (%)", value=5.0, min_value=2.0, max_value=15.0, step=0.5, key="tx_z")
         lv_voltage = st.number_input("LV Voltage (V)", value=433, step=1, key="tx_lv_v")
     
@@ -3157,10 +3157,10 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
     st.markdown(f"""
 <div class="formula-box">
     <h4>📐 Formulas Used</h4>
-    <p><b>6. Apparent Power [kVA] = kW / Power Factor</b></p>
+    <p><b>1. Apparent Power [kVA] = kW / Power Factor</b></p>
     <p>Operating: S = {op_p:.0f} / {pf} = <b>{op_s:.1f} kVA</b></p>
     <p>Peak: S = {pk_p:.0f} / {pf} = <b>{pk_s:.1f} kVA</b></p>
-    <p><b>5. Reactive Power [kVAR] = √(kVA² − kW²)</b></p>
+    <p><b>2. Reactive Power [kVAR] = √(kVA² − kW²)</b></p>
     <p>Operating: Q = √({op_s:.1f}² − {op_p:.0f}²) = <b>{op_q:.1f} kVAR</b></p>
     <p>Peak: Q = √({pk_s:.1f}² − {pk_p:.0f}²) = <b>{pk_q:.1f} kVAR</b></p>
 
@@ -3287,7 +3287,9 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
 </div>
 <div class="calc-step">
     <h4>{r['selected_kva']} kVA Transformer. Short Circuit Capacity</h4>
-    <p><b>E</b> = √3 x V x D = 1.732 x {r['lv_voltage']} x {ms['sc_current_a']} / 1000 = <b>{ms['sc_kva']} kVA</b></p>
+    <p><b>E</b> = √3 x V x D</p>
+    <p>Step 1: D (A) / 1000 = {ms['sc_current_a']} / 1000 = <b>{ms['sc_current_a']/1000:.1f} kA</b> (Amperes → kilo-Amperes)</p>
+    <p>Step 2: E = 1.732 x {r['lv_voltage']} x {ms['sc_current_a']/1000:.1f} = <b>{ms['sc_kva']} kVA</b></p>
 </div>
 <div class="calc-step">
     <h4>Max Demand Load on Unit Auxiliary Transformer</h4>
@@ -3307,7 +3309,7 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
             st.markdown(f"""
 <div class="calc-step">
     <h4>Conclusion</h4>
-    <p>Since Voltage Drop is 15% i.e. ({ms['voltage_drop_pct']}% < 15%) so Transformer Size is adequate in size.</p>
+    <p>Since Voltage Drop is less than 15% i.e., ({ms['voltage_drop_pct']}% < 15%), so Transformer is adequate in size.</p>
     <p><b>Selected Transformer: {r['selected_kva']} kVA</b></p>
 </div>
 """, unsafe_allow_html=True)
