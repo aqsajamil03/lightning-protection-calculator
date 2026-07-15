@@ -1306,7 +1306,7 @@ class TransformerWordReport:
         table.style = 'Light Shading Accent 1'
         table.alignment = WD_TABLE_ALIGNMENT.CENTER
         
-        headers = ['Load Condition', 'P (kW)', 'PF', 'Q (kVAR)', 'S (kVA)']
+        headers = ['Load Condition', 'P (kW)', 'PF (cos\u03c6)', 'Q (kVAR)', 'S (kVA)']
         hdr_cells = table.rows[0].cells
         for i, h in enumerate(headers):
             hdr_cells[i].text = h
@@ -1353,25 +1353,25 @@ class TransformerWordReport:
         p = self.doc.add_paragraph()
         p.add_run('Largest Motor Connected').bold = True
         
-        # Motor data table
-        m_table = self.doc.add_table(rows=8, cols=3)
+        # Motor data table - 4 columns now (Description, Label, Value, Unit)
+        m_table = self.doc.add_table(rows=8, cols=4)
         m_table.style = 'Light Shading Accent 1'
         m_table.alignment = WD_TABLE_ALIGNMENT.CENTER
         
-        m_headers = ['Description', 'Label', 'Value']
+        m_headers = ['Description', 'Label', 'Value', 'Unit']
         for i, h in enumerate(m_headers):
             m_table.rows[0].cells[i].text = h
             m_table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
             m_table.rows[0].cells[i].paragraphs[0].runs[0].font.size = Pt(10)
         
         motor_data = [
-            ['Largest Motor Connected', 'A', str(round(r['motor_power'])) + ' kW'],
-            ['Motor kVA', 'B', str(round(motor_kva_val, 1)) + ' kVA'],
-            ['Starting kVA @ ' + str(r['start_pct']) + '% Starting Current', 'C = B x ' + str(r['start_pct']/100), str(ms['starting_kva']) + ' kVA'],
-            ['SC Current = (Trafo Rating) / (√3 x V x Z)', 'D', str(ms['sc_current_a']) + ' A'],
-            ['SC Capacity = √3 x V x D', 'E', str(ms['sc_kva']) + ' kVA'],
-            ['Max Demand Load', 'F', str(round(r['peak_with_margin_kva'],1)) + ' kVA'],
-            ['Maximum % Voltage Drop', 'G = ((C + F) / E) x 100', str(ms['voltage_drop_pct']) + '%'],
+            ['Largest Motor Connected', 'A', str(round(r['motor_power'])), 'kW'],
+            ['Motor kVA', 'B', str(round(motor_kva_val, 1)), 'kVA'],
+            ['Starting kVA @ ' + str(r['start_pct']) + '% Starting Current', 'C = B x ' + str(r['start_pct']/100), str(ms['starting_kva']), 'kVA'],
+            ['SC Current', 'D', str(ms['sc_current_a']), 'A'],
+            ['SC Capacity', 'E', str(ms['sc_kva']), 'kVA'],
+            ['Max Demand Load', 'F', str(round(r['peak_with_margin_kva'],1)), 'kVA'],
+            ['Maximum % Voltage Drop', 'G = ((C + F) / E) x 100', str(ms['voltage_drop_pct']), '%'],
         ]
         
         for i, row_data in enumerate(motor_data):
@@ -1382,9 +1382,11 @@ class TransformerWordReport:
         
         self.doc.add_paragraph()
         
+        # Note instead of Calculation line
         p = self.doc.add_paragraph()
-        p.add_run('Calculation: ').bold = True
-        p.add_run('G = ((' + str(ms['starting_kva']) + ' + ' + str(round(r['peak_with_margin_kva'],1)) + ') / ' + str(ms['sc_kva']) + ') x 100 = ' + str(ms['voltage_drop_pct']) + '%')
+        start_method_display = r['motor_start_method']
+        p.add_run('Note: ').bold = True
+        p.add_run('Largest motor with rating ' + str(round(r['motor_power'])) + 'kW and starting method of ' + start_method_display + ' with current limited to maximum of ' + str(r['start_pct']) + '%.')
         
         self.doc.add_paragraph()
         
@@ -1393,7 +1395,7 @@ class TransformerWordReport:
         
         if ms['is_acceptable']:
             p = self.doc.add_paragraph()
-            p.add_run('Since Voltage Drop is less than 15% (' + str(ms['voltage_drop_pct']) + '% < 15%), Transformer Size is adequate in size.')
+            p.add_run('Since Voltage Drop is 15% i.e. (' + str(ms['voltage_drop_pct']) + '% < 15%) so Transformer Size is adequate in size.')
             
             self.doc.add_paragraph()
             p = self.doc.add_paragraph()
@@ -1404,13 +1406,6 @@ class TransformerWordReport:
         else:
             p = self.doc.add_paragraph()
             p.add_run('WARNING: Voltage Drop (' + str(ms['voltage_drop_pct']) + '%) exceeds 15% limit. Increase Transformer Size.').bold = True
-        
-        self.doc.add_paragraph()
-        
-        # Note
-        p = self.doc.add_paragraph()
-        p.add_run('Note: ').bold = True
-        p.add_run('Largest motor with rating ' + str(round(r['motor_power'])) + 'kW and starting method of ' + r['motor_start_method'] + ' with current limited to maximum of ' + str(r['start_pct']) + '%.')
         
         self.doc.add_paragraph()
         
@@ -3135,19 +3130,6 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
     st.markdown("### Step 1: Enter Load Data")
     st.info("Enter P (kW) and System PF - Q and S auto-calculated")
     
-    with st.expander("📐 Formulas Reference", expanded=False):
-        st.markdown("""
-| # | Formula | Description |
-|---|---------|-------------|
-| 1 | Load Factor = Design Pump Load / Rated Motor Load | Loading ratio |
-| 2 | Efficiency = Mechanical Power Output / Electrical Power Input | Motor efficiency |
-| 3 | **Power Factor = Real Power / Apparent Power** | PF = kW / kVA |
-| 4 | Active Power [kW] = BHP / Efficiency | Motor active power |
-| 5 | **Reactive Power [kVAR] = √(kVA² − kW²)** | Q from S and P |
-| 6 | **Apparent Power [kVA] = kW / Power Factor** | S = P / PF |
-
-        """)
-    
     col1, col2, col3 = st.columns([1, 1, 1])
     
     with col1:
@@ -3241,42 +3223,9 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
         st.markdown("---")
         st.markdown('<div class="report-header">RESULTS</div>', unsafe_allow_html=True)
         
-        tx_tabs = st.tabs(["Load Summary", "Sizing", "Motor Starting", "Conclusion", "Download Report"])
+        tx_tabs = st.tabs(["Sizing", "Motor Starting", "Conclusion", "Download Report"])
         
         with tx_tabs[0]:
-            st.markdown("### Load Summary")
-            st.markdown(f"""
-<div class="calc-step">
-    <table style="width:100%; border-collapse: collapse; font-size: 18px; border: 1px solid #ddd;">
-        <tr style="background-color: #1E3A8A; color: white; text-align: center;">
-            <th style="padding: 10px 12px; text-align: left;">Load Condition</th>
-            <th style="padding: 10px 12px;">KW</th>
-            <th style="padding: 10px 12px;">KVAR</th>
-            <th style="padding: 10px 12px;">KVA</th>
-        </tr>
-        <tr style="background-color: #f8f9fa;">
-            <td style="padding: 10px 12px; border-bottom: 1px solid #ddd;">Operating Load</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['op_p'])}</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['op_q'],1)}</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['op_s'],1)}</td>
-        </tr>
-        <tr>
-            <td style="padding: 10px 12px; border-bottom: 1px solid #ddd;">Peak Load</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['pk_p'])}</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['pk_q'],1)}</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['pk_s'],1)}</td>
-        </tr>
-        <tr style="background-color: #f8f9fa;">
-            <td style="padding: 10px 12px;">Peak Load (with {r['spare_margin_pct']}% Margin)</td>
-            <td style="padding: 10px 12px; text-align: center;">{round(r['pk_p'] * r['loading_factor'])}</td>
-            <td style="padding: 10px 12px; text-align: center;">{round(r['pk_q'] * r['loading_factor'],1)}</td>
-            <td style="padding: 10px 12px; text-align: center;">{round(r['peak_with_margin_kva'],1)}</td>
-        </tr>
-    </table>
-</div>
-""", unsafe_allow_html=True)
-        
-        with tx_tabs[1]:
             st.markdown("### Sizing Calculation")
             st.markdown(f"""
 <div class="calc-step">
@@ -3317,8 +3266,9 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
 """, unsafe_allow_html=True)
             st.success(f"Selected Transformer: {r['selected_kva']} kVA")
         
-        with tx_tabs[2]:
+        with tx_tabs[1]:
             motor_kva_val = r["motor_power"] / motor_pf if motor_pf > 0 else r["motor_power"]
+            start_method_short = {'DOL': 'DOL', 'Star-Delta (Y-Delta)': 'Y-Delta', 'Soft Starter': 'Soft Starter', 'VFD': 'VFD'}[r['motor_start_method']]
             st.markdown(f"""
 <div class="calc-step">
     <h4>Motor Starting Check</h4>
@@ -3326,21 +3276,25 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
     <p><b>A</b> = <b>{r['motor_power']} kW</b></p>
     <p><b>Motor kVA</b></p>
     <p><b>B</b> = {motor_kva_val:.1f} <b>kVA</b></p>
-    <p><b>Starting kVA @ {r['start_pct']}% Starting Current</b></p>
+    <p><b>Starting kVA @ {r['start_pct']}% Starting Current (Starter Type: {start_method_short})</b></p>
     <p><b>C</b> = B x {r['start_pct']/100:.1f} = {motor_kva_val:.1f} x {r['start_pct']/100:.1f} = <b>{ms['starting_kva']} kVA</b></p>
 </div>
 <div class="calc-step">
-    <h4>SC Capability (Z = {r['tx_impedance']}%)</h4>
+    <h4>Transformer Maximum Current / Short Circuit Capability (Z = {r['tx_impedance']}%)</h4>
     <p>Considering {r['tx_impedance']}% impedance, {r['selected_kva']} kVA transformer maximum current / Short Circuit Capability</p>
     <p><b>D</b> = (Trafo Rating) / (√3 x V x Z)</p>
     <p>D = (1000 x {r['selected_kva']}) / (1.732 x {r['lv_voltage']} x {r['tx_impedance']/100:.2f}) = <b>{ms['sc_current_a']} A</b></p>
-    <p>{r['selected_kva']} kVA Transformer. Short Circuit Capacity</p>
+</div>
+<div class="calc-step">
+    <h4>{r['selected_kva']} kVA Transformer. Short Circuit Capacity</h4>
     <p><b>E</b> = √3 x V x D = 1.732 x {r['lv_voltage']} x {ms['sc_current_a']} / 1000 = <b>{ms['sc_kva']} kVA</b></p>
 </div>
 <div class="calc-step">
-    <h4>Max Demand Load on Unit Auxiliary Transformer <b>F</b></h4>
+    <h4>Max Demand Load on Unit Auxiliary Transformer</h4>
     <p><b>F</b> = <b>{r['peak_with_margin_kva']:.1f} kVA</b></p>
-    <p><b>Maximum % Voltage Drop</b></p>
+</div>
+<div class="calc-step">
+    <h4>Maximum % Voltage Drop</h4>
     <p><b>G</b> = ((C + F) / E) x 100 = ({ms['starting_kva']} + {r['peak_with_margin_kva']:.1f}) / {ms['sc_kva']} x 100 = <b>{ms['voltage_drop_pct']}%</b></p>
 </div>
 """, unsafe_allow_html=True)
@@ -3349,17 +3303,17 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
             else:
                 st.error(f"Voltage drop {ms['voltage_drop_pct']}% > 15% -> INCREASE TRANSFORMER SIZE")
         
-        with tx_tabs[3]:
+        with tx_tabs[2]:
             st.markdown(f"""
 <div class="calc-step">
     <h4>Conclusion</h4>
-    <p>Since Voltage Drop is less than 15% ({ms['voltage_drop_pct']}% < 15%), Transformer Size is adequate in size.</p>
+    <p>Since Voltage Drop is 15% i.e. ({ms['voltage_drop_pct']}% < 15%) so Transformer Size is adequate in size.</p>
     <p><b>Selected Transformer: {r['selected_kva']} kVA</b></p>
 </div>
 """, unsafe_allow_html=True)
             st.markdown(f'<div class="result-card"><h3>SELECTED: {r["selected_kva"]} kVA Transformer</h3></div>', unsafe_allow_html=True)
         
-        with tx_tabs[4]:
+        with tx_tabs[3]:
             st.markdown("## DOWNLOAD REPORT")
             st.markdown("### Generate Report")
             
