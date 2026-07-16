@@ -3342,18 +3342,338 @@ elif st.session_state.selected_calculator == "Transformer Sizing":
 # ========== GENERATOR SIZING TAB ==========
 
 elif st.session_state.selected_calculator == "Generator Sizing":
-    st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="info-box">
-        <h4>🔄 Iterative Development</h4>
-        <p>Features:</p>
-        <ul>
-            <li>Load analysis and kVA calculation</li>
-            <li>Generator set selection from standard ratings</li>
-            <li>Voltage drop calculation for generator cables</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="report-header">🔄 GENERATOR SIZING CALCULATOR (ISO 8528)</div>', unsafe_allow_html=True)
+    
+    st.markdown("### Step 1: Enter Load Data")
+    st.info("Enter total Running Load (kW) and System PF - kVA auto-calculated")
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        st.markdown("**Running Load**")
+        gen_running_p = st.number_input("Running Load P (kW)", value=300.0, step=10.0, key="gen_rp")
+        gen_efficiency = st.number_input("Generator Efficiency", value=0.95, min_value=0.7, max_value=1.0, step=0.01, format="%.2f", key="gen_eff")
+        st.caption("Efficiency = Mechanical Power / Electrical Power")
+    
+    with col2:
+        st.markdown("**Standby/Largest Motor**")
+        gen_motor_p = st.number_input("Largest Motor P (kW)", value=75.0, step=1.0, key="gen_mp")
+        gen_motor_pf = st.number_input("Motor PF", value=0.85, min_value=0.5, max_value=1.0, step=0.01, key="gen_mpf")
+    
+    with col3:
+        st.markdown("**System PF & Parameters**")
+        gen_pf = st.number_input("System Power Factor", value=0.84, min_value=0.5, max_value=1.0, step=0.01, key="gen_pf")
+        gen_spare_margin_pct = st.number_input("Spare Margin (%)", value=20, step=5, key="gen_margin")
+        gen_loading_factor = st.number_input("Loading Factor", value=1.2, min_value=1.0, max_value=2.0, step=0.05, key="gen_loading")
+        st.markdown(f"Spare Margin = {gen_spare_margin_pct}% | Loading Factor = {gen_loading_factor:.2f}")
+        gen_voltage = st.number_input("System Voltage (V)", value=415, step=1, key="gen_v")
+    
+    # Auto-calculations
+    gen_running_s = gen_running_p / gen_pf
+    gen_running_q = math.sqrt(gen_running_s**2 - gen_running_p**2)
+    gen_motor_kva = gen_motor_p / gen_motor_pf if gen_motor_pf > 0 else gen_motor_p
+    gen_total_with_margin = gen_running_s * gen_loading_factor
+    gen_required_kva = gen_total_with_margin
+    
+    st.markdown(f"""
+<div class="formula-box">
+    <h4>📐 Formulas Used</h4>
+    <p><b>1. Apparent Power [kVA] = kW / Power Factor</b></p>
+    <p>Running: S = {gen_running_p:.0f} / {gen_pf} = <b>{gen_running_s:.1f} kVA</b></p>
+    <p><b>2. Reactive Power [kVAR] = √(kVA² − kW²)</b></p>
+    <p>Running: Q = √({gen_running_s:.1f}² − {gen_running_p:.0f}²) = <b>{gen_running_q:.1f} kVAR</b></p>
+</div>
+""", unsafe_allow_html=True)
+    
+    # Standard generator ratings
+    GEN_RATINGS = [10, 15, 20, 30, 40, 50, 63, 75, 100, 125, 150, 200, 250, 315, 400, 500, 625, 750, 1000, 1250, 1500, 1875, 2000, 2500]
+    
+    def get_gen_rating(required_kva):
+        for rating in GEN_RATINGS:
+            if rating >= required_kva:
+                return rating
+        return GEN_RATINGS[-1]
+    
+    st.markdown("---")
+    st.markdown("### Step 2: Motor Starting Check")
+    
+    col_m1, col_m2 = st.columns([1, 1])
+    
+    with col_m1:
+        gen_start_options = {
+            "DOL": 650,
+            "Star-Delta (Y-Delta)": 350,
+            "Soft Starter": 400,
+            "VFD": 150
+        }
+        gen_start_method = st.selectbox(
+            "Starting Method", list(gen_start_options.keys()), index=1, key="gen_start_method"
+        )
+        gen_start_pct = gen_start_options[gen_start_method]
+        st.markdown(f"**Starting Current:** {gen_start_pct}% of rated")
+    
+    with col_m2:
+        gen_vd_limit = st.number_input("Voltage Drop Limit (%)", value=20.0, min_value=5.0, max_value=30.0, step=1.0, key="gen_vd_limit")
+        gen_subtransient = st.number_input("Sub-transient Reactance Xd'' (%)", value=15.0, min_value=8.0, max_value=30.0, step=0.5, key="gen_xd")
+    
+    if st.button("CALCULATE GENERATOR SIZE", type="primary", use_container_width=True):
+        gen_selected_kva = get_gen_rating(gen_required_kva)
+        gen_motor_kva_val = gen_motor_p / gen_motor_pf if gen_motor_pf > 0 else gen_motor_p
+        gen_starting_kva = gen_motor_kva_val * (gen_start_pct / 100.0)
+        gen_running_kva_during_start = gen_running_s * 0.8
+        gen_total_during_start = gen_running_kva_during_start + gen_starting_kva
+        gen_xd_pu = gen_subtransient / 100.0
+        gen_start_capability = gen_selected_kva / gen_xd_pu
+        gen_voltage_drop = (gen_total_during_start / gen_start_capability) * 100.0
+        gen_is_acceptable = gen_voltage_drop <= gen_vd_limit
+        
+        st.session_state.gen_results = {
+            "running_p": gen_running_p,
+            "pf": gen_pf,
+            "running_q": gen_running_q,
+            "running_s": gen_running_s,
+            "spare_margin_pct": gen_spare_margin_pct,
+            "loading_factor": gen_loading_factor,
+            "total_with_margin": gen_total_with_margin,
+            "required_kva": gen_required_kva,
+            "selected_kva": gen_selected_kva,
+            "motor_power": gen_motor_p,
+            "motor_pf_val": gen_motor_pf,
+            "motor_kva_val": gen_motor_kva_val,
+            "start_method": gen_start_method,
+            "start_pct": gen_start_pct,
+            "starting_kva": gen_starting_kva,
+            "running_kva_start": gen_running_kva_during_start,
+            "total_during_start": gen_total_during_start,
+            "xd_pct": gen_subtransient,
+            "start_capability": gen_start_capability,
+            "voltage_drop": gen_voltage_drop,
+            "is_acceptable": gen_is_acceptable,
+            "vd_limit": gen_vd_limit,
+            "voltage": gen_voltage
+        }
+        st.session_state.gen_calc_done = True
+        st.rerun()
+    
+    if st.session_state.get("gen_calc_done", False):
+        r = st.session_state.gen_results
+        
+        st.markdown("---")
+        st.markdown('<div class="report-header">RESULTS</div>', unsafe_allow_html=True)
+        
+        gen_tabs = st.tabs(["Load Summary", "Sizing", "Motor Starting", "Conclusion", "Download Report"])
+        
+        with gen_tabs[0]:
+            st.markdown("### Load Summary")
+            st.markdown(f"""
+<div class="calc-step">
+    <table style="width:100%; border-collapse: collapse; font-size: 18px; border: 1px solid #ddd;">
+        <tr style="background-color: #1E3A8A; color: white; text-align: center;">
+            <th style="padding: 10px 12px; text-align: left;">Load Condition</th>
+            <th style="padding: 10px 12px;">KW</th>
+            <th style="padding: 10px 12px;">KVAR</th>
+            <th style="padding: 10px 12px;">KVA</th>
+        </tr>
+        <tr style="background-color: #f8f9fa;">
+            <td style="padding: 10px 12px; border-bottom: 1px solid #ddd;">Running Load</td>
+            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_p'])}</td>
+            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_q'],1)}</td>
+            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_s'],1)}</td>
+        </tr>
+        <tr>
+            <td style="padding: 10px 12px;">Running Load (with {r['spare_margin_pct']}% Margin)</td>
+            <td style="padding: 10px 12px; text-align: center;">{round(r['running_p'] * r['loading_factor'])}</td>
+            <td style="padding: 10px 12px; text-align: center;">{round(r['running_q'] * r['loading_factor'],1)}</td>
+            <td style="padding: 10px 12px; text-align: center;">{round(r['total_with_margin'],1)}</td>
+        </tr>
+    </table>
+</div>
+""", unsafe_allow_html=True)
+        
+        with gen_tabs[1]:
+            st.markdown("### Sizing Calculation")
+            st.markdown(f"""
+<div class="calc-step">
+    <h4>Sizing Calculation</h4>
+    <p>Considering {r['spare_margin_pct']}% spare margin with Loading Factor = {r['loading_factor']},</p>
+    <p>Generator Size Required = {r['running_s']:.1f} x {r['loading_factor']} = <b>{r['total_with_margin']:.1f} kVA</b></p>
+    <p>Selected Generator Rating = <b>{r['selected_kva']} kVA</b></p>
+</div>
+""", unsafe_allow_html=True)
+            st.success(f"Selected Generator: {r['selected_kva']} kVA")
+        
+        with gen_tabs[2]:
+            gen_motor_kva_val = r['motor_kva_val']
+            gen_start_method_short = {'DOL': 'DOL', 'Star-Delta (Y-Delta)': 'Y-Delta', 'Soft Starter': 'Soft Starter', 'VFD': 'VFD'}[r['start_method']]
+            st.markdown(f"""
+<div class="calc-step">
+    <h4>Motor Starting Check</h4>
+    <p><b>Largest Motor Connected</b></p>
+    <p><b>A</b> = <b>{r['motor_power']} kW</b></p>
+    <p><b>Motor kVA</b></p>
+    <p><b>B</b> = {gen_motor_kva_val:.1f} <b>kVA</b></p>
+    <p><b>Starting kVA @ {r['start_pct']}% Starting Current (Starter Type: {gen_start_method_short})</b></p>
+    <p><b>C</b> = B x {r['start_pct']/100:.1f} = {gen_motor_kva_val:.1f} x {r['start_pct']/100:.1f} = <b>{r['starting_kva']:.1f} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>Generator Starting Capability (Xd'' = {r['xd_pct']}%)</h4>
+    <p><b>D</b> = Generator Starting Capacity = {r['selected_kva']} / {r['xd_pct']/100:.2f} = <b>{r['start_capability']:.0f} kVA</b></p>
+</div>
+<div class="calc-step">
+    <h4>Voltage Drop During Motor Start</h4>
+    <p><b>E</b> = Running Load during start = {r['running_s']:.1f} x 0.8 = <b>{r['running_kva_start']:.1f} kVA</b></p>
+    <p><b>F</b> = Total Demand = E + C = {r['running_kva_start']:.1f} + {r['starting_kva']:.1f} = <b>{r['total_during_start']:.1f} kVA</b></p>
+    <p><b>G</b> = VD% = (F / D) x 100 = ({r['total_during_start']:.1f} / {r['start_capability']:.0f}) x 100 = <b>{r['voltage_drop']:.2f}%</b></p>
+    <p>Limit: <b>{r['vd_limit']}%</b> | Status: <b>{'ACCEPTABLE' if r['is_acceptable'] else 'NOT ACCEPTABLE'}</b></p>
+</div>
+""", unsafe_allow_html=True)
+            if r['is_acceptable']:
+                st.success(f"Voltage dip {r['voltage_drop']:.2f}% < {r['vd_limit']}% -> ACCEPTABLE")
+            else:
+                st.error(f"Voltage dip {r['voltage_drop']:.2f}% > {r['vd_limit']}% -> INCREASE GENERATOR SIZE")
+        
+        with gen_tabs[3]:
+            st.markdown(f"""
+<div class="calc-step">
+    <h4>Conclusion</h4>
+    <p>Since Voltage Drop is less than {r['vd_limit']}% i.e., ({r['voltage_drop']:.2f}% < {r['vd_limit']}%), so Generator is adequate in size.</p>
+    <p><b>Selected Generator: {r['selected_kva']} kVA</b></p>
+</div>
+""", unsafe_allow_html=True)
+            st.markdown(f'<div class="result-card"><h3>SELECTED: {r["selected_kva"]} kVA Generator</h3></div>', unsafe_allow_html=True)
+        
+        with gen_tabs[4]:
+            st.markdown("## DOWNLOAD REPORT")
+            st.markdown("### Generate Report")
+            if st.button("Generate Word Report", key="gen_word_btn", use_container_width=True):
+                with st.spinner("Generating Word report..."):
+                    try:
+                        from docx import Document
+                        from docx.shared import Pt, RGBColor, Cm
+                        from docx.enum.text import WD_ALIGN_PARAGRAPH
+                        from docx.enum.table import WD_TABLE_ALIGNMENT
+                        
+                        doc = Document()
+                        doc.core_properties.title = "Generator Sizing Calculation"
+                        doc.core_properties.author = "CES-Electrical"
+                        style = doc.styles['Normal']
+                        style.font.name = 'Arial'
+                        style.font.size = Pt(11)
+                        
+                        for section in doc.sections:
+                            section.top_margin = Cm(2.0)
+                            section.bottom_margin = Cm(2.0)
+                            section.left_margin = Cm(2.5)
+                            section.right_margin = Cm(2.5)
+                        
+                        title = doc.add_heading('GENERATOR SIZING REPORT', 0)
+                        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+                        
+                        p = doc.add_paragraph()
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        p.add_run(f'Generated by CES-Electrical on {format_pakistan_datetime()} (Pakistan Time)').italic = True
+                        doc.add_paragraph()
+                        
+                        doc.add_heading('1. LOAD SUMMARY', level=1)
+                        table = doc.add_table(rows=3, cols=4)
+                        table.style = 'Light Shading Accent 1'
+                        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                        
+                        headers = ['Load Condition', 'P (kW)', 'Q (kVAR)', 'S (kVA)']
+                        for i, h in enumerate(headers):
+                            table.rows[0].cells[i].text = h
+                            table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+                            table.rows[0].cells[i].paragraphs[0].runs[0].font.size = Pt(10)
+                        
+                        data = [
+                            ['Running Load', str(round(r['running_p'])), str(round(r['running_q'],1)), str(round(r['running_s'],1))],
+                            ['Running Load (with ' + str(r['spare_margin_pct']) + '% Margin)', str(round(r['running_p']*r['loading_factor'])), str(round(r['running_q']*r['loading_factor'],1)), str(round(r['total_with_margin'],1))]
+                        ]
+                        for i, row_data in enumerate(data):
+                            for j, val in enumerate(row_data):
+                                table.rows[i+1].cells[j].text = val
+                                table.rows[i+1].cells[j].paragraphs[0].runs[0].font.size = Pt(10)
+                        
+                        doc.add_paragraph()
+                        
+                        doc.add_heading('2. SIZING CALCULATION', level=1)
+                        doc.add_paragraph('Considering ' + str(r['spare_margin_pct']) + '% spare margin with Loading Factor = ' + str(r['loading_factor']) + '.')
+                        p = doc.add_paragraph()
+                        p.add_run('Generator Size Required = ' + str(round(r['running_s'],1)) + ' x ' + str(r['loading_factor']) + ' = ' + str(round(r['total_with_margin'],1)) + ' kVA')
+                        p = doc.add_paragraph()
+                        p.add_run('Selected Generator Rating = ').bold = False
+                        p.add_run(str(r['selected_kva']) + ' kVA').bold = True
+                        p.runs[1].font.size = Pt(14)
+                        doc.add_paragraph()
+                        
+                        doc.add_heading('3. MOTOR STARTING CHECK', level=1)
+                        p = doc.add_paragraph()
+                        p.add_run('Largest Motor Connected').bold = True
+                        
+                        m_table = doc.add_table(rows=8, cols=4)
+                        m_table.style = 'Light Shading Accent 1'
+                        m_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                        
+                        m_headers = ['Description', 'Label', 'Value', 'Unit']
+                        for i, h in enumerate(m_headers):
+                            m_table.rows[0].cells[i].text = h
+                            m_table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+                            m_table.rows[0].cells[i].paragraphs[0].runs[0].font.size = Pt(10)
+                        
+                        motor_data = [
+                            ['Largest Motor Connected', 'A', str(round(r['motor_power'])), 'kW'],
+                            ['Motor kVA', 'B', str(round(r['motor_kva_val'],1)), 'kVA'],
+                            ['Starting kVA @ ' + str(r['start_pct']) + '%', 'C = B x ' + str(r['start_pct']/100), str(round(r['starting_kva'],1)), 'kVA'],
+                            ['Generator Starting Capacity', 'D = Rating / Xd"', str(round(r['start_capability'])), 'kVA'],
+                            ['Running Load during start', 'E = S x 0.8', str(round(r['running_kva_start'],1)), 'kVA'],
+                            ['Total Demand during start', 'F = E + C', str(round(r['total_during_start'],1)), 'kVA'],
+                            ['Voltage Drop', 'G = (F/D) x 100', str(round(r['voltage_drop'],2)), '%'],
+                        ]
+                        for i, row_data in enumerate(motor_data):
+                            for j, val in enumerate(row_data):
+                                m_table.rows[i+1].cells[j].text = val
+                                m_table.rows[i+1].cells[j].paragraphs[0].runs[0].font.size = Pt(10)
+                        
+                        doc.add_paragraph()
+                        p = doc.add_paragraph()
+                        p.add_run('Note: ').bold = True
+                        p.add_run('Largest motor with rating ' + str(round(r['motor_power'])) + 'kW and starting method of ' + r['start_method'] + ' with current limited to maximum of ' + str(r['start_pct']) + '%.')
+                        doc.add_paragraph()
+                        
+                        doc.add_heading('4. CONCLUSION', level=1)
+                        if r['is_acceptable']:
+                            doc.add_paragraph('Since Voltage Drop is less than ' + str(r['vd_limit']) + '% i.e., (' + str(round(r['voltage_drop'],2)) + '% < ' + str(r['vd_limit']) + '%), so Generator is adequate in size.')
+                            p = doc.add_paragraph()
+                            p.add_run('Selected Generator: ').bold = True
+                            p.add_run(str(r['selected_kva']) + ' kVA').bold = True
+                            p.runs[1].font.size = Pt(14)
+                            p.runs[1].font.color.rgb = RGBColor(0, 51, 102)
+                        else:
+                            doc.add_paragraph('WARNING: Voltage Drop (' + str(round(r['voltage_drop'],2)) + '%) exceeds ' + str(r['vd_limit']) + '% limit. Increase Generator Size.')
+                        
+                        doc.add_paragraph()
+                        footer = doc.add_paragraph()
+                        footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        footer.add_run('--- End of Report ---').italic = True
+                        
+                        word_path = "temp_gen_report.docx"
+                        doc.save(word_path)
+                        with open(word_path, "rb") as f:
+                            word_bytes = f.read()
+                        b64 = base64.b64encode(word_bytes).decode()
+                        filename = f"Generator_Report_{get_pakistan_time().strftime('%Y%m%d_%H%M')}.docx"
+                        if os.path.exists(word_path):
+                            os.remove(word_path)
+                        st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{filename}" class="download-btn word-btn" style="background-color: #1e3a8a;">Click to Download Word</a>', unsafe_allow_html=True)
+                        st.success("Word document generated successfully!")
+                    except Exception as e:
+                        st.error(f"Error generating Word document: {str(e)}")
+                        st.code(traceback.format_exc())
+
+# Init session state for Generator
+if 'gen_calc_done' not in st.session_state:
+    st.session_state.gen_calc_done = False
 
 # ========== EARTHING TAB ==========
 
