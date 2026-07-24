@@ -3368,9 +3368,10 @@ elif st.session_state.selected_calculator == "Generator Sizing":
         st.markdown(f"Spare Margin = {gen_spare_margin_pct}% | Loading Factor = {gen_loading_factor:.2f}")
         gen_voltage = st.number_input("System Voltage (V)", value=415, step=1, key="gen_v")
     
-    # Auto-calculations
-    gen_running_s = gen_running_p / gen_pf
-    gen_running_q = math.sqrt(gen_running_s**2 - gen_running_p**2)
+    # Auto-calculations (with efficiency)
+    gen_input_p = gen_running_p / gen_efficiency  # Electrical input power
+    gen_running_s = gen_input_p / gen_pf
+    gen_running_q = math.sqrt(gen_running_s**2 - gen_input_p**2)
     gen_motor_kva = gen_motor_p / gen_motor_pf if gen_motor_pf > 0 else gen_motor_p
     gen_total_with_margin = gen_running_s * gen_loading_factor
     gen_required_kva = gen_total_with_margin
@@ -3378,10 +3379,12 @@ elif st.session_state.selected_calculator == "Generator Sizing":
     st.markdown(f"""
 <div class="formula-box">
     <h4>📐 Formulas Used</h4>
-    <p><b>1. Apparent Power [kVA] = kW / Power Factor</b></p>
-    <p>Running: S = {gen_running_p:.0f} / {gen_pf} = <b>{gen_running_s:.1f} kVA</b></p>
-    <p><b>2. Reactive Power [kVAR] = √(kVA² − kW²)</b></p>
-    <p>Running: Q = √({gen_running_s:.1f}² − {gen_running_p:.0f}²) = <b>{gen_running_q:.1f} kVAR</b></p>
+    <p><b>1. Active Power Input [kW] = Mechanical Power / Efficiency</b></p>
+    <p>P_input = {gen_running_p:.0f} / {gen_efficiency} = <b>{gen_input_p:.2f} kW</b></p>
+    <p><b>2. Apparent Power [kVA] = P_input / Power Factor</b></p>
+    <p>Running: S = {gen_input_p:.2f} / {gen_pf} = <b>{gen_running_s:.1f} kVA</b></p>
+    <p><b>3. Reactive Power [kVAR] = √(kVA² − kW²)</b></p>
+    <p>Running: Q = √({gen_running_s:.1f}² − {gen_input_p:.2f}²) = <b>{gen_running_q:.1f} kVAR</b></p>
 </div>
 """, unsafe_allow_html=True)
     
@@ -3420,15 +3423,15 @@ elif st.session_state.selected_calculator == "Generator Sizing":
         gen_selected_kva = get_gen_rating(gen_required_kva)
         gen_motor_kva_val = gen_motor_p / gen_motor_pf if gen_motor_pf > 0 else gen_motor_p
         gen_starting_kva = gen_motor_kva_val * (gen_start_pct / 100.0)
-        gen_running_kva_during_start = gen_running_s * 0.8
-        gen_total_during_start = gen_running_kva_during_start + gen_starting_kva
         gen_xd_pu = gen_subtransient / 100.0
-        gen_start_capability = gen_selected_kva / gen_xd_pu
-        gen_voltage_drop = (gen_total_during_start / gen_start_capability) * 100.0
+        # Using ISO 8528 standard formula: Pas = Ps x ((1/Vd) - 1) x Xd"
+        # Rearranged for Vd: Vd = 1 / (1 + Starting_kVA / (Gen_kVA x Xd"))
+        gen_voltage_drop = 1 / (1 + gen_starting_kva / (gen_selected_kva * gen_xd_pu)) * 100.0
         gen_is_acceptable = gen_voltage_drop <= gen_vd_limit
         
         st.session_state.gen_results = {
             "running_p": gen_running_p,
+            "input_p": gen_input_p,
             "pf": gen_pf,
             "running_q": gen_running_q,
             "running_s": gen_running_s,
@@ -3443,10 +3446,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
             "start_method": gen_start_method,
             "start_pct": gen_start_pct,
             "starting_kva": gen_starting_kva,
-            "running_kva_start": gen_running_kva_during_start,
-            "total_during_start": gen_total_during_start,
             "xd_pct": gen_subtransient,
-            "start_capability": gen_start_capability,
             "voltage_drop": gen_voltage_drop,
             "is_acceptable": gen_is_acceptable,
             "vd_limit": gen_vd_limit,
@@ -3461,12 +3461,13 @@ elif st.session_state.selected_calculator == "Generator Sizing":
         st.markdown("---")
         st.markdown('<div class="report-header">RESULTS</div>', unsafe_allow_html=True)
         
-        gen_tabs = st.tabs(["Load Summary", "Sizing", "Motor Starting", "Conclusion", "Download Report"])
+        gen_tabs = st.tabs(["Sizing", "Motor Starting", "Conclusion", "Download Report"])
         
         with gen_tabs[0]:
-            st.markdown("### Load Summary")
+            st.markdown("### Sizing Calculation")
             st.markdown(f"""
 <div class="calc-step">
+    <h4>Load Summary</h4>
     <table style="width:100%; border-collapse: collapse; font-size: 18px; border: 1px solid #ddd;">
         <tr style="background-color: #1E3A8A; color: white; text-align: center;">
             <th style="padding: 10px 12px; text-align: left;">Load Condition</th>
@@ -3476,7 +3477,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
         </tr>
         <tr style="background-color: #f8f9fa;">
             <td style="padding: 10px 12px; border-bottom: 1px solid #ddd;">Running Load</td>
-            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_p'])}</td>
+            <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['input_p'])}</td>
             <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_q'],1)}</td>
             <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd;">{round(r['running_s'],1)}</td>
         </tr>
@@ -3488,11 +3489,6 @@ elif st.session_state.selected_calculator == "Generator Sizing":
         </tr>
     </table>
 </div>
-""", unsafe_allow_html=True)
-        
-        with gen_tabs[1]:
-            st.markdown("### Sizing Calculation")
-            st.markdown(f"""
 <div class="calc-step">
     <h4>Sizing Calculation</h4>
     <p>Considering {r['spare_margin_pct']}% spare margin with Loading Factor = {r['loading_factor']},</p>
@@ -3502,7 +3498,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
 """, unsafe_allow_html=True)
             st.success(f"Selected Generator: {r['selected_kva']} kVA")
         
-        with gen_tabs[2]:
+        with gen_tabs[1]:
             gen_motor_kva_val = r['motor_kva_val']
             gen_start_method_short = {'DOL': 'DOL', 'Star-Delta (Y-Delta)': 'Y-Delta', 'Soft Starter': 'Soft Starter', 'VFD': 'VFD'}[r['start_method']]
             st.markdown(f"""
@@ -3516,14 +3512,16 @@ elif st.session_state.selected_calculator == "Generator Sizing":
     <p><b>C</b> = B x {r['start_pct']/100:.1f} = {gen_motor_kva_val:.1f} x {r['start_pct']/100:.1f} = <b>{r['starting_kva']:.1f} kVA</b></p>
 </div>
 <div class="calc-step">
-    <h4>Generator Starting Capability (Xd'' = {r['xd_pct']}%)</h4>
-    <p><b>D</b> = Generator Starting Capacity = {r['selected_kva']} / {r['xd_pct']/100:.2f} = <b>{r['start_capability']:.0f} kVA</b></p>
+    <h4>Generator Parameters</h4>
+    <p><b>D</b> = Gen_kVA x Xd" = {r['selected_kva']} x {r['xd_pct']/100:.2f} = <b>{r['selected_kva'] * r['xd_pct']/100:.1f}</b></p>
+    <p>This is the product of Generator Rating and Sub-transient Reactance used in the VD formula.</p>
 </div>
 <div class="calc-step">
-    <h4>Voltage Drop During Motor Start</h4>
-    <p><b>E</b> = Running Load during start = {r['running_s']:.1f} x 0.8 = <b>{r['running_kva_start']:.1f} kVA</b></p>
-    <p><b>F</b> = Total Demand = E + C = {r['running_kva_start']:.1f} + {r['starting_kva']:.1f} = <b>{r['total_during_start']:.1f} kVA</b></p>
-    <p><b>G</b> = VD% = (F / D) x 100 = ({r['total_during_start']:.1f} / {r['start_capability']:.0f}) x 100 = <b>{r['voltage_drop']:.2f}%</b></p>
+    <h4>Voltage Drop During Motor Start (ISO 8528)</h4>
+    <p><b>Formula:</b> Pas = Ps x ((1/Vd) - 1) x Xd"  → Rearranged for Vd</p>
+    <p><b>D</b> = Gen_kVA x Xd" = {r['selected_kva']} x {r['xd_pct']/100:.2f} = <b>{r['selected_kva'] * r['xd_pct']/100:.1f}</b></p>
+    <p><b>Vd</b> = 1 / (1 + C / D) x 100</p>
+    <p>Vd = 1 / (1 + {r['starting_kva']:.1f} / {r['selected_kva'] * r['xd_pct']/100:.1f}) x 100 = <b>{r['voltage_drop']:.2f}%</b></p>
     <p>Limit: <b>{r['vd_limit']}%</b> | Status: <b>{'ACCEPTABLE' if r['is_acceptable'] else 'NOT ACCEPTABLE'}</b></p>
 </div>
 """, unsafe_allow_html=True)
@@ -3532,7 +3530,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
             else:
                 st.error(f"Voltage dip {r['voltage_drop']:.2f}% > {r['vd_limit']}% -> INCREASE GENERATOR SIZE")
         
-        with gen_tabs[3]:
+        with gen_tabs[2]:
             st.markdown(f"""
 <div class="calc-step">
     <h4>Conclusion</h4>
@@ -3542,7 +3540,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
 """, unsafe_allow_html=True)
             st.markdown(f'<div class="result-card"><h3>SELECTED: {r["selected_kva"]} kVA Generator</h3></div>', unsafe_allow_html=True)
         
-        with gen_tabs[4]:
+        with gen_tabs[3]:
             st.markdown("## DOWNLOAD REPORT")
             st.markdown("### Generate Report")
             if st.button("Generate Word Report", key="gen_word_btn", use_container_width=True):
@@ -3587,7 +3585,7 @@ elif st.session_state.selected_calculator == "Generator Sizing":
                             table.rows[0].cells[i].paragraphs[0].runs[0].font.size = Pt(10)
                         
                         data = [
-                            ['Running Load', str(round(r['running_p'])), str(round(r['running_q'],1)), str(round(r['running_s'],1))],
+                            ['Running Load', str(round(r['input_p'])), str(round(r['running_q'],1)), str(round(r['running_s'],1))],
                             ['Running Load (with ' + str(r['spare_margin_pct']) + '% Margin)', str(round(r['running_p']*r['loading_factor'])), str(round(r['running_q']*r['loading_factor'],1)), str(round(r['total_with_margin'],1))]
                         ]
                         for i, row_data in enumerate(data):
@@ -3625,10 +3623,8 @@ elif st.session_state.selected_calculator == "Generator Sizing":
                             ['Largest Motor Connected', 'A', str(round(r['motor_power'])), 'kW'],
                             ['Motor kVA', 'B', str(round(r['motor_kva_val'],1)), 'kVA'],
                             ['Starting kVA @ ' + str(r['start_pct']) + '%', 'C = B x ' + str(r['start_pct']/100), str(round(r['starting_kva'],1)), 'kVA'],
-                            ['Generator Starting Capacity', 'D = Rating / Xd"', str(round(r['start_capability'])), 'kVA'],
-                            ['Running Load during start', 'E = S x 0.8', str(round(r['running_kva_start'],1)), 'kVA'],
-                            ['Total Demand during start', 'F = E + C', str(round(r['total_during_start'],1)), 'kVA'],
-                            ['Voltage Drop', 'G = (F/D) x 100', str(round(r['voltage_drop'],2)), '%'],
+                            ['Gen_kVA x Xd"', 'D', str(round(r['selected_kva'] * r['xd_pct']/100, 1)), ''],
+                            ['Voltage Drop', 'Vd = 1/(1+C/D) x 100', str(round(r['voltage_drop'],2)), '%'],
                         ]
                         for i, row_data in enumerate(motor_data):
                             for j, val in enumerate(row_data):
@@ -3678,21 +3674,535 @@ if 'gen_calc_done' not in st.session_state:
 # ========== EARTHING TAB ==========
 
 elif st.session_state.selected_calculator == "Earthing":
-    st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="info-box">
-        <h4>⏚ Iterative Development</h4>
-        <p>Features:</p>
-        <ul>
-            <li>Soil resistivity analysis</li>
-            <li>Rod, plate, and strip earthing calculations</li>
-            <li>Step and touch potential analysis (IEEE Std 80)</li>
-            <li>IEC 62305 lightning protection earthing compliance</li>
-            <li>Multiple electrode configuration (parallel rods)</li>
-            <li>Earth resistance calculation for various electrode types</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown('<div class="report-header">⏚ EARTHING CALCULATOR (BS 7430 / IEEE 80)</div>', unsafe_allow_html=True)
+    
+    if 'ear_areas' not in st.session_state:
+        st.session_state.ear_areas = pd.DataFrame({
+            'Name': ['Process Area'],
+            'Method': ['Hollow Square'],
+            'rho': [24.36], 'L': [3.0], 'd': [19.0], 's': [25.0],
+            'Plot_L': [70.0], 'Plot_W': [40.0], 'n_rods': [10],
+        })
+    if 'ear_cond' not in st.session_state:
+        st.session_state.ear_cond = None
+    if 'ear_results' not in st.session_state:
+        st.session_state.ear_results = None
+    
+    ear_tabs = st.tabs(["Input Data", "Detailed Calculations", "Results Summary", "Download Report"])
+    
+    with ear_tabs[0]:
+        st.markdown("### \u2460 Conductor Sizing Inputs")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            mat = st.selectbox("Conductor Material", ["Copper", "Aluminium", "Steel"], key="ear_mat")
+            mat_k = {"Copper": 226, "Aluminium": 148, "Steel": 78}
+            mat_beta = {"Copper": 234.5, "Aluminium": 228, "Steel": 202}
+            st.info(f"K = {mat_k[mat]}, \u03b2 = {mat_beta[mat]}")
+        with col2:
+            T1 = st.number_input("T\u2081 - Initial Temp (\u00b0C)", value=30.0, step=5.0, key="ear_t1")
+            T2 = st.number_input("T\u2082 - Final Temp (\u00b0C)", value=250.0, step=10.0, key="ear_t2")
+        with col3:
+            I_f = st.number_input("Fault Current I (kA)", value=25.0, step=1.0, key="ear_if")
+            t_f = st.number_input("Fault Duration t (sec)", value=0.5, min_value=0.1, step=0.1, key="ear_tf")
+        
+        st.markdown("---")
+        st.markdown("### \u2461 Area / Structure Inputs")
+        st.info("Add areas below. Each area gets its own earthing calculation. Click CALCULATE when done.")
+        
+        cola, colb = st.columns([1, 5])
+        with cola:
+            if st.button("+ Add Area", key="ear_add", use_container_width=True):
+                nr = pd.DataFrame({'Name': [f'Area {len(st.session_state.ear_areas)+1}'],'Method': ['Multiple Rods in Line'],'rho': [24.36],'L': [3.0],'d': [19.0],'s': [8.0],'Plot_L': [0.0],'Plot_W': [0.0],'n_rods': [5]})
+                st.session_state.ear_areas = pd.concat([st.session_state.ear_areas, nr], ignore_index=True)
+                st.rerun()
+        with colb:
+            if st.button("Delete Last", key="ear_del", use_container_width=True):
+                if len(st.session_state.ear_areas) > 1:
+                    st.session_state.ear_areas = st.session_state.ear_areas[:-1]
+                    st.rerun()
+        
+        method_opts = ["Hollow Square", "Multiple Rods in Line", "Single Rod", "Plate Earthing"]
+        df = st.session_state.ear_areas
+        
+        for idx in range(len(df)):
+            a = df.iloc[idx]
+            st.markdown(f"**Area {idx+1}: {a['Name']}**")
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                nm = st.text_input("Name", value=a['Name'], key=f"ean_{idx}")
+                meth = st.selectbox("Method", method_opts, index=method_opts.index(a['Method']) if a['Method'] in method_opts else 0, key=f"eam_{idx}")
+            with c2:
+                rho = st.number_input("\u03c1 (\u03a9.m)", value=float(a['rho']), step=0.5, key=f"ear_{idx}")
+                Lv = st.number_input("L (m)", value=float(a['L']), step=0.5, key=f"eaL_{idx}")
+                dv = st.number_input("d (mm)", value=float(a['d']), step=1.0, key=f"ead_{idx}")
+            with c3:
+                if meth == "Hollow Square":
+                    pl = st.number_input("Plot L (m)", value=float(a['Plot_L']) if a['Plot_L']>0 else 70.0, step=5.0, key=f"eapl_{idx}")
+                    pw = st.number_input("Plot W (m)", value=float(a['Plot_W']) if a['Plot_W']>0 else 40.0, step=5.0, key=f"eapw_{idx}")
+                else:
+                    pl, pw = 0.0, 0.0
+                if meth in ["Hollow Square", "Multiple Rods in Line"]:
+                    sv = st.number_input("Spacing s (m)", value=float(a['s']), min_value=1.0, step=1.0, key=f"eas_{idx}")
+                else:
+                    sv = 0.0
+            with c4:
+                if meth == "Multiple Rods in Line":
+                    nr_v = st.number_input("No. of Rods n", value=int(a['n_rods']), min_value=2, step=1, key=f"eanr_{idx}")
+                else:
+                    nr_v = 1
+                if meth == "Plate Earthing":
+                    st.info("Plate side = 1m (default)")
+            
+            df.at[idx, 'Name'] = nm; df.at[idx, 'Method'] = meth; df.at[idx, 'rho'] = rho
+            df.at[idx, 'L'] = Lv; df.at[idx, 'd'] = dv; df.at[idx, 's'] = sv
+            df.at[idx, 'Plot_L'] = pl; df.at[idx, 'Plot_W'] = pw; df.at[idx, 'n_rods'] = nr_v
+            st.markdown("---")
+        
+        st.session_state.ear_areas = df
+        
+        if st.button("CALCULATE EARTHING", type="primary", use_container_width=True):
+            K = mat_k[mat]; beta = mat_beta[mat]
+            k_val = K * math.sqrt(math.log((T2 + beta) / (T1 + beta)))
+            s_req = (I_f * 1000 * math.sqrt(t_f)) / k_val
+            avail = [16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400]
+            sel_s = next((s for s in avail if s >= s_req), avail[-1])
+            
+            st.session_state.ear_cond = {
+                "mat": mat, "K": K, "beta": beta, "T1": T1, "T2": T2,
+                "k_val": round(k_val, 1), "I": I_f, "t": t_f,
+                "s_req": round(s_req, 1), "selected": sel_s
+            }
+            
+            results = []
+            for idx, area in df.iterrows():
+                rho_v = area['rho']; L_v = area['L']; d_m = area['d'] / 1000.0
+                s_v = area['s']; method = area['Method']
+                pl = area['Plot_L']; pw = area['Plot_W']; n_r = int(area['n_rods'])
+                
+                Rr = (rho_v / (2 * math.pi * L_v)) * (math.log(8 * L_v / d_m) - 1) if L_v > 0 and d_m > 0 else 0
+                
+                if method == "Single Rod":
+                    Rf = Rr
+                elif method == "Hollow Square":
+                    perim = 2 * (pl + pw); N_val = perim / s_v; n_small = N_val / 4 + 1
+                    nf = int(n_small); lt = {2:2.71,3:4.51,4:5.46,5:6.14,6:6.63,7:7.03,8:7.30,9:7.65,10:7.90,12:8.22,14:8.67,16:8.95,18:9.22,20:9.40}
+                    lam = lt.get(nf, 5.46) if nf <= 20 else 2 * math.log(1.781 * nf / 2.718)
+                    alpha = rho_v / (2 * math.pi * Rr * s_v) if s_v > 0 else 0
+                    Rf = Rr * ((1 + lam * alpha) / N_val)
+                elif method == "Multiple Rods in Line":
+                    lam = 2 * sum(1/i for i in range(2, n_r + 1))
+                    Rf = (1/n_r) * (rho_v / (2 * math.pi * L_v)) * (math.log(8 * L_v / d_m) - 1 + (lam * L_v / s_v))
+                elif method == "Plate Earthing":
+                    Rf = (rho_v / 4) * math.sqrt(math.pi / 1.0)
+                else:
+                    Rf = 0
+                
+                status = "PASS" if Rf < 5 else "FAIL"
+                results.append({"Area": area['Name'], "Method": method, "R": round(Rf, 3), "Status": status})
+            
+            st.session_state.ear_results = pd.DataFrame(results)
+            st.success("Calculation complete! View results in other tabs.")
+    
+    with ear_tabs[1]:
+        st.markdown("### Detailed Calculations")
+        if st.session_state.ear_results is None:
+            st.warning("Calculate first in the Input Data tab.")
+        else:
+            if st.session_state.ear_cond:
+                c = st.session_state.ear_cond
+                with st.expander("Conductor Sizing (BS 7430 Section 9.7)", expanded=True):
+                    st.markdown(f'<div class="formula-box">', unsafe_allow_html=True)
+                    st.markdown(f"**Material:** {c['mat']} (K = {c['K']}, \u03b2 = {c['beta']})")
+                    st.markdown("---")
+                    st.markdown(f"**Step 1: Current Density Factor k**")
+                    st.markdown(f"**Formula:** k = K x \u221a(ln((T\u2082 + \u03b2)/(T\u2081 + \u03b2)))")
+                    st.markdown(f"k = {c['K']} x \u221a(ln(({c['T2']} + {c['beta']})/({c['T1']} + {c['beta']})))")
+                    st.markdown(f"**k = {c['k_val']} A/mm\u00b2**")
+                    st.markdown("---")
+                    st.markdown(f"**Step 2: Minimum Cross-Sectional Area s**")
+                    st.markdown(f"**Formula:** s = (I x 1000 x \u221at) / k")
+                    st.markdown(f"s = ({c['I']} x 1000 x \u221a{c['t']}) / {c['k_val']}")
+                    st.markdown(f"**s = {c['s_req']} mm\u00b2**")
+                    st.markdown(f"**Selected Conductor = {c['selected']} mm\u00b2 {c['mat']}**")
+                    st.markdown('</div>', unsafe_allow_html=True)
+            
+            df = st.session_state.ear_areas
+            for idx, row in st.session_state.ear_results.iterrows():
+                a = df.iloc[idx] if idx < len(df) else None
+                with st.expander(f"{row['Area']} - {row['Method']} - {row['R']} \u03a9", expanded=True):
+                    st.markdown(f'<div class="formula-box">', unsafe_allow_html=True)
+                    
+                    if row['Method'] == "Hollow Square" and a is not None:
+                        rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                        s_v = a['s']; pl = a['Plot_L']; pw = a['Plot_W']
+                        perim = 2*(pl+pw); N_val = perim/s_v; ns = N_val/4+1
+                        nf = int(ns); lt = {2:2.71,3:4.51,4:5.46,5:6.14,6:6.63,7:7.03,8:7.30,9:7.65,10:7.90,12:8.22,14:8.67,16:8.95,18:9.22,20:9.40}
+                        lam = lt.get(nf,5.46) if nf<=20 else 2*math.log(1.781*nf/2.718)
+                        Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                        alpha = rho_v/(2*math.pi*Rr*s_v) if s_v>0 else 0
+                        
+                        st.markdown(f"**Method:** Hollow Square (BS 7430 Section 9.5.8.5)")
+                        st.markdown(f"**Plot Plan:** {pl:.0f}m x {pw:.0f}m")
+                        st.markdown(f"**Perimeter** = 2 x ({pl:.0f} + {pw:.0f}) = **{perim:.0f} m**")
+                        st.markdown(f"**N** = Perimeter / s = {perim:.0f} / {s_v} = **{N_val:.1f}**")
+                        st.markdown(f"**n** = N/4 + 1 = {N_val:.1f}/4 + 1 = **{ns:.1f}**")
+                        st.markdown(f"**\u03bb** (from Table 2, n={ns:.0f}) = **{lam:.3f}**")
+                        st.markdown("---")
+                        st.markdown(f"**Step 1: Single Rod Resistance Rr**")
+                        st.markdown(f"Rr = \u03c1/(2\u03c0L) x [ln(8L/d) - 1]")
+                        st.markdown(f"Rr = {rho_v}/(2\u03c0 x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1] = **{Rr:.3f} \u03a9**")
+                        st.markdown("---")
+                        st.markdown(f"**Step 2: Factor \u03b1**")
+                        st.markdown(f"\u03b1 = \u03c1/(2\u03c0 x Rr x s)")
+                        st.markdown(f"\u03b1 = {rho_v}/(2\u03c0 x {Rr:.3f} x {s_v}) = **{alpha:.4f}**")
+                        st.markdown("---")
+                        st.markdown(f"**Step 3: Total Resistance R\u1d40\u2099\u209c**")
+                        st.markdown(f"R\u1d40\u2099\u209c = Rr x (1 + \u03bb x \u03b1) / N")
+                        st.markdown(f"R\u1d40\u2099\u209c = {Rr:.3f} x (1 + {lam:.3f} x {alpha:.4f}) / {N_val:.1f} = **{row['R']} \u03a9**")
+                    
+                    elif row['Method'] == "Multiple Rods in Line" and a is not None:
+                        rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                        s_v = a['s']; n_r = int(a['n_rods'])
+                        lam = 2*sum(1/i for i in range(2, n_r+1))
+                        Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                        
+                        st.markdown(f"**Method:** Multiple Rods in Line (BS 7430 Section 9.5.4)")
+                        st.markdown(f"**Number of Rods:** n = {n_r} | **Spacing:** s = {s_v} m")
+                        st.markdown("---")
+                        st.markdown(f"**Step 1: Group Factor \u03bb**")
+                        st.markdown(f"\u03bb = 2 x \u03a3(1/2 + 1/3 + ... + 1/{n_r})")
+                        parts = " + ".join([f"1/{i}" for i in range(2, n_r+1)])
+                        st.markdown(f"\u03bb = 2 x ({parts}) = **{lam:.5f}**")
+                        st.markdown("---")
+                        st.markdown(f"**Step 2: Single Rod Resistance Rr**")
+                        st.markdown(f"Rr = \u03c1/(2\u03c0L) x [ln(8L/d) - 1]")
+                        st.markdown(f"Rr = {rho_v}/(2\u03c0 x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1] = **{Rr:.3f} \u03a9**")
+                        st.markdown("---")
+                        st.markdown(f"**Step 3: Total Resistance R\u209c**")
+                        st.markdown(f"R\u209c = 1/n x \u03c1/(2\u03c0L) x [ln(8L/d) - 1 + \u03bbL/s]")
+                        st.markdown(f"R\u209c = 1/{n_r} x {rho_v}/(2\u03c0 x {L_v}) x [ln(8L/d) - 1 + {lam:.5f} x {L_v}/{s_v}] = **{row['R']} \u03a9**")
+                    
+                    elif row['Method'] == "Single Rod" and a is not None:
+                        rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                        Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                        st.markdown(f"**Method:** Single Rod (BS 7430 Section 9.5.3)")
+                        st.markdown(f"Rr = \u03c1/(2\u03c0L) x [ln(8L/d) - 1]")
+                        st.markdown(f"Rr = {rho_v}/(2\u03c0 x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1] = **{Rr:.3f} \u03a9**")
+                    
+                    elif row['Method'] == "Plate Earthing":
+                        st.markdown(f"**Method:** Plate Earthing (BS 7430 Section 9.5.2)")
+                        st.markdown(f"R = \u03c1/4 x \u221a(\u03c0/A)")
+                        st.markdown(f"R = {a['rho']}/4 x \u221a(\u03c0/1.00) = **{row['R']} \u03a9**")
+                    
+                    st.markdown(f"**Status:** {row['R']} \u03a9 < 5 \u03a9 → {'✅ PASS' if row['Status']=='PASS' else '❌ FAIL'}")
+                    st.markdown('</div>', unsafe_allow_html=True)
+    
+    with ear_tabs[2]:
+        st.markdown("### Results Summary")
+        if st.session_state.ear_results is None:
+            st.warning("Calculate first.")
+        else:
+            st.dataframe(st.session_state.ear_results, hide_index=True, use_container_width=True)
+            resistances = [r for r in st.session_state.ear_results['R'] if r > 0]
+            if resistances:
+                combined = 1 / sum(1/r for r in resistances)
+                all_pass = all(r < 5 for r in resistances)
+                st.markdown(f"""
+<div class="calc-step">
+    <h4>Combined System Resistance</h4>
+    <p>1/R_total = {' + '.join([f'1/{r:.3f}' for r in resistances])}</p>
+    <p><b>R_total = {combined:.3f} \u03a9</b></p>
+    <p>Target: < 5 \u03a9 → {'✅ SYSTEM PASS' if all_pass else '❌ FAIL'}</p>
+</div>
+""", unsafe_allow_html=True)
+    
+        with ear_tabs[3]:
+            st.markdown("## Download Report")
+            if st.session_state.ear_results is None:
+                st.warning("Calculate first.")
+            else:
+                if st.button("Generate Word Report", key="ear_word_btn", use_container_width=True):
+                    with st.spinner("Generating professional report..."):
+                        try:
+                            from docx import Document
+                            from docx.shared import Pt, RGBColor, Cm, Inches
+                            from docx.enum.text import WD_ALIGN_PARAGRAPH
+                            from docx.enum.table import WD_TABLE_ALIGNMENT
+                            
+                            doc = Document()
+                            doc.core_properties.title = "Earthing Calculation Report"
+                            style = doc.styles['Normal']; style.font.name = 'Arial'; style.font.size = Pt(11)
+                            for sec in doc.sections:
+                                sec.top_margin = Cm(2.0)
+                                sec.bottom_margin = Cm(2.0)
+                                sec.left_margin = Cm(2.5)
+                                sec.right_margin = Cm(2.5)
+                            
+                            # ===== TITLE PAGE =====
+                            title = doc.add_heading('EARTHING CALCULATION REPORT', 0)
+                            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+                            p = doc.add_paragraph()
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            p.add_run('Based on BS 7430:2011+A1:2015 & IEEE Std 80').bold = True
+                            p = doc.add_paragraph()
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            p.add_run(f'Generated by CES-Electrical on {format_pakistan_datetime()} (Pakistan Time)').italic = True
+                            doc.add_paragraph()
+                            p = doc.add_paragraph()
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            p.add_run('Target Earth Resistance: < 5 ohm').bold = True
+                            doc.add_page_break()
+                            
+                            # ===== 1. CONDUCTOR SIZING =====
+                            doc.add_heading('1. EARTHING CONDUCTOR SIZING', level=1)
+                            p = doc.add_paragraph()
+                            p.add_run('Reference: ').bold = True
+                            p.add_run('BS 7430 Section 9.7')
+                            
+                            c = st.session_state.ear_cond
+                            
+                            doc.add_heading('1.1 Material Properties', level=2)
+                            mt = doc.add_table(rows=4, cols=2)
+                            mt.style = 'Light Shading Accent 1'
+                            mt.alignment = WD_TABLE_ALIGNMENT.CENTER
+                            for i, (pv, vl) in enumerate([('Parameter','Value'),('Material',c['mat']),('K (A/mm2)',str(c['K'])),('beta (degC)',str(c['beta']))]):
+                                mt.rows[i].cells[0].text = pv
+                                mt.rows[i].cells[1].text = vl
+                                if i == 0:
+                                    for cl in mt.rows[i].cells:
+                                        cl.paragraphs[0].runs[0].bold = True
+                            doc.add_paragraph()
+                            
+                            doc.add_heading('1.2 Current Density Factor k', level=2)
+                            doc.add_paragraph('Formula: k = K x sqrt(ln((T2 + beta)/(T1 + beta)))')
+                            doc.add_paragraph('Where:')
+                            doc.add_paragraph(f'  K = {c["K"]} A/mm2 (for {c["mat"]})')
+                            doc.add_paragraph(f'  beta = {c["beta"]} degC')
+                            doc.add_paragraph(f'  T1 = {c["T1"]} degC (Initial temperature)')
+                            doc.add_paragraph(f'  T2 = {c["T2"]} degC (Final temperature)')
+                            doc.add_paragraph('')
+                            doc.add_paragraph('Calculation:')
+                            doc.add_paragraph(f'  k = {c["K"]} x sqrt(ln(({c["T2"]} + {c["beta"]})/({c["T1"]} + {c["beta"]})))')
+                            doc.add_paragraph(f'  k = {c["K"]} x sqrt(ln({c["T2"]+c["beta"]}/{c["T1"]+c["beta"]}))')
+                            doc.add_paragraph(f'  k = {c["K"]} x sqrt(ln({(c["T2"]+c["beta"])/(c["T1"]+c["beta"]):.4f}))')
+                            p = doc.add_paragraph()
+                            p.add_run(f'  k = {c["k_val"]} A/mm2').bold = True
+                            
+                            doc.add_paragraph()
+                            doc.add_heading('1.3 Minimum Cross-Sectional Area', level=2)
+                            doc.add_paragraph('Formula: s = (I x 1000 x sqrt(t)) / k')
+                            doc.add_paragraph('Where:')
+                            doc.add_paragraph(f'  I = {c["I"]} kA (Fault current)')
+                            doc.add_paragraph(f'  t = {c["t"]} sec (Fault duration)')
+                            doc.add_paragraph(f'  k = {c["k_val"]} A/mm2 (Current density factor)')
+                            doc.add_paragraph('')
+                            doc.add_paragraph('Calculation:')
+                            doc.add_paragraph(f'  s = ({c["I"]} x 1000 x sqrt({c["t"]})) / {c["k_val"]}')
+                            doc.add_paragraph(f'  s = ({c["I"]*1000} x {math.sqrt(c["t"]):.4f}) / {c["k_val"]}')
+                            doc.add_paragraph(f'  s = {c["I"]*1000*math.sqrt(c["t"]):.2f} / {c["k_val"]}')
+                            p = doc.add_paragraph()
+                            p.add_run(f'  s = {c["s_req"]} mm2').bold = True
+                            doc.add_paragraph('')
+                            p = doc.add_paragraph()
+                            p.add_run(f'Selected Conductor = {c["selected"]} mm2 {c["mat"]}').bold = True
+                            p.runs[0].font.color.rgb = RGBColor(0, 128, 0)
+                            doc.add_page_break()
+                            
+                            # ===== 2. AREA CALCULATIONS =====
+                            doc.add_heading('2. AREA EARTHING CALCULATIONS', level=1)
+                            p = doc.add_paragraph()
+                            p.add_run('Reference: ').bold = True
+                            p.add_run('BS 7430 Sections 9.5.2 - 9.5.8.5')
+                            
+                            df = st.session_state.ear_areas
+                            for idx, row in st.session_state.ear_results.iterrows():
+                                a = df.iloc[idx] if idx < len(df) else None
+                                
+                                doc.add_heading(f'2.{idx+1} {row["Area"]} - {row["Method"]}', level=2)
+                                
+                                if row['Method'] == "Hollow Square" and a is not None:
+                                    rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                                    s_v = a['s']; pl = a['Plot_L']; pw = a['Plot_W']
+                                    perim = 2*(pl+pw); N_val = perim/s_v; ns = N_val/4+1
+                                    nf = int(ns); lt = {2:2.71,3:4.51,4:5.46,5:6.14,6:6.63,7:7.03,8:7.30,9:7.65,10:7.90,12:8.22,14:8.67,16:8.95,18:9.22,20:9.40}
+                                    lam = lt.get(nf,5.46) if nf<=20 else 2*math.log(1.781*nf/2.718)
+                                    Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                                    alpha = rho_v/(2*math.pi*Rr*s_v) if s_v>0 else 0
+                                    
+                                    doc.add_paragraph('Standard: BS 7430 Section 9.5.8.5 - Vertical rods in a hollow square')
+                                    doc.add_paragraph('')
+                                    p = doc.add_paragraph()
+                                    p.add_run('Input Data:').bold = True
+                                    doc.add_paragraph(f'  Soil Resistivity rho = {rho_v} ohm.m')
+                                    doc.add_paragraph(f'  Rod Length L = {L_v} m')
+                                    doc.add_paragraph(f'  Rod Diameter d = {a["d"]} mm')
+                                    doc.add_paragraph(f'  Rod Spacing s = {s_v} m')
+                                    doc.add_paragraph(f'  Plot Plan: {pl:.0f}m x {pw:.0f}m')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 1 - Perimeter and Number of Electrodes:').bold = True
+                                    doc.add_paragraph(f'  Perimeter = 2 x (L + W) = 2 x ({pl:.0f} + {pw:.0f}) = {perim:.0f} m')
+                                    doc.add_paragraph(f'  N = Perimeter / s = {perim:.0f} / {s_v} = {N_val:.1f} electrodes')
+                                    doc.add_paragraph(f'  n = N/4 + 1 = {N_val:.1f}/4 + 1 = {ns:.1f}')
+                                    doc.add_paragraph(f'  lambda (from Table 2, n={ns:.0f}) = {lam:.3f}')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 2 - Single Rod Resistance (BS 7430 Section 9.5.3):').bold = True
+                                    doc.add_paragraph('  Formula: Rr = rho/(2piL) x [ln(8L/d) - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v}/(2pi x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v}/{6.283*L_v:.3f} x [ln({8*L_v/d_m:.2f}) - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v/(2*math.pi*L_v):.3f} x [{math.log(8*L_v/d_m):.4f} - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v/(2*math.pi*L_v):.3f} x {math.log(8*L_v/d_m)-1:.4f}')
+                                    doc.add_paragraph(f'  Rr = {Rr:.3f} ohm')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 3 - Factor alpha:').bold = True
+                                    doc.add_paragraph('  Formula: alpha = rho/(2pi x Rr x s)')
+                                    doc.add_paragraph(f'  alpha = {rho_v}/(2pi x {Rr:.3f} x {s_v})')
+                                    doc.add_paragraph(f'  alpha = {rho_v}/{2*math.pi*Rr*s_v:.3f}')
+                                    doc.add_paragraph(f'  alpha = {alpha:.4f}')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 4 - Total Resistance:').bold = True
+                                    doc.add_paragraph('  Formula: RTOT = Rr x (1 + lambda x alpha) / N')
+                                    doc.add_paragraph(f'  RTOT = {Rr:.3f} x (1 + {lam:.3f} x {alpha:.4f}) / {N_val:.1f}')
+                                    doc.add_paragraph(f'  RTOT = {Rr:.3f} x (1 + {lam*alpha:.4f}) / {N_val:.1f}')
+                                    doc.add_paragraph(f'  RTOT = {Rr:.3f} x {1+lam*alpha:.4f} / {N_val:.1f}')
+                                    p = doc.add_paragraph()
+                                    p.add_run(f'  RTOT = {row["R"]} ohm').bold = True
+                                    
+                                elif row['Method'] == "Multiple Rods in Line" and a is not None:
+                                    rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                                    s_v = a['s']; n_r = int(a['n_rods'])
+                                    lam = 2*sum(1/i for i in range(2, n_r+1))
+                                    Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                                    
+                                    doc.add_paragraph('Standard: BS 7430 Section 9.5.4 - Multiple rods in a line')
+                                    doc.add_paragraph('')
+                                    p = doc.add_paragraph()
+                                    p.add_run('Input Data:').bold = True
+                                    doc.add_paragraph(f'  Soil Resistivity rho = {rho_v} ohm.m')
+                                    doc.add_paragraph(f'  Rod Length L = {L_v} m')
+                                    doc.add_paragraph(f'  Rod Diameter d = {a["d"]} mm')
+                                    doc.add_paragraph(f'  Number of Rods n = {n_r}')
+                                    doc.add_paragraph(f'  Rod Spacing s = {s_v} m')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 1 - Group Factor lambda:').bold = True
+                                    doc.add_paragraph('  Formula: lambda = 2 x Sum(1/2 + 1/3 + ... + 1/n)')
+                                    parts_str = " + ".join([f"1/{i}" for i in range(2, n_r+1)])
+                                    doc.add_paragraph(f'  lambda = 2 x ({parts_str})')
+                                    doc.add_paragraph(f'  lambda = 2 x {lam/2:.5f}')
+                                    doc.add_paragraph(f'  lambda = {lam:.5f}')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 2 - Single Rod Resistance:').bold = True
+                                    doc.add_paragraph('  Formula: Rr = rho/(2piL) x [ln(8L/d) - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v}/(2pi x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1]')
+                                    doc.add_paragraph(f'  Rr = {Rr:.3f} ohm')
+                                    doc.add_paragraph('')
+                                    
+                                    p = doc.add_paragraph()
+                                    p.add_run('Step 3 - Total Resistance:').bold = True
+                                    doc.add_paragraph('  Formula: Rt = 1/n x rho/(2piL) x [ln(8L/d) - 1 + lambda x L/s]')
+                                    doc.add_paragraph(f'  Rt = 1/{n_r} x {rho_v}/(2pi x {L_v}) x [ln(8L/d) - 1 + {lam:.5f} x {L_v}/{s_v}]')
+                                    doc.add_paragraph(f'  Rt = 1/{n_r} x {rho_v/(2*math.pi*L_v):.3f} x [{math.log(8*L_v/d_m)-1:.4f} + {lam*L_v/s_v:.4f}]')
+                                    doc.add_paragraph(f'  Rt = 1/{n_r} x {rho_v/(2*math.pi*L_v):.3f} x {math.log(8*L_v/d_m)-1+lam*L_v/s_v:.4f}')
+                                    p = doc.add_paragraph()
+                                    p.add_run(f'  Rt = {row["R"]} ohm').bold = True
+                                    
+                                elif row['Method'] == "Single Rod" and a is not None:
+                                    rho_v = a['rho']; L_v = a['L']; d_m = a['d']/1000.0
+                                    Rr = (rho_v/(2*math.pi*L_v))*(math.log(8*L_v/d_m)-1)
+                                    
+                                    doc.add_paragraph('Standard: BS 7430 Section 9.5.3 - Rod electrode')
+                                    doc.add_paragraph('')
+                                    doc.add_paragraph(f'  rho = {rho_v} ohm.m | L = {L_v} m | d = {d_m:.4f} m')
+                                    doc.add_paragraph('  Formula: Rr = rho/(2piL) x [ln(8L/d) - 1]')
+                                    doc.add_paragraph(f'  Rr = {rho_v}/(2pi x {L_v}) x [ln(8 x {L_v}/{d_m:.4f}) - 1]')
+                                    doc.add_paragraph(f'  Rr = {Rr:.3f} ohm')
+                                    
+                                elif row['Method'] == "Plate Earthing" and a is not None:
+                                    doc.add_paragraph('Standard: BS 7430 Section 9.5.2 - Plate electrode')
+                                    doc.add_paragraph('')
+                                    doc.add_paragraph('  Formula: R = rho/4 x sqrt(pi/A)')
+                                    doc.add_paragraph('  A = 1.0 x 1.0 = 1.0 m2 (plate area)')
+                                    doc.add_paragraph(f'  R = {a["rho"]}/4 x sqrt(pi/1.0)')
+                                    doc.add_paragraph(f'  R = {a["rho"]/4:.3f} x {math.sqrt(math.pi):.4f}')
+                                    p = doc.add_paragraph()
+                                    p.add_run(f'  R = {row["R"]} ohm').bold = True
+                                
+                                p = doc.add_paragraph()
+                                p.add_run(f'Status: {row["R"]} ohm < 5 ohm -> {"PASS" if row["Status"]=="PASS" else "FAIL"}').bold = True
+                                doc.add_paragraph()
+                            
+                            # ===== 3. COMBINED RESISTANCE =====
+                            doc.add_page_break()
+                            doc.add_heading('3. COMBINED SYSTEM RESISTANCE', level=1)
+                            doc.add_paragraph('All area earthing rings are connected together at one point.')
+                            doc.add_paragraph('The combined resistance is the parallel combination of all areas.')
+                            doc.add_paragraph('')
+                            doc.add_paragraph('Formula: 1/R_total = 1/R1 + 1/R2 + ... + 1/Rn')
+                            doc.add_paragraph('')
+                            
+                            resistances = [r for r in st.session_state.ear_results['R'] if r > 0]
+                            if resistances:
+                                combined = 1 / sum(1/r for r in resistances)
+                                calc_parts = [f"1/{r:.3f}" for r in resistances]
+                                doc.add_paragraph(f'  1/R_total = {" + ".join(calc_parts)}')
+                                inv_sum = sum(1/r for r in resistances)
+                                doc.add_paragraph(f'  1/R_total = {inv_sum:.4f}')
+                                doc.add_paragraph(f'  R_total = 1/{inv_sum:.4f}')
+                                p = doc.add_paragraph()
+                                p.add_run(f'  R_total = {combined:.3f} ohm').bold = True
+                                p.runs[0].font.size = Pt(14)
+                                doc.add_paragraph('')
+                                all_pass = all(r < 5 for r in resistances)
+                                p = doc.add_paragraph()
+                                p.add_run(f'Target: < 5 ohm -> {"SYSTEM PASS" if all_pass else "FAIL"}').bold = True
+                                if all_pass:
+                                    p.runs[0].font.color.rgb = RGBColor(0, 128, 0)
+                                else:
+                                    p.runs[0].font.color.rgb = RGBColor(255, 0, 0)
+                            
+                            # ===== 4. SUMMARY TABLE =====
+                            doc.add_paragraph()
+                            doc.add_heading('4. RESULTS SUMMARY', level=1)
+                            res_table = doc.add_table(rows=len(st.session_state.ear_results) + 1, cols=4)
+                            res_table.style = 'Light Shading Accent 1'
+                            res_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                            for i, h in enumerate(['Area','Method','Resistance (ohm)','Status']):
+                                res_table.rows[0].cells[i].text = h
+                                res_table.rows[0].cells[i].paragraphs[0].runs[0].bold = True
+                            for idx, r in st.session_state.ear_results.iterrows():
+                                res_table.rows[idx+1].cells[0].text = r['Area']
+                                res_table.rows[idx+1].cells[1].text = r['Method']
+                                res_table.rows[idx+1].cells[2].text = str(r['R'])
+                                res_table.rows[idx+1].cells[3].text = 'PASS' if r['Status'] == 'PASS' else 'FAIL'
+                            
+                            doc.add_paragraph()
+                            p = doc.add_paragraph()
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            p.add_run('--- End of Report ---').italic = True
+                            
+                            wp = "temp_ear_report.docx"
+                            doc.save(wp)
+                            with open(wp, "rb") as f:
+                                wb = f.read()
+                            b64 = base64.b64encode(wb).decode()
+                            fn = f"Earthing_Report_{get_pakistan_time().strftime('%Y%m%d_%H%M')}.docx"
+                            if os.path.exists(wp):
+                                os.remove(wp)
+                            st.markdown(f'<a href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" download="{fn}" class="download-btn word-btn" style="background-color: #1e3a8a;">Click to Download Word</a>', unsafe_allow_html=True)
+                            st.success("Professional report generated successfully!")
+                        except Exception as e:
+                            st.error(str(e))
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: gray; font-size: 16px;'>🔌 CES-Electrical | Version 3.0 | {format_pakistan_datetime()} (Pakistan Time)</div>", unsafe_allow_html=True)
